@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.service.refund;
 
 import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import com.daiphat.coreapi.application.dto.request.refund.CompleteCounterRefundRequest;
+import com.daiphat.coreapi.application.dto.request.refund.CreateUserBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.request.refund.VerifyRefundCounterIdentityRequest;
@@ -10,6 +11,7 @@ import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.application.port.in.refund.UserBankAccountServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
@@ -78,6 +80,7 @@ class RefundRequestStaffServiceTest {
 
     private final com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort orderIncidentTicketServicePort = mock(com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort.class);
     private final EkycVerificationService ekycVerificationService = mock(EkycVerificationService.class);
+    private final UserBankAccountServicePort userBankAccountServicePort = mock(UserBankAccountServicePort.class);
 
     private RefundRequestStaffService refundRequestStaffService;
 
@@ -104,7 +107,8 @@ class RefundRequestStaffServiceTest {
                 systemConfigRepositoryPort,
                 eventPublisher,
                 orderIncidentTicketServicePort,
-                ekycVerificationService);
+                ekycVerificationService,
+                userBankAccountServicePort);
 
         when(refundProcessingDeadlineService.evaluate(any())).thenReturn(
                 new RefundProcessingDeadlineService.ProcessingEvaluation(
@@ -547,10 +551,12 @@ class RefundRequestStaffServiceTest {
                 refundId,
                 staffId,
                 new CompleteCounterRefundRequest(
-                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(20000), null, true));
+                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(20000), null, true, null));
 
         assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.PAID);
         assertThat(refund.getCounterPayoutMethod()).isEqualTo(RefundCounterPayoutMethod.CASH);
+        assertThat(refund.getBankAccountId()).isEqualTo(1L);
+        verify(userBankAccountRepositoryPort, never()).findByIdAndUserId(any(), any());
         assertThat(detail.getStatus())
                 .isEqualTo(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUNDED);
 
@@ -577,17 +583,89 @@ class RefundRequestStaffServiceTest {
                 OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
         when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userBankAccountRepositoryPort.findByIdAndUserId(1L, customerId)).thenReturn(Optional.of(bankAccount()));
 
         refundRequestStaffService.completeCounterRefund(
                 refundId,
                 staffId,
                 new CompleteCounterRefundRequest(
-                        RefundCounterPayoutMethod.TRANSFER, BigDecimal.valueOf(20000), "https://receipt.url", true));
+                        RefundCounterPayoutMethod.TRANSFER, BigDecimal.valueOf(20000), "https://receipt.url", true, null));
 
         assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.PAID);
+        assertThat(refund.getBankAccountId()).isEqualTo(1L);
         ArgumentCaptor<TransactionModel> txCaptor = ArgumentCaptor.forClass(TransactionModel.class);
         verify(transactionRepositoryPort).save(txCaptor.capture());
         assertThat(txCaptor.getValue().getPaymentEvidenceUrl()).isEqualTo("https://receipt.url");
+    }
+
+    @Test
+    @DisplayName("completeCounterRefund: transfer to a newly added customer account re-links the refund to it")
+    void completeCounterRefund_transferToNewAccount() {
+        RefundRequestModel refund = verifiedManualResolutionRefund();
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
+                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userBankAccountRepositoryPort.findByIdAndUserId(7L, customerId)).thenReturn(Optional.of(
+                UserBankAccountModel.builder().id(7L).userId(customerId).build()));
+
+        refundRequestStaffService.completeCounterRefund(
+                refundId,
+                staffId,
+                new CompleteCounterRefundRequest(
+                        RefundCounterPayoutMethod.TRANSFER, BigDecimal.valueOf(20000), "https://receipt.url", true, 7L));
+
+        assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.PAID);
+        assertThat(refund.getCounterPayoutMethod()).isEqualTo(RefundCounterPayoutMethod.TRANSFER);
+        assertThat(refund.getBankAccountId()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName("completeCounterRefund: rejects a transfer to an account that is not the customer's")
+    void completeCounterRefund_rejectsForeignBankAccount() {
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(verifiedManualResolutionRefund()));
+        when(userBankAccountRepositoryPort.findByIdAndUserId(8L, customerId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> refundRequestStaffService.completeCounterRefund(
+                refundId,
+                staffId,
+                new CompleteCounterRefundRequest(
+                        RefundCounterPayoutMethod.TRANSFER, BigDecimal.valueOf(20000), "https://receipt.url", true, 8L)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_REQUEST_BANK_ACCOUNT_MISMATCH);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+        verify(transactionRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createCustomerBankAccount: creates the account for the refund's customer")
+    void createCustomerBankAccount_createsForRefundCustomer() {
+        CreateUserBankAccountRequest request =
+                new CreateUserBankAccountRequest("970436", "0123456789", "NGUYEN VAN A", false, true);
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(manualResolutionRefund()));
+
+        refundRequestStaffService.createCustomerBankAccount(refundId, staffId, request);
+
+        verify(userBankAccountServicePort).create(customerId, request);
+    }
+
+    @Test
+    @DisplayName("createCustomerBankAccount: only allowed while the refund awaits manual resolution")
+    void createCustomerBankAccount_requiresManualResolution() {
+        CreateUserBankAccountRequest request =
+                new CreateUserBankAccountRequest("970436", "0123456789", "NGUYEN VAN A", false, true);
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(pendingRefund()));
+
+        assertThatThrownBy(() -> refundRequestStaffService.createCustomerBankAccount(refundId, staffId, request))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
+
+        verify(userBankAccountServicePort, never()).create(any(), any());
     }
 
     @Test
@@ -599,7 +677,7 @@ class RefundRequestStaffServiceTest {
                 refundId,
                 staffId,
                 new CompleteCounterRefundRequest(
-                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(20000), null, true)))
+                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(20000), null, true, null)))
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.REFUND_REQUEST_COUNTER_IDENTITY_REQUIRED);
@@ -613,20 +691,21 @@ class RefundRequestStaffServiceTest {
     void completeCounterRefund_validatesInput() {
         when(refundRequestRepositoryPort.findById(refundId))
                 .thenAnswer(inv -> Optional.of(verifiedManualResolutionRefund()));
+        when(userBankAccountRepositoryPort.findByIdAndUserId(1L, customerId)).thenReturn(Optional.of(bankAccount()));
 
         assertThatThrownBy(() -> refundRequestStaffService.completeCounterRefund(
                 refundId, staffId, new CompleteCounterRefundRequest(
-                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(20000), null, false)))
+                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(20000), null, false, null)))
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.INVALID_INPUT);
         assertThatThrownBy(() -> refundRequestStaffService.completeCounterRefund(
                 refundId, staffId, new CompleteCounterRefundRequest(
-                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(15000), null, true)))
+                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(15000), null, true, null)))
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.REFUND_REQUEST_COUNTER_AMOUNT_MISMATCH);
         assertThatThrownBy(() -> refundRequestStaffService.completeCounterRefund(
                 refundId, staffId, new CompleteCounterRefundRequest(
-                        RefundCounterPayoutMethod.TRANSFER, BigDecimal.valueOf(20000), "  ", true)))
+                        RefundCounterPayoutMethod.TRANSFER, BigDecimal.valueOf(20000), "  ", true, null)))
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.INVALID_INPUT);
 

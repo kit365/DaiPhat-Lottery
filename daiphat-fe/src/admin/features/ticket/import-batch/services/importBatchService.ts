@@ -12,6 +12,7 @@ import type {
     ImportBatchFileImportResult,
     ImportBatchFileJob,
     ImportBatchFileInspectResult,
+    ImportBatchFileManualBatchBinding,
     ImportBatchFileMapping,
     ImportBatchFileMappingProfile,
     ImportBatchFilePreviewResult,
@@ -352,10 +353,17 @@ export const inspectImportBatchFile = async (
     return response.data;
 };
 
+export interface ImportBatchFilePreviewPayload {
+    supplierId: number;
+    mapping: ImportBatchFileMapping;
+    importBatchId?: number | null;
+    manualBatchBindings?: ImportBatchFileManualBatchBinding[];
+}
+
 /** Step 2: resolve every row against the system. Writes nothing. */
 export const previewImportBatchFile = async (
     file: File,
-    payload: { supplierId: number; mapping: ImportBatchFileMapping }
+    payload: ImportBatchFilePreviewPayload
 ): Promise<ApiResponse<ImportBatchFilePreviewResult>> => {
     const formData = new FormData();
     formData.append('file', file);

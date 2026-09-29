@@ -159,24 +159,24 @@ export const StreetAgentEditPage = () => {
             {
                 onSuccess: async (response) => {
                     if (!response.success) {
-                        toast.error(response.message || "Không lưu được ảnh eKYC");
+                        toast.error(response.message || "Không lưu được ảnh CCCD");
                         return;
                     }
                     try {
                         setIsVerifyingEkyc(true);
                         const verifyRes = await verifyStreetAgentEkyc(id);
                         if (verifyRes.success) {
-                            toast.success(verifyRes.message || "Xác thực eKYC thành công.");
+                            toast.success(verifyRes.message || "Đã đọc và kiểm tra thông tin CCCD.");
                             refetch();
                         } else {
-                            toast.error(verifyRes.message || "Xác thực eKYC thất bại");
+                            toast.error(verifyRes.message || "Chưa đọc đủ thông tin CCCD");
                             refetch();
                         }
                     } catch (error: any) {
                         toast.error(
                             error?.response?.data?.message ||
                                 error?.message ||
-                                "Xác thực eKYC thất bại"
+                                "Chưa đọc đủ thông tin CCCD"
                         );
                         refetch();
                     } finally {

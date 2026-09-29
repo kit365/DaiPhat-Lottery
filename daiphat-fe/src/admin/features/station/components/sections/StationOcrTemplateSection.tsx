@@ -31,6 +31,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Button } from '../../../../components/ui/Button';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
+import { AppToast } from '@/utils/toast.util';
 import {
     clearOcrTemplateSampleImage,
     createOcrFieldLayout,
@@ -225,8 +226,9 @@ export const StationOcrTemplateSection = ({
             return;
         }
         if (mode === 'replace') {
-            const ok = window.confirm(
-                'Tải ảnh thay thế sẽ xóa cứng ảnh cũ và toàn bộ vùng đã gắn tag trên mẫu này. Bạn có chắc chắn muốn tiếp tục?'
+            const ok = await AppToast.confirm(
+                'Tải ảnh thay thế sẽ xóa cứng ảnh cũ và toàn bộ vùng đã gắn tag trên mẫu này. Bạn có chắc chắn muốn tiếp tục?',
+                'Xác nhận thay thế ảnh mẫu?'
             );
             if (!ok) {
                 if (replaceFileInputRef.current) replaceFileInputRef.current.value = '';
@@ -280,8 +282,9 @@ export const StationOcrTemplateSection = ({
 
     const handleClearSample = async () => {
         if (!selectedTemplateId || !selectedTemplate?.sampleImageUrl) return;
-        const ok = window.confirm(
-            'Xóa ảnh mẫu sẽ xóa cứng ảnh và toàn bộ vùng đã gắn tag trên mẫu này. Bạn có chắc chắn muốn tiếp tục?'
+        const ok = await AppToast.confirm(
+            'Xóa ảnh mẫu sẽ xóa cứng ảnh và toàn bộ vùng đã gắn tag trên mẫu này. Bạn có chắc chắn muốn tiếp tục?',
+            'Xác nhận xóa ảnh mẫu?'
         );
         if (!ok) return;
         setClearingSample(true);

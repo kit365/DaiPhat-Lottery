@@ -196,7 +196,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
     // Auto-scroll selected item into view in popover panel
     useEffect(() => {
         if (!activeDropdown || !panelRef.current) return;
-        const selectedBtn = panelRef.current.querySelector<HTMLButtonElement>('[aria-selected="true"]');
+        const selectedBtn = panelRef.current.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
         if (selectedBtn) {
             selectedBtn.scrollIntoView({ block: 'nearest' });
         }
@@ -224,7 +224,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
                                 <button
                                     key={d}
                                     type="button"
-                                    aria-selected={isSelected}
+                                    aria-pressed={isSelected}
                                     onClick={() => {
                                         const nextYear = selYear ?? now.getFullYear();
                                         const nextMonth = selMonth ?? now.getMonth();
@@ -251,7 +251,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
                                 <button
                                     key={idx}
                                     type="button"
-                                    aria-selected={isSelected}
+                                    aria-pressed={isSelected}
                                     onClick={() => {
                                         const nextDay = selDay ?? 1;
                                         const nextYear = selYear ?? now.getFullYear();
@@ -278,7 +278,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
                                 <button
                                     key={y}
                                     type="button"
-                                    aria-selected={isSelected}
+                                    aria-pressed={isSelected}
                                     onClick={() => {
                                         const nextDay = selDay ?? 1;
                                         const nextMonth = selMonth ?? 0;

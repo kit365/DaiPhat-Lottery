@@ -6,7 +6,7 @@ Each AI service has its own independent CD workflow:
 |---------|----------|-------|--------------------------|--------------|
 | AI Chatbot | `ai-chatbot-deploy.yml` | `daiphat-ai-chatbot` | `daiphat-ai-chatbot-{blue,green,gateway}` | `http://ai-gateway:8000` |
 | AI Ticket OCR | `ai-ticket-ocr-deploy.yml` | `daiphat-ai-ticket-ocr` | `daiphat-ai-ticket-ocr-{blue,green,gateway}` | `http://ticket-vision:8090` |
-| AI eKYC (CCCD OCR, face match, liveness) | `ai-ekyc-deploy.yml` | `daiphat-ai-ekyc` | `daiphat-ai-ekyc-{blue,green,gateway}` | `http://ekyc-vision:8000` |
+| AI CCCD OCR (face/liveness endpoints currently unused) | `ai-ekyc-deploy.yml` | `daiphat-ai-ekyc` (legacy repository) | `daiphat-ai-cccd-ocr-{blue,green,gateway}` | `http://ekyc-vision:8000` |
 
 A push to `main` deploys a service when its `daiphat-ai/<service>/` folder,
 its workflow, or the shared deploy tooling (`docker-compose.ai.yml`,
@@ -64,25 +64,25 @@ The backend must already use `http://ticket-vision:8090`, and the external
 refuses to take it over. Do not enable the root Compose's legacy `ocr` profile
 alongside the managed AI project.
 
-## First eKYC rollout
+## First CCCD OCR rollout
 
-AI eKYC had no production deployment before this pipeline. Before the
+AI CCCD OCR had no production deployment before this pipeline. Before the
 first run:
 
 1. Add `KYC_AI_API_KEY` (a strong random value) to `.env.prod` and to the
-   `ENV_FILE_CONTENT` secret. The eKYC job refuses to deploy without it, because
+   `ENV_FILE_CONTENT` secret. The CCCD OCR job refuses to deploy without it, because
    the service skips API-key checks when the key is empty. Optional sizing:
    `EKYC_VISION_MEMORY_LIMIT` (default `2g`), `EKYC_VISION_CPU_LIMIT` (default
    `1`) and `EKYC_VISION_CPU_THREADS` (default `1`).
 2. Roll out the backend so it runs with
    `DAIPHAT_EKYC_AI_BASE_URL=http://ekyc-vision:8000` and
    `DAIPHAT_EKYC_AI_API_KEY` taken from `KYC_AI_API_KEY`; both come from
-   `docker-compose.prod.yml`. CD refuses to route eKYC traffic until the running
+   `docker-compose.prod.yml`. CD refuses to route CCCD OCR traffic until the running
    backend uses that URL.
-3. Dispatch `AI eKYC Deploy`.
+3. Dispatch `AI CCCD OCR Deploy`.
 
-The eKYC gateway owns the `ekyc-vision` network alias and allows 25 MiB request
-bodies with a 125-second proxy timeout, matching the backend's 120-second eKYC
+The CCCD OCR gateway owns the legacy `ekyc-vision` network alias and allows 25 MiB request
+bodies with a 125-second proxy timeout, matching the backend's 120-second OCR
 read timeout. Admission needs the memory limit plus 640 MiB of available RAM
 and 4 GiB of free Docker disk.
 
@@ -101,7 +101,7 @@ its eventual retirement is a separate infrastructure action.
 ## Slot releases and recovery
 
 `docker-compose.ai.yml` owns a separate `daiphat-ai` project, attached to the
-existing production network. Chatbot, OCR and eKYC each have blue/green slots and
+existing production network. Chatbot, ticket OCR and CCCD OCR each have blue/green slots and
 an internal Nginx gateway. No AI port is published on the host.
 
 The deployment starts the inactive slot, waits for container health, reloads

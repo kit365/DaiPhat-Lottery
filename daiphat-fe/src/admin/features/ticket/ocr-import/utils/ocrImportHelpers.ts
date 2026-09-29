@@ -272,13 +272,13 @@ export const evaluateOcrFieldUiStatus = (
     const ruleFailures = validation?.ruleFailures ?? detailFailures ?? [];
     const hardFail = ruleFailures.find((f) => f.severity === 'HARD_FAIL');
     const softFail = ruleFailures.find((f) => f.severity === 'SOFT_WARNING');
-    const wasEdited =
-        row.edited &&
-        (fieldKey === 'numbers' ||
-            fieldKey === 'serialNumber' ||
-            fieldKey === 'drawDate' ||
-            fieldKey === 'stationName' ||
-            fieldKey === 'batchCode' ||
+    // Older saved drafts only have the row-wide flag. New corrections must not
+    // dismiss OCR errors on fields the user has not touched.
+    const wasEdited = row.editedFields
+        ? row.editedFields[fieldKey] === true
+        : row.edited && (fieldKey === 'numbers' ||
+            fieldKey === 'serialNumber' || fieldKey === 'drawDate' ||
+            fieldKey === 'stationName' || fieldKey === 'batchCode' ||
             fieldKey === 'ticketType');
 
     const unreadabilityMessage =
@@ -499,7 +499,9 @@ export const canConfirmReviewRow = (
     row: OcrReviewRow,
     ctx?: OcrRowValidationContext
 ): boolean => {
-    if (row.status === 'FAILED') {
+    // A real scan result can be repaired by hand. An image-level synthetic
+    // failure has no OCR ticket to import and remains blocked.
+    if (row.status === 'FAILED' && !(row.edited && !row.key.startsWith('failed-'))) {
         return false;
     }
     const numbers = row.numbers.trim();
@@ -741,6 +743,48 @@ export const buildReviewImageGroups = (
     return Array.from(byImageId.values());
 };
 
+export type OcrReviewTicketGroup = {
+    key: string;
+    drawDate: string | null;
+    numbers: string;
+    rows: OcrReviewRow[];
+};
+
+export type OcrReviewStationGroup = {
+    key: string;
+    stationId: number | null;
+    stationName: string;
+    tickets: OcrReviewTicketGroup[];
+};
+
+/** Group the same live review rows without copying their edit/selection state. */
+export const buildReviewStationGroups = (rows: OcrReviewRow[]): OcrReviewStationGroup[] => {
+    const stations = new Map<string, OcrReviewStationGroup>();
+    for (const row of rows) {
+        const stationKey = row.stationId == null ? 'unresolved' : String(row.stationId);
+        let station = stations.get(stationKey);
+        if (!station) {
+            station = {
+                key: stationKey,
+                stationId: row.stationId ?? null,
+                stationName: row.stationId == null ? 'Chưa xác định nhà đài' : (row.stationName?.trim() || `Nhà đài #${row.stationId}`),
+                tickets: [],
+            };
+            stations.set(stationKey, station);
+        }
+        const drawDate = row.drawDate?.trim() || null;
+        const numbers = row.numbers.trim();
+        const ticketKey = JSON.stringify([drawDate, numbers || row.key]);
+        let ticket = station.tickets.find((item) => item.key === ticketKey);
+        if (!ticket) {
+            ticket = { key: ticketKey, drawDate, numbers, rows: [] };
+            station.tickets.push(ticket);
+        }
+        ticket.rows.push(row);
+    }
+    return Array.from(stations.values());
+};
+
 export const getUnreadableFieldCaption = (
     fieldKey: OcrFieldKey,
     validation?: FieldValidationResult | null
@@ -889,7 +933,7 @@ export const resolveFieldDisplayConfidence = (
     const unchanged =
         scanned != null
             ? referenceFieldValue(fieldKey, scanned) === referenceFieldValue(fieldKey, currentReferenceValue(row, fieldKey))
-            : !row.edited;
+            : row.editedFields ? !row.editedFields[fieldKey] : !row.edited;
     return unchanged ? { confidence: 1, confirmed: true } : { confidence: ocr, confirmed: false };
 };
 
@@ -1071,6 +1115,66 @@ export const OCR_FIELD_LABELS: Record<OcrFieldKey, string> = {
     ticketType: 'Mệnh giá',
 };
 
+/** Recognition accuracy shown in the review table, averaged from the fields OCR read. */
+export const getOcrReviewFieldConfidence = (
+    row: OcrReviewRow
+): number | null => {
+    const confidences = OCR_FIELD_KEYS.flatMap((fieldKey) => {
+        const hasOptionalBatchCode =
+            fieldKey !== 'batchCode' ||
+            Boolean(row.batchCode?.trim() || row.fields?.batchCode?.value?.trim()) ||
+            row.fieldConfidences?.batchCode != null ||
+            row.fields?.batchCode?.confidence != null;
+        if (!hasOptionalBatchCode) return [];
+        const raw = row.fieldConfidences?.[fieldKey] ?? row.fields?.[fieldKey]?.confidence ?? null;
+        const confidence = raw != null && Number.isFinite(raw) ? toConfidenceRatio(raw) : null;
+        return [confidence];
+    });
+    if (!confidences.some((confidence) => confidence != null)) return null;
+    return confidences.reduce<number>((sum, confidence) => sum + (confidence ?? 0), 0) / confidences.length;
+};
+
+/** Business-rule mismatches do not mean the OCR failed to read the ticket. */
+export const hasHighConfidenceOcrFields = (row: OcrReviewRow): boolean => {
+    const requiredValues: Record<Exclude<OcrFieldKey, 'batchCode'>, string | null | undefined> = {
+        stationName: row.fields?.stationName?.value ?? row.stationName,
+        drawDate: row.fields?.drawDate?.value ?? row.drawDate,
+        numbers: row.fields?.numbers?.value ?? row.numbers,
+        serialNumber: row.fields?.serialNumber?.value ?? row.serialNumber,
+        ticketType: row.fields?.ticketType?.value ?? row.ticketType,
+    };
+    return (Object.keys(requiredValues) as Array<keyof typeof requiredValues>).every((fieldKey) => {
+        const rawConfidence = row.fieldConfidences?.[fieldKey] ?? row.fields?.[fieldKey]?.confidence;
+        return Boolean(requiredValues[fieldKey]?.trim()) &&
+            rawConfidence != null && Number.isFinite(rawConfidence) &&
+            toConfidenceRatio(rawConfidence) >= 0.85;
+    });
+};
+
+/** Count actionable fields once; backend messages often repeat those same field errors. */
+export const getOcrReviewIssueCounts = (
+    row: OcrReviewRow,
+    ctx?: OcrRowValidationContext
+): { errorCount: number; warningCount: number } => {
+    const statuses = OCR_FIELD_KEYS.map((fieldKey) => evaluateOcrFieldUiStatus(row, fieldKey, ctx).status);
+    let errorCount = statuses.filter((status) => status === 'invalid' || status === 'unreadable').length;
+    let warningCount = statuses.filter((status) => status === 'uncertain').length;
+    if (row.duplicate && statuses[OCR_FIELD_KEYS.indexOf('serialNumber')] !== 'invalid') errorCount++;
+    if (row.status === 'FAILED' && errorCount === 0 && !(row.edited && !row.key.startsWith('failed-'))) errorCount++;
+    if (errorCount === 0) {
+        const globalErrors = [...(row.validationErrors ?? []), ...(row.businessValidationErrors ?? [])]
+            .map((message) => message.trim())
+            .filter(Boolean);
+        const remaining = new Set(globalErrors).size;
+        if (row.edited && canConfirmReviewRow(row, ctx)) {
+            warningCount += remaining;
+        } else {
+            errorCount = remaining;
+        }
+    }
+    return { errorCount, warningCount };
+};
+
 /**
  * Convert verbose OCR / business error messages into concise 2-4 word phrases
  * so inline table cells don't expand horizontally or force horizontal scrolling.
@@ -1183,4 +1287,3 @@ export const toShortFieldHint = (message?: string | null): string => {
 
     return `${text.slice(0, 15)}…`;
 };
-

@@ -1,6 +1,17 @@
 import { REFUND_STATUS_LABELS, RefundRequestStatus } from '@/types/refund.type';
 
-export function getRefundStatusLabel(status: RefundRequestStatus | string): string {
+export function getRefundStatusLabel(
+    status: RefundRequestStatus | string,
+    counterPayoutMethod?: string | null
+): string {
+    if (
+        (status === RefundRequestStatus.PAID || status === RefundRequestStatus.TRANSFERRED) &&
+        counterPayoutMethod
+    ) {
+        return counterPayoutMethod === 'CASH'
+            ? 'Đã hoàn tiền (Tiền mặt)'
+            : 'Đã hoàn tiền (CK tại quầy)';
+    }
     return REFUND_STATUS_LABELS[status as RefundRequestStatus] || String(status);
 }
 

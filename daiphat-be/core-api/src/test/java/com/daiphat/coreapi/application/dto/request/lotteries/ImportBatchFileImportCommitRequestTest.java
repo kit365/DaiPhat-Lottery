@@ -11,15 +11,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ImportBatchFileImportCommitRequestTest {
 
     @Test
-    void resolvedCommitModeDefaultsToAuto() {
+    void resolvedCommitModeDefaultsToManual() {
         ImportBatchFileImportCommitRequest request = ImportBatchFileImportCommitRequest.builder()
                 .supplierId(1L)
                 .fileHash("abc")
                 .mapping(ImportBatchFileMappingRequest.builder().stationColumn("station").build())
                 .drawDates(List.of(LocalDate.of(2026, 8, 24)))
+                .manualBatchBindings(List.of(ImportBatchFileManualBatchBinding.builder()
+                        .drawDate(LocalDate.of(2026, 8, 24))
+                        .importBatchId(10L)
+                        .build()))
                 .build();
 
-        assertThat(request.resolvedCommitMode()).isEqualTo(ImportBatchFileCommitMode.AUTO);
+        assertThat(request.resolvedCommitMode()).isEqualTo(ImportBatchFileCommitMode.MANUAL);
     }
 
     @Test

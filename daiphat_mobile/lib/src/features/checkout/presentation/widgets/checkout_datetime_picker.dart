@@ -99,11 +99,6 @@ class _CheckoutDateTimePickerState
     return DateTime.tryParse(raw);
   }
 
-  static int _toHour12(int hour24) {
-    final h = hour24 % 12;
-    return h == 0 ? 12 : h;
-  }
-
   String get _displayText {
     final selected = _selected;
     if (selected == null) return 'Chọn ngày và giờ';
@@ -112,10 +107,9 @@ class _CheckoutDateTimePickerState
         : _isSameDay(selected, _tomorrow)
         ? 'Ngày mai'
         : DateFormat('dd/MM/yyyy').format(selected);
-    final period = selected.hour >= 12 ? 'PM' : 'AM';
-    final h12 = _toHour12(selected.hour);
+    final h24 = selected.hour.toString().padLeft(2, '0');
     final m = selected.minute.toString().padLeft(2, '0');
-    final time = '${h12.toString().padLeft(2, '0')}:$m $period';
+    final time = '$h24:$m';
     return '$time · $dateLabel (${DateFormat('dd/MM/yyyy').format(selected)})';
   }
 
@@ -300,8 +294,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
   static const _slotMinutes = [0, 15, 30, 45];
 
   late bool _isToday;
-  late String _period; // AM | PM
-  late int _hour12;
+  late int _hour24;
   late int _minute;
 
   @override
@@ -326,8 +319,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
       _isToday = false;
     }
 
-    _period = seed.hour >= 12 ? 'PM' : 'AM';
-    _hour12 = _toHour12(seed.hour);
+    _hour24 = seed.hour;
     _minute = (seed.minute ~/ 15) * 15;
     _normalizeSelection();
   }
@@ -335,77 +327,40 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  int _toHour12(int hour24) {
-    final h = hour24 % 12;
-    return h == 0 ? 12 : h;
-  }
-
-  int _toHour24(int hour12, String period) {
-    if (period == 'AM') {
-      return hour12 == 12 ? 0 : hour12;
-    } else {
-      return hour12 == 12 ? 12 : hour12 + 12;
-    }
-  }
-
   DateTime get _selectedDate => _isToday ? widget.today : widget.tomorrow;
 
-  List<String> get _availablePeriods {
-    final periods = <String>[];
-    for (final p in ['AM', 'PM']) {
-      final hours = _getAvailableHours12ForPeriod(p);
-      if (hours.isNotEmpty) {
-        periods.add(p);
-      }
-    }
-    return periods.isNotEmpty ? periods : ['AM'];
-  }
-
-  List<int> _getAvailableHours12ForPeriod(String period) {
-    final start24 = period == 'AM' ? 0 : 12;
-    final end24 = period == 'AM' ? 11 : 23;
-
-    final openRangeStart = widget.operatingHours.openHour > start24
-        ? widget.operatingHours.openHour
-        : start24;
-    final closeRangeEnd = widget.operatingHours.closeHour < end24
-        ? widget.operatingHours.closeHour
-        : end24;
-
-    if (openRangeStart > closeRangeEnd) return [];
-
-    final hours12 = <int>[];
-    for (var h24 = openRangeStart; h24 <= closeRangeEnd; h24++) {
+  List<int> get _availableHours24 {
+    final hours = <int>[];
+    for (var h = widget.operatingHours.openHour;
+        h <= widget.operatingHours.closeHour;
+        h++) {
       if (!_isToday) {
-        hours12.add(_toHour12(h24));
+        hours.add(h);
       } else {
         final earliest = widget.earliestToday;
         if (earliest == null) continue;
-        if (h24 < earliest.hour) continue;
-        if (h24 == earliest.hour) {
+        if (h < earliest.hour) continue;
+        if (h == earliest.hour) {
           final hasSlot = _slotMinutes.any((m) {
             final candidate = DateTime(
               widget.today.year,
               widget.today.month,
               widget.today.day,
-              h24,
+              h,
               m,
             );
             return !candidate.isBefore(earliest);
           });
-          if (hasSlot) hours12.add(_toHour12(h24));
+          if (hasSlot) hours.add(h);
         } else {
-          hours12.add(_toHour12(h24));
+          hours.add(h);
         }
       }
     }
-    return hours12.toSet().toList();
+    return hours;
   }
 
-  List<int> get _availableHours12 => _getAvailableHours12ForPeriod(_period);
-
   List<int> get _availableMinutes {
-    final h24 = _toHour24(_hour12, _period);
     if (!_isToday) return List<int>.from(_slotMinutes);
     final earliest = widget.earliestToday;
     if (earliest == null) return const [];
@@ -414,7 +369,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
         widget.today.year,
         widget.today.month,
         widget.today.day,
-        h24,
+        _hour24,
         m,
       );
       return !candidate.isBefore(earliest);
@@ -422,13 +377,9 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
   }
 
   void _normalizeSelection() {
-    final periods = _availablePeriods;
-    if (!periods.contains(_period)) {
-      _period = periods.first;
-    }
-    final hours = _availableHours12;
+    final hours = _availableHours24;
     if (hours.isEmpty) return;
-    if (!hours.contains(_hour12)) _hour12 = hours.first;
+    if (!hours.contains(_hour24)) _hour24 = hours.first;
     final minutes = _availableMinutes;
     if (minutes.isEmpty) return;
     if (!minutes.contains(_minute)) _minute = minutes.first;
@@ -439,8 +390,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
     setState(() {
       _isToday = true;
       final earliest = widget.earliestToday!;
-      _period = earliest.hour >= 12 ? 'PM' : 'AM';
-      _hour12 = _toHour12(earliest.hour);
+      _hour24 = earliest.hour;
       _minute = earliest.minute;
       _normalizeSelection();
     });
@@ -449,20 +399,18 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
   void _selectTomorrow() {
     setState(() {
       _isToday = false;
-      _period = widget.operatingHours.openHour >= 12 ? 'PM' : 'AM';
-      _hour12 = _toHour12(widget.operatingHours.openHour);
+      _hour24 = widget.operatingHours.openHour;
       _minute = 0;
       _normalizeSelection();
     });
   }
 
   void _confirm() {
-    final h24 = _toHour24(_hour12, _period);
     var picked = DateTime(
       _selectedDate.year,
       _selectedDate.month,
       _selectedDate.day,
-      h24,
+      _hour24,
       _minute,
     );
     if (picked.isBefore(widget.minSelectable)) {
@@ -484,11 +432,9 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final periods = _availablePeriods;
-    final hours = _availableHours12;
+    final hours = _availableHours24;
     final minutes = _availableMinutes;
-    final canConfirm =
-        periods.isNotEmpty && hours.isNotEmpty && minutes.isNotEmpty;
+    final canConfirm = hours.isNotEmpty && minutes.isNotEmpty;
 
     return SafeArea(
       child: Padding(
@@ -559,7 +505,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
             ),
             const SizedBox(height: 16),
 
-            // Time Selection: 3 compact dropdowns (Giờ, Phút, AM/PM)
+            // Time Selection: 2 dropdowns (Giờ 24h, Phút)
             Text(
               'Khung giờ',
               style: AppTypography.caption(
@@ -571,19 +517,18 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
             const SizedBox(height: 8),
             Row(
               children: [
-                // 1. Hour 12h dropdown
+                // 1. Hour 24h dropdown
                 Expanded(
-                  flex: 5,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColors.cardBorder),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
-                        value: hours.contains(_hour12)
-                            ? _hour12
+                        value: hours.contains(_hour24)
+                            ? _hour24
                             : (hours.isNotEmpty ? hours.first : null),
                         isExpanded: true,
                         icon: const Icon(
@@ -606,7 +551,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                         onChanged: (newHour) {
                           if (newHour == null) return;
                           setState(() {
-                            _hour12 = newHour;
+                            _hour24 = newHour;
                             _normalizeSelection();
                           });
                         },
@@ -614,13 +559,12 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
 
                 // 2. Minute dropdown
                 Expanded(
-                  flex: 5,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColors.cardBorder),
                       borderRadius: BorderRadius.circular(10),
@@ -651,51 +595,6 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                         onChanged: (newMinute) {
                           if (newMinute == null) return;
                           setState(() => _minute = newMinute);
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // 3. AM / PM dropdown
-                Expanded(
-                  flex: 4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.cardBorder),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: periods.contains(_period)
-                            ? _period
-                            : (periods.isNotEmpty ? periods.first : null),
-                        isExpanded: true,
-                        icon: const Icon(
-                          Icons.arrow_drop_down_rounded,
-                          color: AppColors.contentMuted,
-                        ),
-                        items: periods.map((p) {
-                          return DropdownMenuItem<String>(
-                            value: p,
-                            child: Text(
-                              p,
-                              style: AppTypography.bodyMedium(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.contentPrimary,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (newPeriod) {
-                          if (newPeriod == null) return;
-                          setState(() {
-                            _period = newPeriod;
-                            _normalizeSelection();
-                          });
                         },
                       ),
                     ),

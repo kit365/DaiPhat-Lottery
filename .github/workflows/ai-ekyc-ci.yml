@@ -1,4 +1,4 @@
-name: AI eKYC CI
+name: AI CCCD OCR CI
 
 on:
   pull_request:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   test:
-    name: AI eKYC
+    name: AI CCCD OCR
     runs-on: ubuntu-latest
     defaults:
       run:

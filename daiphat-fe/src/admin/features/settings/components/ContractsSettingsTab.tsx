@@ -33,6 +33,7 @@ import { LazyDataGrid } from "@/admin/shared/data-grid/LazyDataGrid";
 import { dataGridStyles } from "@/admin/shared/data-grid";
 import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { Button } from "@/admin/components/ui/Button";
+import { confirmDelete } from "@/admin/utils/swal";
 import { CanAccess } from "@/admin/components/auth/CanAccess";
 import { DeleteIcon, EditIcon } from "@/admin/assets/icons";
 import { PERMISSIONS } from "@/admin/constants/permission.constants";
@@ -290,13 +291,12 @@ export const ContractsSettingsTab = () => {
                                             size="small"
                                             disabled={row.isDefault || isDeleting}
                                             onClick={() => {
-                                                if (
-                                                    window.confirm(
-                                                        `Xóa hợp đồng "${row.staffName}"?`
-                                                    )
-                                                ) {
-                                                    removeContract(row.id);
-                                                }
+                                                confirmDelete(
+                                                    `Bạn có chắc chắn muốn xóa hợp đồng "${row.staffName}"?`,
+                                                    () => {
+                                                        removeContract(row.id);
+                                                    }
+                                                );
                                             }}
                                         >
                                             <DeleteIcon />

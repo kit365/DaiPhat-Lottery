@@ -5,12 +5,14 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.CompleteCounterRefundRequest;
+import com.daiphat.coreapi.application.dto.request.refund.CreateUserBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.request.refund.VerifyRefundCounterIdentityRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
+import com.daiphat.coreapi.application.dto.response.refund.UserBankAccountResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestStaffServicePort;
 import com.daiphat.coreapi.shared.util.StorageUtils;
@@ -122,7 +124,7 @@ public class StaffRefundRequestController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody VerifyRefundCounterIdentityRequest request) {
         return ApiResponse.success(
-                "Xác thực CCCD thành công.",
+                "Đã đọc và kiểm tra thông tin CCCD bằng OCR.",
                 refundRequestStaffServicePort.verifyCounterIdentity(id, principal.getId(), request));
     }
 
@@ -135,5 +137,16 @@ public class StaffRefundRequestController {
         return ApiResponse.success(
                 "Đã hoàn tất hoàn tiền tại quầy.",
                 refundRequestStaffServicePort.completeCounterRefund(id, principal.getId(), request));
+    }
+
+    @PostMapping(ID_PATH + "/customer-bank-accounts")
+    @PreAuthorize("hasAuthority('refund:process')")
+    public ApiResponse<UserBankAccountResponse> createCustomerBankAccount(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody CreateUserBankAccountRequest request) {
+        return ApiResponse.success(
+                "Đã thêm tài khoản ngân hàng cho khách hàng.",
+                refundRequestStaffServicePort.createCustomerBankAccount(id, principal.getId(), request));
     }
 }

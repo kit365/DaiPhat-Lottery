@@ -6,12 +6,21 @@ import 'package:flutter/services.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/user.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_dialog.dart';
 import '../viewmodels/admin_scan_viewmodel.dart';
 
 class AdminScanView extends StatefulWidget {
   final AdminScanViewModel viewModel;
+  final VoidCallback? onLogout;
+  final User? adminUser;
 
-  const AdminScanView({super.key, required this.viewModel});
+  const AdminScanView({
+    super.key,
+    required this.viewModel,
+    this.onLogout,
+    this.adminUser,
+  });
 
   @override
   State<AdminScanView> createState() => _AdminScanViewState();
@@ -24,6 +33,23 @@ class _AdminScanViewState extends State<AdminScanView> {
   void dispose() {
     _pinController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleLogout(BuildContext context) async {
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Đăng xuất',
+      message: 'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản quản trị?',
+      confirmLabel: 'Đăng xuất',
+      isDestructive: true,
+    );
+
+    if (confirmed && mounted) {
+      if (widget.viewModel.isSessionConnected) {
+        widget.viewModel.disconnectRemoteSession();
+      }
+      widget.onLogout?.call();
+    }
   }
 
   @override
@@ -39,13 +65,28 @@ class _AdminScanViewState extends State<AdminScanView> {
           appBar: AppBar(
             backgroundColor: AppColors.surfacePrimary,
             elevation: 0.5,
-            title: Text(
-              isRemote ? 'Máy quét vé Web Admin' : 'Quét vé số OCR (Admin)',
-              style: AppTypography.h3(
-                color: AppColors.textMain,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+            automaticallyImplyLeading: false,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isRemote ? 'Máy quét vé Web Admin' : 'Quét vé số OCR (Admin)',
+                  style: AppTypography.h3(
+                    color: AppColors.textMain,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                  ),
+                ),
+                if (widget.adminUser != null)
+                  Text(
+                    'Tài khoản: ${widget.adminUser!.fullName?.trim().isNotEmpty == true ? widget.adminUser!.fullName! : widget.adminUser!.username}',
+                    style: AppTypography.caption(
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                    ),
+                  ),
+              ],
             ),
             iconTheme: const IconThemeData(color: AppColors.textMain),
             actions: [
@@ -57,6 +98,15 @@ class _AdminScanViewState extends State<AdminScanView> {
                   ),
                   tooltip: 'Ngắt kết nối',
                   onPressed: () => vm.disconnectRemoteSession(),
+                ),
+              if (widget.onLogout != null)
+                IconButton(
+                  icon: const Icon(
+                    Icons.logout_rounded,
+                    color: AppColors.statusError,
+                  ),
+                  tooltip: 'Đăng xuất',
+                  onPressed: () => _handleLogout(context),
                 ),
             ],
           ),

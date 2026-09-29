@@ -1,7 +1,9 @@
-# AI eKYC
+# AI CCCD OCR
 
-FastAPI microservice for Vietnamese CCCD eKYC: OCR (`/internal/v1/ocr/id-card`),
-face match (`/internal/v1/face/verify`), and liveness (`/internal/v1/liveness`).
+FastAPI microservice for reading Vietnamese CCCD fields with OCR
+(`/internal/v1/ocr/id-card`). Face match (`/internal/v1/face/verify`) and liveness
+(`/internal/v1/liveness`) endpoints are present, but current business flows use
+only the CCCD OCR endpoint.
 
 Ported from EduSpace `eduspace-ai-service` and kept API-compatible so the Spring
 `EkycAiAdapter` can call the same paths with `X-API-Key`.
@@ -27,8 +29,10 @@ PYTHONPATH=. pytest -q
 
 ## Docker Compose
 
-Local service name: `ai-ekyc` (host port `8091`, container port `8000`).
+Local Compose service key: `ai-ekyc`; container name: `daiphat-ai-cccd-ocr`
+(host port `8091`, container port `8000`).
 Backend env: `DAIPHAT_EKYC_AI_BASE_URL=http://ai-ekyc:8000`.
 
-In production the service runs as blue/green containers `daiphat-ai-ekyc-*`
-behind the `ekyc-vision:8000` gateway alias (see `docker-compose.ai.yml`).
+In production the service runs as blue/green containers
+`daiphat-ai-cccd-ocr-{blue,green,gateway}` behind the legacy
+`ekyc-vision:8000` gateway alias (see `docker-compose.ai.yml`).

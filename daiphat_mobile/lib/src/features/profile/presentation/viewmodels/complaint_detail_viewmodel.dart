@@ -151,6 +151,20 @@ class ComplaintDetailViewModel extends ChangeNotifier {
     }
   }
 
+  Future<String?> confirm() async {
+    _isBusy = true;
+    notifyListeners();
+    try {
+      _ticket = await _closeSupportTicket(ticketId);
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isBusy = false;
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     _disposed = true;

@@ -254,13 +254,13 @@ export const StreetAgentCreatePage = () => {
                         const verifyRes = await verifyStreetAgentEkyc(profile.id);
                         if (verifyRes.success && verifyRes.data) {
                             profile = verifyRes.data;
-                            toast.success(verifyRes.message || "Xác thực eKYC thành công.");
+                            toast.success(verifyRes.message || "Đã đọc và kiểm tra thông tin CCCD.");
                         }
                     } catch (error: any) {
                         toast.error(
                             error?.response?.data?.message ||
                                 error?.message ||
-                                "Xác thực eKYC thất bại — có thể thử lại sau khi lưu."
+                                "Chưa đọc đủ thông tin CCCD — có thể thử lại sau khi lưu."
                         );
                     } finally {
                         setIsVerifyingEkyc(false);

@@ -141,6 +141,50 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     }
   }
 
+  Future<void> _confirmResolve() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Xác nhận khiếu nại',
+          style: AppTypography.mainWith(fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          'Bạn đồng ý xác nhận khiếu nại đã được giải quyết? Sau khi xác nhận sẽ không thể gửi thêm tin nhắn.',
+          style: AppTypography.mainWith(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Không', style: AppTypography.mainWith()),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surfacePrimary,
+            ),
+            child: Text(
+              'Xác nhận',
+              style: AppTypography.mainWith(
+                fontWeight: FontWeight.w700,
+                color: AppColors.surfacePrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final err = await _viewModel.confirm();
+    if (!mounted) return;
+    if (err == null) {
+      AppToast.success('Bạn đã xác nhận. Khiếu nại đã được giải quyết.');
+    } else {
+      AppToast.error(err);
+    }
+  }
+
   Future<void> _openEditForm(SupportTicketResponse ticket) async {
     final result = await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
@@ -236,6 +280,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
   Widget _buildContent(SupportTicketResponse ticket) {
     final canEdit = ticket.status == TicketStatus.open;
     final canCancel = canCustomerCancelTicket(ticket.status);
+    final canConfirm = canCustomerConfirmTicket(ticket.status);
 
     return RefreshIndicator(
       color: AppColors.primary,
@@ -244,55 +289,79 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
         padding: const EdgeInsets.all(16),
         children: [
           _buildHeader(ticket),
-          if (canEdit || canCancel) ...[
+          if (canEdit || canCancel || canConfirm) ...[
             const SizedBox(height: 12),
-            Row(
-              children: [
-                if (canEdit)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _openEditForm(ticket),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.brandSecondary,
-                        side: const BorderSide(color: AppColors.brandSecondary),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+            if (canEdit) ...[
+              OutlinedButton.icon(
+                onPressed: () => _openEditForm(ticket),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.brandSecondary,
+                  side: const BorderSide(color: AppColors.brandSecondary),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  minimumSize: const Size(double.infinity, 44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(ProfileIconography.edit, size: 18),
+                label: Text(
+                  'Chỉnh sửa',
+                  style: AppTypography.mainWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (canCancel || canConfirm)
+              Row(
+                children: [
+                  if (canCancel)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _viewModel.isBusy ? null : _confirmCancel,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                      icon: const Icon(ProfileIconography.edit, size: 18),
-                      label: Text(
-                        'Chỉnh sửa',
-                        style: AppTypography.mainWith(
-                          fontWeight: FontWeight.w700,
+                        icon: const Icon(Icons.block_rounded, size: 18),
+                        label: Text(
+                          'Huỷ khiếu nại',
+                          style: AppTypography.mainWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                if (canEdit && canCancel) const SizedBox(width: 12),
-                if (canCancel)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _viewModel.isBusy ? null : _confirmCancel,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  if (canCancel && canConfirm) const SizedBox(width: 12),
+                  if (canConfirm)
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _viewModel.isBusy ? null : _confirmResolve,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.surfacePrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                      icon: const Icon(Icons.block_rounded, size: 18),
-                      label: Text(
-                        'Huỷ khiếu nại',
-                        style: AppTypography.mainWith(
-                          fontWeight: FontWeight.w700,
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                        label: Text(
+                          'Xác nhận',
+                          style: AppTypography.mainWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.surfacePrimary,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
           ],
           const SizedBox(height: 16),
           _buildInfoCard(ticket),
@@ -621,6 +690,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
   }
 
   Widget _buildChat(SupportTicketResponse ticket) {
+    final canConfirm = canCustomerConfirmTicket(ticket.status);
     final hideId = ticket.resolvedReasonId;
     final comments = [...ticket.comments]
       ..sort(
@@ -635,6 +705,31 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     return _card(
       icon: Icons.forum_outlined,
       title: 'Trao đổi',
+      subtitle: 'Với nhân viên hỗ trợ',
+      trailing: canConfirm
+          ? ElevatedButton(
+              onPressed: _viewModel.isBusy ? null : _confirmResolve,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.surfacePrimary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                'Xác nhận',
+                style: AppTypography.mainWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.surfacePrimary,
+                ),
+              ),
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1019,6 +1114,8 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
   Widget _card({
     required IconData icon,
     required String title,
+    String? subtitle,
+    Widget? trailing,
     required Widget child,
   }) {
     return Container(
@@ -1043,14 +1140,33 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                 child: Icon(icon, size: 18, color: AppColors.primary),
               ),
               const SizedBox(width: 10),
-              Text(
-                title,
-                style: AppTypography.mainWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textMain,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTypography.mainWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    if (subtitle != null && subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: AppTypography.mainWith(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
+              ?trailing,
             ],
           ),
           const Divider(height: 24, color: AppColors.borderLight),

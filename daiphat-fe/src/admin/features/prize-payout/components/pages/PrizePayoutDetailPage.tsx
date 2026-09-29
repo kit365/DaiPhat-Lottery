@@ -57,6 +57,7 @@ import {
     useRejectPrizePayout,
 } from '@/admin/features/prize-payout/hooks/usePrizePayoutManagement';
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
+import { CccdOcrFieldsGrid } from '@/admin/components/ekyc/CccdOcrFieldsGrid';
 import { AppToast as toast } from '@/utils/toast.util';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import CloseIcon from '@mui/icons-material/Close';
@@ -116,66 +117,6 @@ function CardSectionTitle({ title, icon, extra }: { title: string; icon?: string
             </Stack>
             {extra}
         </Stack>
-    );
-}
-
-function OcrFieldTile({
-    label,
-    value,
-    icon,
-    mono,
-}: {
-    label: string;
-    value?: ReactNode;
-    icon?: string;
-    mono?: boolean;
-}) {
-    return (
-        <Box
-            sx={{
-                p: 1.5,
-                borderRadius: '10px',
-                border: '1px solid',
-                borderColor: 'divider',
-                bgcolor: 'background.neutral',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-            }}
-        >
-            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.5 }}>
-                {icon && (
-                    <Box sx={{ color: 'text.disabled', display: 'flex', fontSize: '0.95rem' }}>
-                        <Icon icon={icon} />
-                    </Box>
-                )}
-                <Typography
-                    variant="caption"
-                    sx={{
-                        color: 'text.secondary',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        fontSize: '0.7rem',
-                        letterSpacing: '0.04em',
-                    }}
-                >
-                    {label}
-                </Typography>
-            </Stack>
-            <Typography
-                variant="subtitle2"
-                sx={{
-                    fontWeight: 700,
-                    color: value ? 'text.primary' : 'text.disabled',
-                    fontFamily: mono ? 'monospace' : undefined,
-                    wordBreak: 'break-word',
-                    fontSize: '0.875rem',
-                }}
-            >
-                {value || '—'}
-            </Typography>
-        </Box>
     );
 }
 
@@ -808,73 +749,21 @@ export const PrizePayoutDetailPage = () => {
                                     }
                                 />
 
-                                {/* OCR Fields Grid */}
-                                <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
-                                    <Grid size={{ xs: 12, sm: 6 }}>
-                                        <OcrFieldTile
-                                            label="Họ và tên người nhận"
-                                            value={detail.recipientFullName || detail.ekycOcrName}
-                                            icon="solar:user-bold-duotone"
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 12, sm: 6 }}>
-                                        <OcrFieldTile
-                                            label="Số CCCD / CMND"
-                                            value={detail.recipientIdNumber || detail.ekycOcrIdNumber}
-                                            icon="solar:card-2-bold-duotone"
-                                            mono
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 6, sm: 4 }}>
-                                        <OcrFieldTile
-                                            label="Ngày sinh"
-                                            value={detail.ekycOcrDob}
-                                            icon="solar:calendar-bold-duotone"
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 6, sm: 4 }}>
-                                        <OcrFieldTile
-                                            label="Giới tính"
-                                            value={detail.ekycOcrGender}
-                                            icon="solar:users-group-two-rounded-bold-duotone"
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 12, sm: 4 }}>
-                                        <OcrFieldTile
-                                            label="Quốc tịch"
-                                            value={detail.ekycOcrNationality}
-                                            icon="solar:flag-bold-duotone"
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 6, sm: 6 }}>
-                                        <OcrFieldTile
-                                            label="Ngày cấp"
-                                            value={detail.ekycOcrIssueDate}
-                                            icon="solar:calendar-date-bold-duotone"
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 6, sm: 6 }}>
-                                        <OcrFieldTile
-                                            label="Ngày hết hạn"
-                                            value={detail.ekycOcrExpiryDate}
-                                            icon="solar:clock-circle-bold-duotone"
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 12 }}>
-                                        <OcrFieldTile
-                                            label="Quê quán / Nơi đăng ký khai sinh"
-                                            value={detail.ekycOcrPlaceOfBirth}
-                                            icon="solar:map-point-bold-duotone"
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 12 }}>
-                                        <OcrFieldTile
-                                            label="Nơi thường trú"
-                                            value={detail.ekycOcrPlaceOfResidence}
-                                            icon="solar:home-bold-duotone"
-                                        />
-                                    </Grid>
-                                </Grid>
+                                <CccdOcrFieldsGrid
+                                    nameLabel="Họ và tên người nhận"
+                                    sx={{ mb: 2.5 }}
+                                    fields={{
+                                        name: detail.recipientFullName || detail.ekycOcrName,
+                                        idNumber: detail.recipientIdNumber || detail.ekycOcrIdNumber,
+                                        dob: detail.ekycOcrDob,
+                                        gender: detail.ekycOcrGender,
+                                        nationality: detail.ekycOcrNationality,
+                                        issueDate: detail.ekycOcrIssueDate,
+                                        expiryDate: detail.ekycOcrExpiryDate,
+                                        placeOfBirth: detail.ekycOcrPlaceOfBirth,
+                                        placeOfResidence: detail.ekycOcrPlaceOfResidence,
+                                    }}
+                                />
 
                                 {/* CCCD Photos */}
                                 {(detail.recipientIdImageUrl || detail.recipientIdImageBackUrl) && (

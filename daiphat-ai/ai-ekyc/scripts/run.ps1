@@ -1,4 +1,4 @@
-# Start the AI eKYC service on port 8091
+# Start the AI CCCD OCR service on port 8091
 $ErrorActionPreference = "Stop"
 $ServiceDir = Split-Path -Parent $PSScriptRoot
 $RootDir = Split-Path -Parent $ServiceDir

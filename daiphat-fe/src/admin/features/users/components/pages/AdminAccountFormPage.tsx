@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
 import { Box, Card, Typography } from "@mui/material";
 import { PageHeader } from "../../../../components/ui/PageHeader";
+import { confirmDelete } from "../../../../utils/swal";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { ROUTES } from "../../../../constants/routes";
 import { UserStatus } from "../../../../../types/user.type";
@@ -149,15 +150,16 @@ export const AdminAccountFormPage = ({
     };
 
     const handleDelete = () => {
-        if (!window.confirm(copy.deleteConfirm)) return;
-        removeAccount(id!, {
-            onSuccess: () => {
-                toast.success(copy.deleteSuccess);
-                router.push(copy.listRoute);
-            },
-            onError: (error: any) => {
-                toast.error(error.response?.data?.message || "Xóa thất bại");
-            },
+        confirmDelete(copy.deleteConfirm, () => {
+            removeAccount(id!, {
+                onSuccess: () => {
+                    toast.success(copy.deleteSuccess);
+                    router.push(copy.listRoute);
+                },
+                onError: (error: any) => {
+                    toast.error(error.response?.data?.message || "Xóa thất bại");
+                },
+            });
         });
     };
 

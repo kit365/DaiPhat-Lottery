@@ -34,7 +34,7 @@ void main() {
     );
 
     expect(profile, contains('context.push(AppRoute.chat.path)'));
-    expect(orders, contains('context.push(AppRoute.chat.path)'));
+    expect(orders, isNot(contains('AppRoute.chat')));
     expect(profile, isNot(contains('ChatScreen(')));
     expect(orders, isNot(contains('ChatScreen(')));
   });
@@ -55,7 +55,6 @@ void main() {
 
     expect(chat, contains("label: 'Xem thông tin Đại Phát Official'"));
     expect(chat, contains('onTap: onOpenOfficialProfile'));
-    expect(chat, contains('const _OfficialProfileSheet()'));
-    expect(chat, contains('itemCount: chatState.visibleMessages.length,'));
+    expect(chat, contains('itemCount: visibleMessages.length'));
   });
 }
