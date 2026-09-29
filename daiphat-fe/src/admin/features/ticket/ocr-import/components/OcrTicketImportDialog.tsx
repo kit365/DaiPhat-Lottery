@@ -95,7 +95,7 @@ import {
     getImportBatchStatusLabel,
 } from '../../import-batch/utils/batchTypeLabels';
 import { useOcrImportWizard } from '../hooks/useOcrImportWizard';
-import { OCR_IMPORT_DRAFT_KEY } from '../types/ticketOcr.type';
+import { OCR_IMPORT_DRAFT_KEY, type OcrReviewRow } from '../types/ticketOcr.type';
 import {
     buildReviewImageGroups,
     buildReviewStationGroups,
@@ -155,6 +155,43 @@ const formatFileSize = (bytes?: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const normalizeReviewSearchValue = (value?: string | number | null) =>
+    String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase()
+        .trim();
+
+const matchesReviewSearch = (
+    row: OcrReviewRow,
+    query: string,
+    stationCode?: string | null
+) => {
+    const normalizedQuery = normalizeReviewSearchValue(query);
+    if (!normalizedQuery) return true;
+
+    const drawDate = row.drawDate && dayjs(row.drawDate).isValid()
+        ? dayjs(row.drawDate).format('DD/MM/YYYY')
+        : row.drawDate;
+    const searchableValues = [
+        row.numbers,
+        row.serialNumber,
+        row.stationName,
+        stationCode,
+        row.drawDate,
+        drawDate,
+        row.batchCode,
+        row.ticketType,
+        formatDenomination(row.ticketType),
+    ];
+
+    return searchableValues.some((value) =>
+        normalizeReviewSearchValue(value).includes(normalizedQuery)
+    );
 };
 
 const stepTitle: Record<string, string> = {
@@ -236,6 +273,8 @@ const ImportBatchReviewSummaryCard = ({
 
     const confirmableCount = wizard.rows.filter(wizard.isRowConfirmable).length;
     const totalRowsCount = wizard.rows.length;
+    const allConfirmableSelected =
+        confirmableCount > 0 && wizard.confirmableCount === confirmableCount;
 
     const activeSelectedLine = lines.find((l) => l.lotteryStationId === selectedStationId);
 
@@ -310,35 +349,58 @@ const ImportBatchReviewSummaryCard = ({
                                 variant="outlined"
                                 startIcon={<EditOutlinedIcon sx={{ fontSize: '0.95rem' }} />}
                                 onClick={onEditAllocation}
-                                sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.775rem', borderRadius: '7px', px: 1.25, py: 0.35 }}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    fontSize: '0.775rem',
+                                    borderRadius: '9px',
+                                    px: 1.4,
+                                    py: 0.55,
+                                    color: '#4338ca',
+                                    borderColor: '#c7d2fe',
+                                    bgcolor: '#eef2ff',
+                                    boxShadow: '0 1px 2px rgba(67, 56, 202, 0.08)',
+                                    '&:hover': {
+                                        borderColor: '#818cf8',
+                                        bgcolor: '#e0e7ff',
+                                    },
+                                }}
                             >
                                 Chỉnh sửa phân bổ
                             </Button>
                         )}
                         <Button
                             size="small"
-                            variant="outlined"
+                            variant={allConfirmableSelected ? 'contained' : 'outlined'}
+                            startIcon={allConfirmableSelected
+                                ? <CheckCircleIcon sx={{ fontSize: '0.95rem' }} />
+                                : <CheckCircleOutlineOutlinedIcon sx={{ fontSize: '0.95rem' }} />}
+                            disabled={confirmableCount === 0}
                             onClick={() =>
-                                wizard.toggleAllConfirmable(
-                                    wizard.confirmableCount < confirmableCount
-                                )
+                                wizard.toggleAllConfirmable(!allConfirmableSelected)
                             }
                             sx={{
                                 textTransform: 'none',
                                 fontWeight: 700,
                                 fontSize: '0.775rem',
-                                borderRadius: '7px',
-                                px: 1.25,
-                                py: 0.35,
-                                borderColor: '#cbd5e1',
-                                color: '#334155',
+                                borderRadius: '9px',
+                                px: 1.4,
+                                py: 0.55,
+                                borderColor: allConfirmableSelected ? '#16a34a' : '#bbf7d0',
+                                color: allConfirmableSelected ? '#ffffff' : '#15803d',
+                                bgcolor: allConfirmableSelected ? '#16a34a' : '#f0fdf4',
+                                boxShadow: allConfirmableSelected
+                                    ? '0 3px 8px rgba(22, 163, 74, 0.24)'
+                                    : '0 1px 2px rgba(22, 163, 74, 0.08)',
                                 '&:hover': {
-                                    borderColor: '#94a3b8',
-                                    bgcolor: '#f1f5f9',
+                                    borderColor: allConfirmableSelected ? '#15803d' : '#86efac',
+                                    bgcolor: allConfirmableSelected ? '#15803d' : '#dcfce7',
                                 },
                             }}
                         >
-                            Chọn tất cả hợp lệ ({confirmableCount})
+                            {allConfirmableSelected
+                                ? `Đã chọn (${confirmableCount}) vé`
+                                : `Chọn tất cả hợp lệ (${confirmableCount})`}
                         </Button>
                         {onOpenScanHistory && (
                             <Button
@@ -811,8 +873,44 @@ export const OcrTicketImportDialog = ({
     );
     const selectedBatchDrawDate = wizard.selectedImportBatch?.drawDate || wizard.selectedBatch?.drawDate || null;
     const [reviewListTab, setReviewListTab] = useState<'images' | 'stations'>('images');
-    const [expandedTicketKeys, setExpandedTicketKeys] = useState<Set<string>>(() => new Set());
+    const [reviewSearchQuery, setReviewSearchQuery] = useState('');
+    const [collapsedTicketKeys, setCollapsedTicketKeys] = useState<Set<string>>(() => new Set());
     const [imageBeingEdited, setImageBeingEdited] = useState<{ id: string; file: File } | null>(null);
+
+    const filteredReviewRows = useMemo(() => {
+        if (!reviewSearchQuery.trim()) return wizard.rows;
+        return wizard.rows.filter((row) => {
+            const stationCode = stations.find((station) => station.id === row.stationId)?.code;
+            return matchesReviewSearch(row, reviewSearchQuery, stationCode);
+        });
+    }, [reviewSearchQuery, stations, wizard.rows]);
+
+    const filteredReviewRowKeys = useMemo(
+        () => new Set(filteredReviewRows.map((row) => row.key)),
+        [filteredReviewRows]
+    );
+
+    const filteredReviewImageGroups = useMemo(() => {
+        if (!reviewSearchQuery.trim()) return reviewImageGroups;
+        return reviewImageGroups
+            .map((group) => ({
+                ...group,
+                rows: group.rows.filter((row) => filteredReviewRowKeys.has(row.key)),
+            }))
+            .filter((group) => group.rows.length > 0);
+    }, [filteredReviewRowKeys, reviewImageGroups, reviewSearchQuery]);
+
+    const filteredReviewStationGroups = useMemo(
+        () => buildReviewStationGroups(filteredReviewRows),
+        [filteredReviewRows]
+    );
+
+    useEffect(() => {
+        if (!open) {
+            setReviewSearchQuery('');
+            setCollapsedTicketKeys(new Set());
+        }
+    }, [open]);
 
     const handleEditImage = async (imageId: string, previewUrl?: string) => {
         if (wizard.scanning) return;
@@ -921,6 +1019,8 @@ export const OcrTicketImportDialog = ({
         () => wizard.rows.filter(wizard.isRowConfirmable),
         [wizard.rows, wizard.isRowConfirmable]
     );
+    const allConfirmableRowsSelected =
+        confirmableRows.length > 0 && wizard.confirmableCount === confirmableRows.length;
 
     const ocrAllocationStations: ImportBatchFileStationSummary[] = useMemo(() => {
         const byStation = new Map<number, ImportBatchFileStationSummary>();
@@ -2752,28 +2852,35 @@ export const OcrTicketImportDialog = ({
                                 <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap">
                                     <Button
                                         size="small"
-                                        variant="outlined"
+                                        variant={allConfirmableRowsSelected ? 'contained' : 'outlined'}
+                                        startIcon={allConfirmableRowsSelected
+                                            ? <CheckCircleIcon sx={{ fontSize: '1rem' }} />
+                                            : <CheckCircleOutlineOutlinedIcon sx={{ fontSize: '1rem' }} />}
+                                        disabled={confirmableRows.length === 0}
                                         onClick={() =>
-                                            wizard.toggleAllConfirmable(
-                                                wizard.confirmableCount <
-                                                    wizard.rows.filter(wizard.isRowConfirmable).length
-                                            )
+                                            wizard.toggleAllConfirmable(!allConfirmableRowsSelected)
                                         }
                                         sx={{
                                             textTransform: 'none',
                                             fontWeight: 700,
-                                            borderRadius: '8px',
+                                            borderRadius: '9px',
                                             px: 1.75,
                                             py: 0.75,
-                                            borderColor: '#cbd5e1',
-                                            color: '#334155',
+                                            borderColor: allConfirmableRowsSelected ? '#16a34a' : '#bbf7d0',
+                                            color: allConfirmableRowsSelected ? '#ffffff' : '#15803d',
+                                            bgcolor: allConfirmableRowsSelected ? '#16a34a' : '#f0fdf4',
+                                            boxShadow: allConfirmableRowsSelected
+                                                ? '0 3px 8px rgba(22, 163, 74, 0.24)'
+                                                : '0 1px 2px rgba(22, 163, 74, 0.08)',
                                             '&:hover': {
-                                                borderColor: '#94a3b8',
-                                                bgcolor: '#f1f5f9',
+                                                borderColor: allConfirmableRowsSelected ? '#15803d' : '#86efac',
+                                                bgcolor: allConfirmableRowsSelected ? '#15803d' : '#dcfce7',
                                             },
                                         }}
                                     >
-                                        Chọn tất cả hợp lệ ({wizard.rows.filter(wizard.isRowConfirmable).length})
+                                        {allConfirmableRowsSelected
+                                            ? `Đã chọn (${confirmableRows.length}) vé`
+                                            : `Chọn tất cả hợp lệ (${confirmableRows.length})`}
                                     </Button>
                                     <Button
                                         size="small"
@@ -2870,6 +2977,43 @@ export const OcrTicketImportDialog = ({
                                     </Tabs>
                                 </Box>
 
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    value={reviewSearchQuery}
+                                    onChange={(event) => setReviewSearchQuery(event.target.value)}
+                                    placeholder="Tìm theo dãy số, số sê-ri, nhà đài, lịch quay, ký hiệu / lô hoặc mệnh giá…"
+                                    inputProps={{ 'aria-label': 'Tìm kiếm vé OCR' }}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon sx={{ color: '#64748b', fontSize: 20 }} />
+                                            </InputAdornment>
+                                        ),
+                                        endAdornment: reviewSearchQuery ? (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => setReviewSearchQuery('')}
+                                                    aria-label="Xóa nội dung tìm kiếm"
+                                                >
+                                                    <CloseIcon sx={{ fontSize: 18 }} />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ) : undefined,
+                                    }}
+                                    sx={{
+                                        maxWidth: 720,
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: '10px',
+                                            bgcolor: '#ffffff',
+                                            '&.Mui-focused': {
+                                                boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.08)',
+                                            },
+                                        },
+                                    }}
+                                />
+
                                 <Box
                                     sx={{
                                         display: 'flex',
@@ -2877,7 +3021,13 @@ export const OcrTicketImportDialog = ({
                                         gap: 2,
                                     }}
                                 >
-                                    {reviewListTab === 'images' ? reviewImageGroups.map((group, index) => (
+                                    {reviewListTab === 'images' ? filteredReviewImageGroups.length === 0 ? (
+                                        <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', color: 'text.secondary', borderRadius: 2 }}>
+                                            Không tìm thấy vé phù hợp với “{reviewSearchQuery.trim()}”.
+                                        </Paper>
+                                    ) : filteredReviewImageGroups.map((group) => {
+                                        const originalIndex = reviewImageGroups.findIndex((item) => item.imageId === group.imageId);
+                                        return (
                                         <Box
                                             key={group.imageId}
                                             sx={{
@@ -2900,7 +3050,7 @@ export const OcrTicketImportDialog = ({
                                                         fontWeight={800}
                                                         title={group.fileName}
                                                     >
-                                                        Ảnh #{index + 1}: {formatReviewFileName(group.fileName, index)}
+                                                        Ảnh #{originalIndex + 1}: {formatReviewFileName(group.fileName, originalIndex)}
                                                     </Typography>
                                                     {group.imageStatus === 'pending' ? (
                                                         <Chip
@@ -3049,16 +3199,20 @@ export const OcrTicketImportDialog = ({
                                                         onSelect={setFieldSelection}
                                                         onToggle={wizard.toggleRow}
                                                         onUpdate={wizard.updateRow}
+                                                        showHeaderSelectAll={false}
                                                         embedded
                                                     />
                                                 )}
                                             </Box>
                                         </Box>
-                                    )) : reviewStationGroups.length === 0 ? (
+                                        );
+                                    }) : filteredReviewStationGroups.length === 0 ? (
                                         <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
-                                            Chưa có vé được nhận diện. Chuyển sang tab Theo ảnh để xem ảnh chờ quét.
+                                            {reviewSearchQuery.trim()
+                                                ? `Không tìm thấy vé phù hợp với “${reviewSearchQuery.trim()}”.`
+                                                : 'Chưa có vé được nhận diện. Chuyển sang tab Theo ảnh để xem ảnh chờ quét.'}
                                         </Paper>
-                                    ) : reviewStationGroups.map((station) => (
+                                    ) : filteredReviewStationGroups.map((station) => (
                                         <Paper key={station.key} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
                                             <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1} sx={{ px: 2, py: 1.5, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                                                 <Typography variant="subtitle1" fontWeight={800}>
@@ -3071,16 +3225,19 @@ export const OcrTicketImportDialog = ({
                                             </Stack>
                                             <Stack sx={{ p: 1.5 }} spacing={1}>
                                                 {station.tickets.map((ticket) => {
-                                                    const ticketKey = `${station.key}:${ticket.key}`;
+                                                    const ticketKey = `${station.key}:${ticket.rows
+                                                        .map((row) => row.key)
+                                                        .sort()
+                                                        .join('|')}`;
                                                     const validCount = ticket.rows.filter(wizard.isRowConfirmable).length;
                                                     return (
                                                         <Accordion
                                                             key={ticketKey}
-                                                            expanded={expandedTicketKeys.has(ticketKey)}
-                                                            onChange={(_, expanded) => setExpandedTicketKeys((previous) => {
+                                                            expanded={!collapsedTicketKeys.has(ticketKey)}
+                                                            onChange={(_, expanded) => setCollapsedTicketKeys((previous) => {
                                                                 const next = new Set(previous);
-                                                                if (expanded) next.add(ticketKey);
-                                                                else next.delete(ticketKey);
+                                                                if (expanded) next.delete(ticketKey);
+                                                                else next.add(ticketKey);
                                                                 return next;
                                                             })}
                                                             disableGutters

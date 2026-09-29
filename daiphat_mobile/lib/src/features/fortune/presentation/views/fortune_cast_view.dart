@@ -298,6 +298,9 @@ class _FortuneCastViewState extends ConsumerState<FortuneCastView>
                         icon: Icons.chevron_left_rounded,
                         onTap: () => context.pop(),
                       ),
+                      const Expanded(
+                        child: Center(child: _FortuneHeaderTitle()),
+                      ),
                       _CircularNavButton(
                         icon: Icons.info_outline_rounded,
                         onTap: _showFortuneInfoSheet,
@@ -534,55 +537,54 @@ class _CircularNavButton extends StatelessWidget {
   }
 }
 
+/// Compact title badge used in the top navigation row, matching the
+/// celebratory gold/red treatment from the fortune design.
+class _FortuneHeaderTitle extends StatelessWidget {
+  const _FortuneHeaderTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 132, maxWidth: 166),
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFF0B0), Color(0xFFFFD66B)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.fortuneGoldLight, width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.fortuneGold.withValues(alpha: 0.32),
+            blurRadius: 10,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          'Gieo quẻ',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.h4(
+            color: const Color(0xFF7C1717),
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Top Screen Title and Oriental Cloud Decor
 class _ScreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // "—— XIN QUẺ ——" decorative row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 28,
-              height: 1.2,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.transparent,
-                    AppColors.fortuneGoldWarm.withValues(alpha: 0.7),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'XIN QUẺ',
-              style: AppTypography.overline(
-                letterSpacing: 2.2,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: AppColors.fortuneGoldLight,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              width: 28,
-              height: 1.2,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.fortuneGoldWarm.withValues(alpha: 0.7),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-
         // Main Title
         Text(
           'Gieo quẻ tài lộc',

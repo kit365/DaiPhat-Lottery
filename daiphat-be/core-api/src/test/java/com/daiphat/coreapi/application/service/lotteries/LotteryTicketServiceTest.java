@@ -133,6 +133,9 @@ class LotteryTicketServiceTest {
     @Mock
     private LotteryTicketAggregateSyncService lotteryTicketAggregateSyncService;
 
+    @Mock
+    private TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
+
     private LotteryStationModel productModel;
     private CreateLotteryTicketRequest createRequest;
     private LotteryTicketModel mappedModel;
@@ -156,7 +159,8 @@ class LotteryTicketServiceTest {
                 storagePort,
                 orderRepositoryPort,
                 applicationEventPublisher,
-                lotteryTicketAggregateSyncService
+                lotteryTicketAggregateSyncService,
+                ticketSalesCutoffPolicy
         );
 
         productModel = LotteryStationModel.builder()

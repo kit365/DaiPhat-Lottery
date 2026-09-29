@@ -41,6 +41,15 @@ public interface ImportBatchApplicationMapper {
             boolean lateImportWarning,
             List<String> warnings
     ) {
+        return toResponse(model, lateImportWarning, warnings, null);
+    }
+
+    default ImportBatchResponse toResponse(
+            ImportBatchModel model,
+            boolean lateImportWarning,
+            List<String> warnings,
+            String importedByDisplayName
+    ) {
         List<ImportBatchLineResponse> lineResponses = model.getLines() == null
                 ? List.of()
                 : model.getLines().stream().map(this::toLineResponse).toList();
@@ -62,6 +71,7 @@ public interface ImportBatchApplicationMapper {
                         ? List.of()
                         : List.copyOf(model.getTicketListImageUrls()))
                 .importedBy(model.getImportedBy())
+                .importedByDisplayName(importedByDisplayName)
                 .importedAt(model.getImportedAt())
                 .status(model.getStatus())
                 .lineCount(resolvedLineCount)
