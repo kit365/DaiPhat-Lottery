@@ -129,7 +129,7 @@ memory_limit=$(awk -F= -v key="$memory_key" '$1==key {v=substr($0,length(key)+2)
 memory_limit=${memory_limit:-$memory_default}
 memory_limit=${memory_limit//\"/}
 memory_limit=${memory_limit//\'/}
-[[ "$memory_limit" =~ ^[0-9]+([kKmMgG][bB]?|[bB])?$ ]] || { echo 'Unsupported AI memory limit.' >&2; exit 1; }
+[[ "$memory_limit" =~ ^[0-9]+(\.[0-9]+)?([kKmMgG][bB]?|[bB])?$ ]] || { echo 'Unsupported AI memory limit.' >&2; exit 1; }
 requested_mb=$(awk -v limit="$memory_limit" 'BEGIN {unit=tolower(limit); value=limit+0; if(unit ~ /g/) value*=1024; else if(unit ~ /k/) value/=1024; else if(unit !~ /m/) value/=1048576; print int(value+0.999)}')
 sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
 available_mb=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)

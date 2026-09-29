@@ -7,6 +7,8 @@ import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.
 import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart';
 import 'package:daiphat_mobile/src/features/home/domain/entities/lottery_result.dart';
 import 'package:daiphat_mobile/src/features/home/domain/repositories/home_lottery_repository.dart';
+import 'package:go_router/go_router.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_results_lookup_provider.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/home_viewmodel.dart';
 
 void main() {
@@ -448,6 +450,91 @@ void main() {
         expect(find.text('Xem lịch mở thưởng'), findsNothing);
         expect(find.text('Gợi ý vé'), findsNothing);
         expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'tapping Xem chi tiết sets lotteryResultsLookupProvider with station and date and navigates to home',
+      (tester) async {
+        const summaryData = ScheduleResultSummaryData(
+          region: 'MIEN_NAM',
+          drawDate: '2026-09-28',
+          stationId: 1,
+          stationName: 'TP. Hồ Chí Minh',
+        );
+        const message = UiChatMessage(
+          id: 'result-msg',
+          isUser: false,
+          text: 'Kết quả xổ số theo yêu cầu của bạn:',
+          timeLabel: '15:30',
+          variant: ChatMessageVariant.scheduleResultSummary,
+          scheduleResultSummary: summaryData,
+          actions: [],
+        );
+
+        const state = ChatState(
+          isAuthenticated: true,
+          timelineMessages: [message],
+          showWelcome: false,
+        );
+
+        final router = GoRouter(
+          initialLocation: '/chat',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const Scaffold(body: Text('Home Screen')),
+            ),
+            GoRoute(
+              path: '/chat',
+              builder: (context, state) => const Scaffold(
+                body: ChatScreen(isAuthenticated: true, isActive: true),
+              ),
+            ),
+          ],
+        );
+
+        LotteryResultsLookup? capturedLookup;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              chatViewModelProvider
+                  .overrideWith(() => _StaticChatViewModel(state)),
+              homeLotteryRepositoryProvider
+                  .overrideWithValue(_MockHomeLotteryRepository()),
+            ],
+            child: Consumer(
+              builder: (context, ref, child) {
+                ref.listen<LotteryResultsLookup?>(
+                  lotteryResultsLookupProvider,
+                  (prev, next) {
+                    if (next != null) {
+                      capturedLookup = next;
+                    }
+                  },
+                );
+                return MaterialApp.router(
+                  routerConfig: router,
+                );
+              },
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Xem chi tiết'), findsOneWidget);
+        await tester.ensureVisible(find.text('Xem chi tiết'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Xem chi tiết'));
+        await tester.pumpAndSettle();
+
+        expect(capturedLookup, isNotNull);
+        expect(capturedLookup!.stationName, 'TP. Hồ Chí Minh');
+        expect(capturedLookup!.stationId, 1);
+        expect(find.text('Home Screen'), findsOneWidget);
       },
     );
   });

@@ -13,6 +13,7 @@ import 'package:daiphat_mobile/src/features/chat/presentation/viewmodels/chat_vi
 import 'package:daiphat_mobile/src/features/chat/utils/chat_constants.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart';
 import 'package:daiphat_mobile/src/features/home/domain/entities/lottery_result.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_results_lookup_provider.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/home_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -1214,40 +1215,62 @@ class _ChatLotteryResultSummaryState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < _results.length; i++) ...[
-          if (i > 0) const SizedBox(height: 10),
+          if (i > 0) const SizedBox(height: 12),
           _ChatLotteryStationCard(
             result: _results[i],
             fallbackDate: displayDate,
           ),
-        ],
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: ElevatedButton(
-            onPressed: () => context.go(AppRoute.checkTicket.path),
-            style: ElevatedButton.styleFrom(
-              foregroundColor: AppColors.white,
-              backgroundColor: AppColors.primary,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ElevatedButton(
+              onPressed: () => _openStationResult(_results[i], targetDate),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: AppColors.white,
+                backgroundColor: AppColors.primary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-            ),
-            child: Text(
-              'Xem chi tiết',
-              style: AppTypography.buttonSmall(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.white,
+              child: Text(
+                'Xem chi tiết',
+                style: AppTypography.buttonSmall(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.white,
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ],
     );
+  }
+
+  void _openStationResult(LotteryResult result, DateTime fallbackDate) {
+    final drawDate = (result.drawDate.year > 2000)
+        ? result.drawDate
+        : fallbackDate;
+    final targetDate = DateTime(
+      drawDate.year,
+      drawDate.month,
+      drawDate.day,
+    );
+    final stationName = result.province.trim();
+
+    ref.read(lotteryResultsLookupProvider.notifier).setLookup(
+      LotteryResultsLookup(
+        drawDate: targetDate,
+        stationName: stationName.isNotEmpty ? stationName : null,
+        stationId: result.stationId > 0 ? result.stationId : null,
+      ),
+    );
+
+    context.go(AppRoute.home.path);
   }
 }
 
