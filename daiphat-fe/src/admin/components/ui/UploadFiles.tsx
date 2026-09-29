@@ -1,12 +1,12 @@
 "use client";
 
-import { Box, Button, ButtonBase, FormHelperText, Stack, Typography } from "@mui/material"
+import { Box, Button, ButtonBase, FormHelperText, Stack, Typography } from "@mui/material";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import { UploadFileIcon, UploadIcon } from "../../assets/icons"
+import { UploadFileIcon, UploadIcon } from "../../assets/icons";
 import { useDropzone } from 'react-dropzone';
 import { useEffect, memo, useState, useCallback, useRef, useMemo } from "react";
 import { uploadAdminImage } from "@/admin/shared/services/upload.service";
@@ -18,19 +18,20 @@ interface CustomFile extends File {
 }
 
 interface UploadFilesProps {
-    files: CustomFile[];
-    onFilesChange: (files: CustomFile[]) => void;
+    files?: (CustomFile | string | File)[];
+    onFilesChange: (files: (CustomFile | string | File)[]) => void;
     compact?: boolean;
+    incidentEvidence?: boolean;
 }
 
-export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesProps) => {
+export const UploadFiles = memo(({ files = [], onFilesChange, compact, incidentEvidence = false }: UploadFilesProps) => {
     const [isUploading, setIsUploading] = useState(false);
     const [isTouched, setIsTouched] = useState(false);
     const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
-    const filesRef = useRef(files);
+    const filesRef = useRef(files || []);
     useEffect(() => {
-        filesRef.current = files;
+        filesRef.current = files || [];
     }, [files]);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -42,11 +43,17 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
             return customFile;
         });
 
-        onFilesChange([...files, ...newFiles]);
-    }, [files, onFilesChange]);
+        const currentFiles = files || [];
+        if (incidentEvidence) {
+            currentFiles.forEach(file => {
+                if (file instanceof File && (file as any).preview) URL.revokeObjectURL((file as any).preview);
+            });
+        }
+        onFilesChange(incidentEvidence ? newFiles.slice(0, 1) : [...currentFiles, ...newFiles]);
+    }, [files, incidentEvidence, onFilesChange]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        accept: {
+        accept: incidentEvidence ? { 'image/*': [] } : {
             'image/*': [],
             'application/pdf': ['.pdf'],
             'text/csv': ['.csv'],
@@ -55,34 +62,38 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
             'application/msword': ['.doc'],
         },
+        maxFiles: incidentEvidence ? 1 : undefined,
         onDrop,
         onFileDialogOpen: useCallback(() => setIsTouched(true), [])
     });
 
     const handleRemoveFile = useCallback((fileToRemove: any) => {
         // Nếu là file local thì mới cần thu hồi URL preview để giải phóng bộ nhớ
-        if (typeof fileToRemove !== 'string' && fileToRemove.preview) {
+        if (typeof fileToRemove !== 'string' && fileToRemove?.preview) {
             URL.revokeObjectURL(fileToRemove.preview);
         }
 
         // Lọc bỏ file khỏi mảng hiện tại
-        onFilesChange(files.filter(file => file !== fileToRemove));
+        onFilesChange((files || []).filter(file => file !== fileToRemove));
     }, [files, onFilesChange]);
 
     const handleRemoveAll = useCallback(() => {
-        files.forEach(file => URL.revokeObjectURL(file.preview));
+        (files || []).forEach(file => {
+            if (file instanceof File && (file as any).preview) URL.revokeObjectURL((file as any).preview);
+        });
         onFilesChange([]);
     }, [files, onFilesChange]);
 
     const handleUpload = async () => {
-        const filesToUpload = files.filter(file => file instanceof File);
+        const currentFiles = files || [];
+        const filesToUpload = currentFiles.filter(file => file instanceof File);
         if (filesToUpload.length === 0) return;
 
         try {
             setIsUploading(true);
             const uploadedUrls = await Promise.all(filesToUpload.map((file) => uploadAdminImage(file)));
 
-            const currentLinks = files.filter(f => typeof f === 'string');
+            const currentLinks = currentFiles.filter(f => typeof f === 'string');
             onFilesChange([...currentLinks, ...uploadedUrls] as any);
         } catch (error) {
             AppToast.error('Tải ảnh lên thất bại!');
@@ -93,15 +104,17 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
 
     useEffect(() => {
         return () => {
-            filesRef.current.forEach(file => URL.revokeObjectURL(file.preview));
+            (filesRef.current || []).forEach(file => {
+                if (file instanceof File && (file as any).preview) URL.revokeObjectURL((file as any).preview);
+            });
         };
     }, []);
 
-    const renderThumbs = useMemo(() => files.map((file, index) => {
+    const renderThumbs = useMemo(() => (files || []).map((file, index) => {
         // Kiểm tra xem file là URL (string) hay là File Object
         const isServerImage = typeof file === 'string';
-        const imgId = isServerImage ? file : `${(file as any).name}-${index}`;
-        const imgSrc = isServerImage ? file : (file as any).preview;
+        const imgId = isServerImage ? file : `${(file as any)?.name || 'file'}-${index}`;
+        const imgSrc = isServerImage ? file : (file as any)?.preview;
         const category = getUploadFileCategory(file);
         const isImageError = Boolean(failedImages[imgId]);
 
@@ -156,6 +169,7 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                     {/* Nút xóa ảnh */}
                     <ButtonBase
                         onClick={(e) => { e.stopPropagation(); handleRemoveFile(file); }}
+                        aria-label="Xóa tệp đính kèm"
                         sx={{
                             position: 'absolute', top: 3, right: 3, color: "#fff",
                             bgcolor: "rgba(15, 23, 42, 0.65)", borderRadius: "50%", padding: "3px",
@@ -190,30 +204,47 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
     const hasError = false;
 
     return (
-        <Stack>
-            {!compact && <Typography variant="h6" sx={{ fontSize: "0.875rem", fontWeight: "600", mb: "12px" }}>Hình ảnh</Typography>}
+        <Stack sx={{ width: '100%' }}>
+            {!compact && !incidentEvidence && <Typography variant="h6" sx={{ fontSize: "0.875rem", fontWeight: "600", mb: "12px" }}>Hình ảnh</Typography>}
             <div
                 {...getRootProps()}
                 className=
-                {`${compact ? 'min-h-[140px]' : 'min-h-[280px]'} border border-[#919eab33] bg-[#919eab14] flex items-center justify-center cursor-pointer relative outline-none overflow-hidden p-[24px] rounded-[8px] hover:opacity-[0.72] transition-opacity duration-300 ease-linear ${isDragActive && "opacity-[0.72]"}`}
+                {incidentEvidence
+                    ? `min-h-[128px] w-full border-2 border-dashed flex items-center justify-center cursor-pointer relative outline-none p-[16px] rounded-[12px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-red-400 ${isDragActive ? 'border-[#FF3030] bg-[#fff1f0]' : 'border-[#cbd5e1] bg-[#f8fafc] hover:border-[#FF3030] hover:bg-[#fff8f7]'}`
+                    : `${compact ? 'min-h-[140px]' : 'min-h-[280px]'} border border-[#919eab33] bg-[#919eab14] flex items-center justify-center cursor-pointer relative outline-none overflow-hidden p-[24px] rounded-[8px] hover:opacity-[0.72] transition-opacity duration-300 ease-linear ${isDragActive && "opacity-[0.72]"}`}
             >
                 <input {...getInputProps()} />
 
-                <div className="w-full flex items-center justify-center flex-col">
-                    <UploadFileIcon />
-                    <div className="flex flex-col gap-[8px] text-center mt-2">
-                        <div className="text-[1.125rem] font-[600]">Kéo thả hoặc chọn tệp</div>
-                        {!compact && (
-                            <div className="text-[0.875rem] text-[#637381]">
-                                Kéo tệp vào đây, hoặc <span className="underline text-[#FF3030]">chọn tệp</span> từ thiết bị của bạn
-                            </div>
-                        )}
+                {incidentEvidence ? (
+                    <div className="w-full flex items-center gap-4">
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-[#d92d20] shadow-sm">
+                            <ImageOutlinedIcon fontSize="medium" />
+                        </span>
+                        <div className="min-w-0">
+                            <div className="text-sm font-semibold text-[#1c252e]">Chọn ảnh vé bị hư hỏng</div>
+                            <div className="mt-1 text-xs leading-5 text-[#637381]">Kéo ảnh vào đây hoặc bấm để chọn từ thiết bị. Ảnh cần thấy rõ phần bị lỗi.</div>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="w-full flex items-center justify-center flex-col">
+                        <UploadFileIcon />
+                        <div className="flex flex-col gap-[8px] text-center mt-2">
+                            <div className="text-[1.125rem] font-[600]">Kéo thả hoặc chọn tệp</div>
+                            {!compact && (
+                                <div className="text-[0.875rem] text-[#637381]">
+                                    Kéo tệp vào đây, hoặc <span className="underline text-[#FF3030]">chọn tệp</span> từ thiết bị của bạn
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
-            {files.length > 0 && (
+            {(files || []).length > 0 && (
                 <>
-                    <Box sx={{ my: 3 }}>
+                    {incidentEvidence && <Typography variant="caption" sx={{ color: (files || []).some(file => file instanceof File) ? 'warning.dark' : 'success.dark', mt: 1.25, fontWeight: 600 }}>
+                        {(files || []).some(file => file instanceof File) ? 'Đã chọn ảnh. Bấm “Tải ảnh lên” để lưu minh chứng.' : 'Ảnh minh chứng đã được tải lên.'}
+                    </Typography>}
+                    <Box sx={{ my: incidentEvidence ? 1.5 : 3 }}>
                         <ul className="flex gap-[12px] flex-wrap">{renderThumbs}</ul>
                     </Box>
                     <Box sx={{ gap: "12px", display: "flex", justifyContent: "flex-end" }}>
@@ -237,9 +268,9 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                                     boxShadow: "currentColor 0px 0px 0px 0.75px"
                                 }
                             }}>
-                            Xóa tất cả
+                            {incidentEvidence ? 'Xóa ảnh' : 'Xóa tất cả'}
                         </Button>
-                        {files.some(file => file instanceof File) && (
+                        {(files || []).some(file => file instanceof File) && (
                             <Button
                                 size="small"
                                 onClick={handleUpload}
@@ -261,12 +292,12 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                                         boxShadow: "0 8px 16px 0 rgba(145 158 171 / 16%)"
                                     }
                                 }}>
-                                {isUploading ? 'Đang tải...' : 'Tải lên'}
+                                {isUploading ? 'Đang tải...' : incidentEvidence ? 'Tải ảnh lên' : 'Tải lên'}
                             </Button>
                         )}
                     </Box>
                 </>
             )}
         </Stack>
-    )
-})
+    );
+});

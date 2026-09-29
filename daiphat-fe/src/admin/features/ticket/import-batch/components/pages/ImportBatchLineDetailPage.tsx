@@ -14,6 +14,7 @@ import {
     DialogContent,
     FormControl,
     IconButton,
+    Link,
     MenuItem,
     Select,
     Stack,
@@ -34,6 +35,7 @@ import dayjs from 'dayjs';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
+import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { Search } from '../../../../../components/ui/Search';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
@@ -66,6 +68,7 @@ import {
 import {
     buildCancelFlowStatusFilterOptions,
     getCancelFlowTicketStatusLabel,
+    getTicketCancelIneligibleReason,
     isTicketSelectableForCancel,
     matchesCancelFlowSerialFilter,
     matchesCancelFlowStatusFilter,
@@ -178,19 +181,25 @@ const getSerialDisplayBadge = (serial: {
 type CollapsibleRowProps = {
     ticket: any;
     index: number;
-    cancelMode: 'NONE' | 'TICKET' | 'SERIAL';
+    isCancelMode: boolean;
     selectedSerials: any[];
     onSelectTicket: (ticket: any, checked: boolean) => void;
     onSelectSerial: (ticket: any, serial: any, checked: boolean) => void;
+    onViewTicket: (ticket: any) => void;
+    onCancelTicket: (ticket: any) => void;
+    onCancelSerial: (ticket: any, serial: any) => void;
 };
 
 const CollapsibleRow = ({
     ticket,
     index,
-    cancelMode,
+    isCancelMode,
     selectedSerials,
     onSelectTicket,
     onSelectSerial,
+    onViewTicket,
+    onCancelTicket,
+    onCancelSerial,
 }: CollapsibleRowProps) => {
     const [open, setOpen] = React.useState(false);
     const ticketSelectable = isTicketSelectableForCancel(ticket.status);
@@ -199,6 +208,7 @@ const CollapsibleRow = ({
         ticket.statusDisplayName || getTicketStatusLabel(ticket.status)
     );
     const conditionBadge = getTicketConditionBadge(ticket.ticketCondition);
+    const cancelIneligibleReason = getTicketCancelIneligibleReason(ticket);
 
     const ticketSerials = asSerials(ticket.serials);
     const cancelableSerials = React.useMemo(() => {
@@ -230,7 +240,7 @@ const CollapsibleRow = ({
                         {open ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
                     </IconButton>
                 </TableCell>
-                <TableCell align="center" sx={{ width: 48 }}>
+                {isCancelMode && <TableCell align="center" sx={{ width: 48 }}>
                     <Checkbox
                         size="small"
                         disabled={!ticketSelectable || cancelableCount === 0}
@@ -239,16 +249,15 @@ const CollapsibleRow = ({
                         onChange={(event) => onSelectTicket(ticket, event.target.checked)}
                         sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
                     />
-                </TableCell>
+                </TableCell>}
                 <TableCell align="center" onClick={toggleOpen}>
                     <span className="admin-cell-text">{index + 1}</span>
                 </TableCell>
-                <TableCell onClick={toggleOpen}>
-                    <AdminLuckyDisplay
-                        value={ticket.numbers}
-                        ticket
-                        sx={{ fontWeight: 700 }}
-                    />
+                <TableCell>
+                    <Link href={ROUTES.ADMIN.TICKETS.DETAIL(ticket.id)} underline="hover"
+                        onClick={(event) => { event.preventDefault(); onViewTicket(ticket); }}>
+                        <AdminLuckyDisplay value={ticket.numbers} ticket sx={{ fontWeight: 700, color: 'inherit' }} />
+                    </Link>
                 </TableCell>
                 <TableCell onClick={toggleOpen}>
                     <span className="admin-cell-text">
@@ -266,10 +275,13 @@ const CollapsibleRow = ({
                         {formatVnd(ticket.priceSnapshot || 10000)}
                     </span>
                 </TableCell>
-                <TableCell align="center" onClick={toggleOpen}>
-                    <span className="admin-cell-title">
-                        {formatVnd(ticket.importCostSnapshot || ticket.priceSnapshot || 10000)}
-                    </span>
+                <TableCell align="center" sx={{ width: 72 }}>
+                    <AdminRowActionsMenu ariaLabel={`Thao tác với vé ${ticket.numbers}`} items={[
+                        { id: 'view', label: 'Xem chi tiết vé', icon: 'view', onClick: () => onViewTicket(ticket) },
+                        { id: 'cancel', label: 'Hủy vé', icon: <ReportProblemIcon fontSize="small" />,
+                            onClick: () => onCancelTicket(ticket), disabled: !!cancelIneligibleReason,
+                            disabledTitle: cancelIneligibleReason ?? undefined, danger: true },
+                    ]} />
                 </TableCell>
             </TableRow>
 
@@ -282,7 +294,7 @@ const CollapsibleRow = ({
                       );
 
                       const handleSerialToggle = () => {
-                          if (cancelMode === 'SERIAL') {
+                          if (isCancelMode) {
                               onSelectSerial(ticket, serial, !isSerialChecked);
                           }
                       };
@@ -294,7 +306,7 @@ const CollapsibleRow = ({
                               sx={{ bgcolor: 'var(--palette-background-neutral)' }}
                           >
                               <TableCell sx={{ width: 40 }} />
-                              <TableCell align="center" sx={{ width: 48 }}>
+                              {isCancelMode && <TableCell align="center" sx={{ width: 48 }}>
                                   <Checkbox
                                       size="small"
                                       checked={isSerialChecked}
@@ -304,16 +316,15 @@ const CollapsibleRow = ({
                                       }
                                       sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
                                   />
-                              </TableCell>
+                              </TableCell>}
                               <TableCell align="center" onClick={handleSerialToggle}>
                                   <span className="admin-cell-text">{`${index + 1}.${serialIndex + 1}`}</span>
                               </TableCell>
-                              <TableCell onClick={handleSerialToggle}>
-                                  <AdminLuckyDisplay
-                                      value={ticket.numbers}
-                                      ticket
-                                      sx={{ fontWeight: 600, fontSize: '0.875rem' }}
-                                  />
+                              <TableCell>
+                                  <Link href={ROUTES.ADMIN.TICKETS.DETAIL(ticket.id)} underline="hover"
+                                      onClick={(event) => { event.preventDefault(); onViewTicket(ticket); }}>
+                                      <AdminLuckyDisplay value={ticket.numbers} ticket sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'inherit' }} />
+                                  </Link>
                               </TableCell>
                               <TableCell onClick={handleSerialToggle}>
                                   <Typography className="admin-cell-title" sx={ticketNumberSx}>
@@ -337,15 +348,14 @@ const CollapsibleRow = ({
                                       {formatVnd(serial.ticketPrice ?? ticket.priceSnapshot ?? 10000)}
                                   </span>
                               </TableCell>
-                              <TableCell align="center" onClick={handleSerialToggle}>
-                                  <span className="admin-cell-title">
-                                      {formatVnd(
-                                          serial.importCost ??
-                                              ticket.importCostSnapshot ??
-                                              ticket.priceSnapshot ??
-                                              10000
-                                      )}
-                                  </span>
+                              <TableCell align="center" sx={{ width: 72 }}>
+                                  <AdminRowActionsMenu ariaLabel={`Thao tác với sê-ri ${serial.serialNumber}`} items={[
+                                      { id: 'view', label: 'Xem chi tiết vé', icon: 'view', onClick: () => onViewTicket(ticket) },
+                                      { id: 'cancel', label: 'Hủy vé', icon: <ReportProblemIcon fontSize="small" />,
+                                          onClick: () => onCancelSerial(ticket, serial),
+                                          disabled: !ticketSelectable || !isSerialIncidentEligible(serial),
+                                          disabledTitle: 'Sê-ri này không thể hủy.', danger: true },
+                                  ]} />
                               </TableCell>
                           </TableRow>
                       );
@@ -353,7 +363,7 @@ const CollapsibleRow = ({
                 : open ? (
                       <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                           <TableCell sx={{ width: 40 }} />
-                          <TableCell sx={{ width: 48 }} />
+                          {isCancelMode && <TableCell sx={{ width: 48 }} />}
                           <TableCell colSpan={7}>
                               <span className="admin-cell-text">Không có số sê-ri nào được gán</span>
                           </TableCell>
@@ -405,13 +415,13 @@ export const ImportBatchLineDetailPage = ({
     );
 
     const [selectedSerials, setSelectedSerials] = React.useState<any[]>([]);
+    const [isCancelMode, setIsCancelMode] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState('ALL');
     const [quantityFilter, setQuantityFilter] = React.useState('ALL');
     const [isReportDialogOpen, setIsReportDialogOpen] = React.useState(false);
     const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
     const [isOcrImportOpen, setIsOcrImportOpen] = React.useState(false);
-    const dialogCancelMode: 'TICKET' | 'SERIAL' = 'TICKET';
     const autoOpenedImportRef = React.useRef(false);
 
     const availableStatusFilterOptions = React.useMemo(
@@ -555,9 +565,34 @@ export const ImportBatchLineDetailPage = ({
     const handleReportSuccess = () => {
         setIsReportDialogOpen(false);
         setSelectedSerials([]);
+        setIsCancelMode(false);
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
         queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS] });
         queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+    };
+
+    const handleCancelPrimaryClick = () => {
+        if (!isCancelMode) {
+            setIsCancelMode(true);
+        } else if (selectedSerials.length > 0) {
+            setIsReportDialogOpen(true);
+        } else {
+            setIsCancelMode(false);
+        }
+    };
+
+    const handleCancelTicket = (ticket: any) => {
+        if (getTicketCancelIneligibleReason(ticket)) return;
+        setSelectedSerials(cancelableSerials.filter((serial) => String(serial.ticketId) === String(ticket.id)));
+        setIsCancelMode(true);
+        setIsReportDialogOpen(true);
+    };
+
+    const handleCancelSerial = (ticket: any, serial: any) => {
+        if (!isTicketSelectableForCancel(ticket.status) || !isSerialIncidentEligible(serial)) return;
+        setSelectedSerials(cancelableSerials.filter((item) => String(item.id) === String(serial.id)));
+        setIsCancelMode(true);
+        setIsReportDialogOpen(true);
     };
 
     const intakeGate = React.useMemo(() => {
@@ -712,6 +747,18 @@ export const ImportBatchLineDetailPage = ({
                                 </Tooltip>
                             </CanAccess>
                         )}
+                        {isCancelMode && selectedSerials.length > 0 && (
+                            <Button variant="outlined" size="small" onClick={() => {
+                                setSelectedSerials([]);
+                                setIsCancelMode(false);
+                            }}>
+                                Hủy chọn
+                            </Button>
+                        )}
+                        <Button variant="outlined" color="error" size="small"
+                            startIcon={<ReportProblemIcon />} onClick={handleCancelPrimaryClick}>
+                            Hủy vé{selectedSerials.length > 0 ? ` (${selectedSerials.length})` : ''}
+                        </Button>
                         <Button
                             variant="outlined"
                             className="btn-outlined-admin"
@@ -783,24 +830,6 @@ export const ImportBatchLineDetailPage = ({
                             </FormControl>
                         </Stack>
 
-                        <Button
-                            variant="outlined"
-                            color="error"
-                            size="small"
-                            startIcon={<ReportProblemIcon />}
-                            disabled={selectedSerials.length === 0}
-                            onClick={() => setIsReportDialogOpen(true)}
-                            sx={{
-                                textTransform: 'none',
-                                fontWeight: 700,
-                                borderRadius: '8px',
-                                whiteSpace: 'nowrap',
-                                alignSelf: { xs: 'stretch', lg: 'center' },
-                            }}
-                        >
-                            Tiến hành hủy vé
-                            {selectedSerials.length > 0 ? ` (${selectedSerials.length})` : ''}
-                        </Button>
                     </Stack>
                 </Box>
 
@@ -809,7 +838,7 @@ export const ImportBatchLineDetailPage = ({
                         <TableHead>
                             <TableRow>
                                 <TableCell sx={{ width: 40 }} />
-                                <TableCell align="center" sx={{ width: 48 }}>
+                                {isCancelMode && <TableCell align="center" sx={{ width: 48 }}>
                                     <Checkbox
                                         indeterminate={
                                             selectedSerials.length > 0 &&
@@ -823,7 +852,7 @@ export const ImportBatchLineDetailPage = ({
                                         size="small"
                                         sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
                                     />
-                                </TableCell>
+                                </TableCell>}
                                 <TableCell align="center" sx={{ width: 56 }}>
                                     STT
                                 </TableCell>
@@ -832,19 +861,19 @@ export const ImportBatchLineDetailPage = ({
                                 <TableCell align="center">Trạng thái</TableCell>
                                 <TableCell align="center">Tình trạng vé</TableCell>
                                 <TableCell align="center">Giá bán</TableCell>
-                                <TableCell align="center">Giá vốn</TableCell>
+                                <TableCell align="center">Thao tác</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {isTicketsLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
+                                    <TableCell colSpan={isCancelMode ? 9 : 8} align="center" sx={{ py: 10 }}>
                                         <CircularProgress size={32} />
                                     </TableCell>
                                 </TableRow>
                             ) : filteredTickets.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
+                                    <TableCell colSpan={isCancelMode ? 9 : 8} align="center" sx={{ py: 10 }}>
                                         <span className="admin-datagrid-empty">
                                             Không có vé số nào phù hợp với bộ lọc tìm kiếm.
                                         </span>
@@ -856,10 +885,13 @@ export const ImportBatchLineDetailPage = ({
                                         key={ticket.id}
                                         ticket={ticket}
                                         index={index}
-                                        cancelMode={dialogCancelMode}
+                                        isCancelMode={isCancelMode}
                                         selectedSerials={selectedSerials}
                                         onSelectTicket={handleSelectTicket}
                                         onSelectSerial={handleSelectSerial}
+                                        onViewTicket={(row) => router.push(ROUTES.ADMIN.TICKETS.DETAIL(row.id))}
+                                        onCancelTicket={handleCancelTicket}
+                                        onCancelSerial={handleCancelSerial}
                                     />
                                 ))
                             )}
@@ -893,7 +925,7 @@ export const ImportBatchLineDetailPage = ({
                         importBatchLineId={line.id}
                         stationId={line.lotteryStationId}
                         drawDate={batch.drawDate}
-                        defaultCancelMode={dialogCancelMode}
+                        defaultCancelMode="TICKET"
                         onCancel={() => setIsReportDialogOpen(false)}
                         onSuccess={handleReportSuccess}
                     />

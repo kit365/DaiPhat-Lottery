@@ -49,6 +49,8 @@ export interface ImportBatch {
     lateImportWarning?: boolean;
     warnings?: string[];
     lines: ImportBatchLine[];
+    importedBy?: string | null;
+    importedByDisplayName?: string | null;
     importedAt?: string;
     createdAt?: string;
     updatedAt?: string;

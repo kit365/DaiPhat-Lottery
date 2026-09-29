@@ -6,6 +6,10 @@ import {
     Checkbox,
     Chip,
     CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
     FormControlLabel,
     IconButton,
@@ -31,7 +35,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Button } from '../../../../components/ui/Button';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
-import { AppToast } from '@/utils/toast.util';
 import {
     clearOcrTemplateSampleImage,
     createOcrFieldLayout,
@@ -53,6 +56,7 @@ import {
     TICKET_FRAME_FIELD,
 } from './OcrFieldLayoutAnnotator';
 import { OcrTaggedRegionsList } from './OcrTaggedRegionsList';
+import { OcrSampleImageCropDialog } from './OcrSampleImageCropDialog';
 
 /** Match BE multipart limit (50MB). */
 const OCR_SAMPLE_MAX_BYTES = 50 * 1024 * 1024;
@@ -90,6 +94,14 @@ export const StationOcrTemplateSection = ({
     const [hoveredLayoutId, setHoveredLayoutId] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const replaceFileInputRef = useRef<HTMLInputElement | null>(null);
+    const [imageEditor, setImageEditor] = useState<{
+        templateId: number;
+        src: string;
+        fileName: string;
+        objectUrl?: string;
+    } | null>(null);
+    const [pendingImage, setPendingImage] = useState<{ templateId: number; file: File; regionCount: number } | null>(null);
+    const [checkingRegions, setCheckingRegions] = useState(false);
 
     const selectedTemplate =
         templates.find((t) => String(t.id) === selectedTemplateId) ?? null;
@@ -194,19 +206,18 @@ export const StationOcrTemplateSection = ({
         }
     };
 
-    const handleUploadSample = async (file: File | null, mode: 'upload' | 'replace' = 'upload') => {
-        if (!file || !selectedTemplateId) return;
+    const validateSampleFile = async (file: File) => {
         if (!file.type.startsWith('image/')) {
             toast.error('Chỉ chấp nhận file ảnh (JPG, PNG, WebP).');
-            return;
+            return false;
         }
         if (file.size > OCR_SAMPLE_MAX_BYTES) {
             toast.error('Ảnh mẫu vượt quá 50MB. Vui lòng chọn ảnh nhỏ hơn hoặc nén trước khi tải lên.');
-            return;
+            return false;
         }
         if (file.size < 2_048) {
             toast.error('Ảnh quá nhỏ để làm mẫu OCR. Vui lòng tải ảnh vé thật.');
-            return;
+            return false;
         }
         const dimensionsOk = await new Promise<boolean>((resolve) => {
             const url = URL.createObjectURL(file);
@@ -223,38 +234,63 @@ export const StationOcrTemplateSection = ({
         });
         if (!dimensionsOk) {
             toast.error('Ảnh quá nhỏ để làm mẫu OCR (kích thước tối thiểu 200×200 px).');
-            return;
+            return false;
         }
-        if (mode === 'replace') {
-            const ok = await AppToast.confirm(
-                'Tải ảnh thay thế sẽ xóa cứng ảnh cũ và toàn bộ vùng đã gắn tag trên mẫu này. Bạn có chắc chắn muốn tiếp tục?',
-                'Xác nhận thay thế ảnh mẫu?'
-            );
-            if (!ok) {
-                if (replaceFileInputRef.current) replaceFileInputRef.current.value = '';
-                return;
+        return true;
+    };
+
+    const closeImageEditor = () => {
+        if (imageEditor?.objectUrl) URL.revokeObjectURL(imageEditor.objectUrl);
+        setImageEditor(null);
+    };
+
+    const handleSelectedImage = async (file: File | null) => {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (replaceFileInputRef.current) replaceFileInputRef.current.value = '';
+        if (!file || !selectedTemplateId || !(await validateSampleFile(file))) return;
+        const objectUrl = URL.createObjectURL(file);
+        setImageEditor({ templateId: Number(selectedTemplateId), src: objectUrl, objectUrl, fileName: file.name });
+    };
+
+    const handleEditedImage = async (file: File) => {
+        if (!imageEditor || !(await validateSampleFile(file))) return;
+        const templateId = imageEditor.templateId;
+        setCheckingRegions(true);
+        try {
+            // Read fresh layouts so an in-flight reload cannot skip the destructive warning.
+            const existing = await listOcrFieldLayouts(templateId);
+            if (existing.length > 0) {
+                setPendingImage({ templateId, file, regionCount: existing.length });
+                closeImageEditor();
+            } else {
+                closeImageEditor();
+                await handleUploadSample(templateId, file);
             }
+        } catch {
+            toast.error('Không kiểm tra được các vùng OCR hiện có. Vui lòng thử lại.');
+        } finally {
+            setCheckingRegions(false);
         }
+    };
+
+    const handleUploadSample = async (templateId: number, file: File) => {
         setUploadingSample(true);
         try {
-            const res = await uploadOcrTemplateSampleImage(Number(selectedTemplateId), file);
+            const res = await uploadOcrTemplateSampleImage(templateId, file);
             if (!res.success || !res.data) {
                 toast.error(res.message || 'Tải ảnh mẫu thất bại.');
                 return;
             }
-            toast.success(
-                res.message ||
-                    (mode === 'replace'
-                        ? 'Đã thay ảnh mẫu và xóa các vùng gắn cũ.'
-                        : 'Đã tải ảnh mẫu vé thành công.')
-            );
+            toast.success(res.message || 'Đã lưu ảnh mẫu vé thành công.');
             setTemplates((prev) =>
                 prev.map((t) => (t.id === res.data!.id ? res.data! : t))
             );
-            setLayouts([]);
-            setSelectedLayoutId(null);
-            setHoveredLayoutId(null);
-            await reloadLayouts(Number(selectedTemplateId));
+            if (selectedTemplateId === String(templateId)) {
+                setLayouts([]);
+                setSelectedLayoutId(null);
+                setHoveredLayoutId(null);
+                await reloadLayouts(templateId);
+            }
         } catch (err: any) {
             const status = err?.response?.status;
             const apiMessage = err?.response?.data?.message;
@@ -271,20 +307,14 @@ export const StationOcrTemplateSection = ({
             }
         } finally {
             setUploadingSample(false);
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
-            if (replaceFileInputRef.current) {
-                replaceFileInputRef.current.value = '';
-            }
+            setPendingImage(null);
         }
     };
 
     const handleClearSample = async () => {
         if (!selectedTemplateId || !selectedTemplate?.sampleImageUrl) return;
-        const ok = await AppToast.confirm(
-            'Xóa ảnh mẫu sẽ xóa cứng ảnh và toàn bộ vùng đã gắn tag trên mẫu này. Bạn có chắc chắn muốn tiếp tục?',
-            'Xác nhận xóa ảnh mẫu?'
+        const ok = window.confirm(
+            'Xóa ảnh mẫu sẽ xóa cứng ảnh và toàn bộ vùng đã gắn tag trên mẫu này. Bạn có chắc chắn muốn tiếp tục?'
         );
         if (!ok) return;
         setClearingSample(true);
@@ -858,18 +888,14 @@ export const StationOcrTemplateSection = ({
                                 type="file"
                                 accept="image/*"
                                 hidden
-                                onChange={(e) =>
-                                    void handleUploadSample(e.target.files?.[0] ?? null, 'upload')
-                                }
+                                onChange={(e) => void handleSelectedImage(e.target.files?.[0] ?? null)}
                             />
                             <input
                                 ref={replaceFileInputRef}
                                 type="file"
                                 accept="image/*"
                                 hidden
-                                onChange={(e) =>
-                                    void handleUploadSample(e.target.files?.[0] ?? null, 'replace')
-                                }
+                                onChange={(e) => void handleSelectedImage(e.target.files?.[0] ?? null)}
                             />
 
                             {/* Template Header & Actions Bar */}
@@ -1040,7 +1066,7 @@ export const StationOcrTemplateSection = ({
                                                 {uploadingSample ? 'Đang tải ảnh lên máy chủ...' : 'Tải lên ảnh mẫu vé của nhà đài'}
                                             </Typography>
                                             <Typography variant="body2" color="#64748b" sx={{ mt: 0.5, maxWidth: 500, mx: 'auto' }}>
-                                                Kéo thả file ảnh hoặc bấm vào đây để chọn ảnh chụp vé thật của nhà đài để bắt đầu cấu hình các vùng nhận diện OCR.
+                                                Bấm vào đây để chọn ảnh chụp vé thật của nhà đài và chỉnh sửa trước khi gắn vùng OCR.
                                             </Typography>
                                         </Box>
 
@@ -1093,6 +1119,11 @@ export const StationOcrTemplateSection = ({
                                             selectedLayoutId={selectedLayoutId}
                                             hoveredLayoutId={hoveredLayoutId}
                                             onHoverLayout={setHoveredLayoutId}
+                                            onEditImage={() => setImageEditor({
+                                                templateId: selectedTemplate.id,
+                                                src: selectedTemplate.sampleImageUrl!,
+                                                fileName: `${selectedTemplate.templateName}.jpg`,
+                                            })}
                                             disabled={savingLayout}
                                         />
                                     </Box>
@@ -1183,6 +1214,29 @@ export const StationOcrTemplateSection = ({
                         </Stack>
                     </Paper>
                 )}
+                <OcrSampleImageCropDialog
+                    open={!!imageEditor}
+                    imageSrc={imageEditor?.src ?? null}
+                    fileName={imageEditor?.fileName}
+                    uploading={uploadingSample || checkingRegions}
+                    onClose={closeImageEditor}
+                    onConfirm={(file) => void handleEditedImage(file)}
+                />
+                <Dialog open={!!pendingImage} onClose={uploadingSample ? undefined : () => setPendingImage(null)} maxWidth="sm" fullWidth>
+                    <DialogTitle>Xác nhận chỉnh sửa ảnh mẫu</DialogTitle>
+                    <DialogContent>
+                        <Typography>
+                            Lưu ảnh đã chỉnh sửa sẽ xóa toàn bộ {pendingImage?.regionCount} vùng OCR/khung vẽ đã cấu hình trên ảnh trước đó. Bạn có muốn tiếp tục?
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setPendingImage(null)} disabled={uploadingSample}>Hủy</Button>
+                        <Button variant="contained" color="error" disabled={uploadingSample || !pendingImage}
+                            onClick={() => pendingImage && void handleUploadSample(pendingImage.templateId, pendingImage.file)}>
+                            {uploadingSample ? 'Đang lưu…' : 'Lưu ảnh và xóa vùng OCR'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             </Stack>
         </CollapsibleCard>
     );
