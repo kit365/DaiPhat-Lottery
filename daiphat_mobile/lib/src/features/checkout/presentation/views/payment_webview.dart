@@ -48,8 +48,9 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
   bool _hasInvalidCheckoutUrl = false;
 
   // Countdown
-  int _remainingSeconds = 15 * 60; // default 15 min, synced from API
+  int _remainingSeconds = 0;
   bool _isExpired = false;
+  bool _isCountdownLoading = true;
   Timer? _countdownTimer;
 
   // Pull-to-refresh
@@ -94,8 +95,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     if (widget.orderId != null) {
       // Defer to post-frame so mounted = true before starting timer/setState
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _startCountdown(_remainingSeconds); // default 15 min
-        _fetchAndStartCountdown(); // sync real value from server
+        _fetchAndStartCountdown();
       });
     }
   }
@@ -114,7 +114,14 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
       if (!mounted) return;
       _startCountdown(result.remainingSeconds, alreadyExpired: result.expired);
     } catch (_) {
-      // Countdown sync failed silently — local countdown continues
+      // Do not fall back to a different hard-coded timeout. The backend is
+      // the source of truth for the configured payment timeout.
+      if (mounted) {
+        setState(() {
+          _isCountdownLoading = false;
+          _isExpired = true;
+        });
+      }
     }
   }
 
@@ -124,6 +131,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     setState(() {
       _remainingSeconds = seconds;
       _isExpired = alreadyExpired || seconds <= 0;
+      _isCountdownLoading = false;
     });
     if (_isExpired) return;
 
@@ -289,7 +297,13 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     final String label;
     final IconData icon;
 
-    if (_isExpired) {
+    if (_isCountdownLoading) {
+      bgColor = AppColors.surfaceNeutral;
+      textColor = AppColors.textMuted;
+      iconColor = AppColors.textMuted;
+      label = '...';
+      icon = Icons.timer_rounded;
+    } else if (_isExpired) {
       bgColor = AppColors.statusDangerSurface;
       textColor = AppColors.brandPrimaryDarkRed;
       iconColor = AppColors.statusDanger;

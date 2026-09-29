@@ -100,7 +100,7 @@ class OrderDetailViewModel extends ChangeNotifier {
 
     try {
       _order = await _getMyOrderDetail(orderId);
-      _initPaymentCountdown();
+      await _initPaymentCountdown();
       await _loadRefundContext();
     } catch (e) {
       _error = e.toString();
@@ -187,19 +187,19 @@ class OrderDetailViewModel extends ChangeNotifier {
     });
   }
 
-  void _initPaymentCountdown() {
+  Future<void> _initPaymentCountdown() async {
     _countdownTimer?.cancel();
+    _remainingSeconds = 0;
     if (_order == null ||
-        _order!.status != 'PENDING_PAYMENT' ||
-        _order!.createdAt == null) {
+        _order!.status != 'PENDING_PAYMENT') {
       return;
     }
 
     try {
-      final createdAt = DateTime.parse(_order!.createdAt!).toUtc();
-      final expiresAt = createdAt.add(const Duration(minutes: 15));
-      final diff = expiresAt.difference(DateTime.now().toUtc()).inSeconds;
-      _remainingSeconds = diff > 0 ? diff : 0;
+      final result = await _transactionService.getPendingPaymentCountdown(
+        _order!.id,
+      );
+      _remainingSeconds = result.remainingSeconds;
     } catch (_) {
       _remainingSeconds = 0;
     }
