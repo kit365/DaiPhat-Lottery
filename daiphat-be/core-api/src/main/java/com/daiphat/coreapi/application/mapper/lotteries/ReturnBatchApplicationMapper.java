@@ -33,6 +33,19 @@ public class ReturnBatchApplicationMapper {
             List<ReturnBatchLineResponse> lines,
             Integer remainingInspectableQuantity
     ) {
+        return toResponse(model, lines, remainingInspectableQuantity, null);
+    }
+
+    public ReturnBatchResponse toResponseWithActor(ReturnBatchModel model, String returnedByDisplayName) {
+        return toResponse(model, null, null, returnedByDisplayName);
+    }
+
+    private ReturnBatchResponse toResponse(
+            ReturnBatchModel model,
+            List<ReturnBatchLineResponse> lines,
+            Integer remainingInspectableQuantity,
+            String returnedByDisplayName
+    ) {
         if (model == null) {
             return null;
         }
@@ -91,6 +104,7 @@ public class ReturnBatchApplicationMapper {
                 .remainingInspectableQuantity(remaining)
                 .totalReturnValue(model.getTotalReturnValue())
                 .returnedBy(model.getReturnedBy())
+                .returnedByDisplayName(returnedByDisplayName)
                 .returnedAt(model.getReturnedAt())
                 .confirmedAt(model.getConfirmedAt())
                 .status(model.getStatus())

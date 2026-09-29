@@ -30,6 +30,7 @@ public record ReturnBatchResponse(
         Integer remainingInspectableQuantity,
         BigDecimal totalReturnValue,
         UUID returnedBy,
+        String returnedByDisplayName,
         LocalDateTime returnedAt,
         LocalDateTime confirmedAt,
         ReturnBatchStatus status,

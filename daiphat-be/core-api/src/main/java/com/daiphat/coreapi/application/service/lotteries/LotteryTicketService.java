@@ -91,6 +91,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private final OrderRepositoryPort orderRepositoryPort;
     private final ApplicationEventPublisher eventPublisher;
     private final LotteryTicketAggregateSyncService lotteryTicketAggregateSyncService;
+    private final TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
 
     @Override
     @Transactional
@@ -780,10 +781,9 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Transactional
     public void releaseReservationForOrder(Long ticketSerialId) {
         LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
-        LotteryTicketModel ticket = getTicketOrThrow(serial.getTicketId());
-        LotteryStationModel station = getStationOrThrow(ticket.getStationId());
-        boolean expireAfterRelease = ticket.isExpired(station.getDrawTime());
-        serial = lotteryTicketSerialService.releaseReservation(ticketSerialId, expireAfterRelease);
+        serial = lotteryTicketSerialService.releaseReservation(
+                ticketSerialId,
+                ticketSalesCutoffPolicy.isClosed(serial));
         recomputeTicketAggregate(serial.getTicketId());
     }
 
@@ -797,18 +797,19 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Override
     @Transactional
     public int expireDueTickets() {
-        List<LotteryTicketModel> tickets = lotteryTicketRepositoryPort.findExpirableTickets(LocalDate.now(), EXPIRABLE_STATUSES);
+        List<LotteryTicketModel> tickets = lotteryTicketRepositoryPort.findExpirableTickets(
+                DrawScheduleUtils.today(), EXPIRABLE_STATUSES);
         int expiredCount = 0;
         for (LotteryTicketModel ticket : tickets) {
-            LotteryStationModel station = getStationOrThrow(ticket.getStationId());
-            if (!ticket.isExpired(station.getDrawTime())) {
-                continue;
-            }
+            long inStockBefore = lotteryTicketSerialService.countByStatuses(
+                    ticket.getId(), List.of(LotteryTicketSerialStatus.IN_STOCK));
             lotteryTicketSerialService.expireActiveSerials(ticket.getId());
-            ticket.expire();
-            lotteryTicketRepositoryPort.save(ticket);
-            syncStationInventory(ticket.getStationId());
-            expiredCount++;
+            long inStockAfter = lotteryTicketSerialService.countByStatuses(
+                    ticket.getId(), List.of(LotteryTicketSerialStatus.IN_STOCK));
+            recomputeTicketAggregate(ticket.getId());
+            if (inStockAfter < inStockBefore) {
+                expiredCount++;
+            }
         }
         return expiredCount;
     }
@@ -1257,6 +1258,13 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 faultySerials.size(),
                 cutoffTime,
                 LotteryTicketModel.buildAllSerialsFaultyReason(faultySerials));
+        boolean hasReserved = allSerials.stream()
+                .anyMatch(serial -> serial.getStatus() == LotteryTicketSerialStatus.RESERVED);
+        boolean hasExpired = allSerials.stream()
+                .anyMatch(serial -> serial.getStatus() == LotteryTicketSerialStatus.EXPIRED);
+        if (availableSerialCount == 0 && hasExpired && !hasReserved) {
+            ticket.expire();
+        }
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(ticket);
         syncStationInventory(saved.getStationId());
         return saved;

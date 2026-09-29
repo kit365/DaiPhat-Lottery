@@ -22,6 +22,7 @@ import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import FitScreenRoundedIcon from '@mui/icons-material/FitScreenRounded';
 import CropFreeRoundedIcon from '@mui/icons-material/CropFreeRounded';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 import type {
     OcrFieldLayout,
@@ -128,6 +129,7 @@ type Props = {
     selectedLayoutId?: number | null;
     hoveredLayoutId?: number | null;
     onHoverLayout?: (layoutId: number | null) => void;
+    onEditImage?: () => void;
     disabled?: boolean;
 };
 
@@ -146,6 +148,7 @@ export const OcrFieldLayoutAnnotator = ({
     selectedLayoutId = null,
     hoveredLayoutId = null,
     onHoverLayout,
+    onEditImage,
     disabled = false,
 }: Props) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -647,6 +650,12 @@ export const OcrFieldLayoutAnnotator = ({
                         modifier={getOcrFieldBadgeModifier(selectedField)}
                     />
                 </Stack>
+                {onEditImage && (
+                    <Button size="small" variant="outlined" startIcon={<EditOutlinedIcon />}
+                        onClick={onEditImage} disabled={disabled} sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}>
+                        Chỉnh sửa ảnh
+                    </Button>
+                )}
             </Stack>
 
             <Divider />

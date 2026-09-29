@@ -274,6 +274,8 @@ type Props = {
     onSelect: (selection: OcrFieldSelection) => void;
     onToggle: (key: string, checked: boolean) => void;
     onUpdate: (key: string, patch: Partial<OcrReviewRow>) => void;
+    /** Show the bulk-selection checkbox in the STT header. */
+    showHeaderSelectAll?: boolean;
     /** When true, omit outer spacing wrapper (used inside per-image groups). */
     embedded?: boolean;
 };
@@ -306,6 +308,7 @@ export default function OcrReviewResultCards({
     onSelect,
     onToggle,
     onUpdate,
+    showHeaderSelectAll = true,
 }: Props) {
     const [zoomImage, setZoomImage] = useState<{ url: string; title: string; row: OcrReviewRow } | null>(null);
     const [selectedRowForErrorDetail, setSelectedRowForErrorDetail] = useState<{
@@ -313,6 +316,7 @@ export default function OcrReviewResultCards({
         index: number;
     } | null>(null);
     const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+    const [numberDrafts, setNumberDrafts] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (!selection?.rowKey) return;
@@ -406,13 +410,15 @@ export default function OcrReviewResultCards({
                         >
                             <TableCell align="center" sx={{ width: 52, minWidth: 52, px: 0.5 }}>
                                 <Stack direction="row" spacing={0.25} alignItems="center" justifyContent="center">
-                                    <Checkbox
-                                        size="small"
-                                        checked={isAllSelected}
-                                        indeterminate={rows.some((r) => r.selected) && !isAllSelected}
-                                        onChange={(e) => handleToggleAll(e.target.checked)}
-                                        sx={{ p: 0, color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
-                                    />
+                                    {showHeaderSelectAll && (
+                                        <Checkbox
+                                            size="small"
+                                            checked={isAllSelected}
+                                            indeterminate={rows.some((r) => r.selected) && !isAllSelected}
+                                            onChange={(e) => handleToggleAll(e.target.checked)}
+                                            sx={{ p: 0, color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
+                                        />
+                                    )}
                                     <span>STT</span>
                                 </Stack>
                             </TableCell>
@@ -537,12 +543,36 @@ export default function OcrReviewResultCards({
                                             <Box
                                                 component="input"
                                                 type="text"
-                                                value={row.numbers}
+                                                value={numberDrafts[row.key] ?? row.numbers}
                                                 placeholder="Nhập dãy số…"
-                                                onFocus={() => onSelect({ rowKey: row.key, fieldName: 'numbers' })}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                                    onUpdate(row.key, { numbers: e.target.value })
-                                                }
+                                                onFocus={() => {
+                                                    onSelect({ rowKey: row.key, fieldName: 'numbers' });
+                                                    setNumberDrafts((previous) =>
+                                                        previous[row.key] == null
+                                                            ? { ...previous, [row.key]: row.numbers }
+                                                            : previous
+                                                    );
+                                                }}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                    const value = e.target.value;
+                                                    setNumberDrafts((previous) => ({ ...previous, [row.key]: value }));
+                                                }}
+                                                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.currentTarget.blur();
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    const nextValue = numberDrafts[row.key];
+                                                    if (nextValue != null && nextValue !== row.numbers) {
+                                                        onUpdate(row.key, { numbers: nextValue });
+                                                    }
+                                                    setNumberDrafts((previous) => {
+                                                        const next = { ...previous };
+                                                        delete next[row.key];
+                                                        return next;
+                                                    });
+                                                }}
                                                 sx={{
                                                     width: '100%',
                                                     height: 32,
