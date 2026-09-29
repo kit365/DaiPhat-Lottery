@@ -204,13 +204,17 @@ class Settings(BaseSettings):
     # without MKLDNN. Do NOT downgrade paddlepaddle to 2.5.x while using paddleocr 3.x.
     TICKET_VISION_PADDLE_USE_GPU: bool = False
     TICKET_VISION_PADDLE_ENABLE_MKLDNN: bool = False
-    TICKET_VISION_PADDLE_CPU_THREADS: int = 4
+    TICKET_VISION_PADDLE_CPU_THREADS: int = 2
     TICKET_VISION_PADDLE_OCR_VERSION: str = "PP-OCRv3"
     TICKET_VISION_PADDLE_LANG: str = "vi"
     # Cap detector input side length (px) — smaller = faster on large ticket crops.
     TICKET_VISION_PADDLE_DET_LIMIT_SIDE_LEN: int = 960
     # Cap PyTorch/OMP threads for EasyOCR (match Paddle CPU thread budget).
-    TICKET_VISION_TORCH_NUM_THREADS: int = 4
+    TICKET_VISION_TORCH_NUM_THREADS: int = 2
+    # oneDNN/MKL-DNN can SIGFPE inside conv2d on some virtualized production
+    # CPUs. Keep the native PyTorch backend off unless a host is benchmarked
+    # and explicitly opts back in.
+    TICKET_VISION_TORCH_ENABLE_MKLDNN: bool = False
     TICKET_VISION_ONNX_INTRA_OP_THREADS: int = 2
     # Field CRNN ONNX — keep false unless you have trained weights + dataset.
     TICKET_VISION_FIELD_OCR_USE_ONNX: bool = False
