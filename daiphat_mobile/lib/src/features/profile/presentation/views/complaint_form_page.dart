@@ -17,10 +17,20 @@ import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 /// Trang tạo mới / chỉnh sửa một khiếu nại (hỗ trợ).
 class ComplaintFormPage extends ConsumerStatefulWidget {
   final SupportTicketResponse? editingTicket;
+  final String? defaultCategoryCode;
+  final String? defaultRefId;
+  final String? defaultRefLabel;
+  final String? defaultTitle;
+  final String? defaultDescription;
 
   const ComplaintFormPage({
     super.key,
     this.editingTicket,
+    this.defaultCategoryCode,
+    this.defaultRefId,
+    this.defaultRefLabel,
+    this.defaultTitle,
+    this.defaultDescription,
   });
 
   @override
@@ -60,6 +70,12 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
             ? '#${id.substring(0, 8).toUpperCase()}'
             : '#$id';
       }
+    } else {
+      _titleController.text = widget.defaultTitle ?? '';
+      _descController.text = widget.defaultDescription ?? '';
+      _refController.text = widget.defaultRefId ?? '';
+      _selectedRefId = widget.defaultRefId;
+      _selectedRefLabel = widget.defaultRefLabel;
     }
     _loadCategories();
   }
@@ -87,6 +103,13 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
       if (editing != null) {
         for (final c in selectable) {
           if (c.id == editing.ticketCategoryId) {
+            initial = c;
+            break;
+          }
+        }
+      } else if (widget.defaultCategoryCode != null) {
+        for (final c in selectable) {
+          if (c.code == widget.defaultCategoryCode) {
             initial = c;
             break;
           }
