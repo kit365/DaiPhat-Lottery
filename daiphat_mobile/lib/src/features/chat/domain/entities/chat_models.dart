@@ -242,6 +242,10 @@ class SuggestedTicketModel {
     this.stationName,
     this.drawDate,
     this.price,
+    this.quantity,
+    this.isBeautiful,
+    this.kyHieu,
+    this.ticketImageUrl,
   });
 
   final int id;
@@ -250,8 +254,17 @@ class SuggestedTicketModel {
   final String? stationName;
   final String? drawDate;
   final num? price;
+  final int? quantity;
+  final bool? isBeautiful;
+  final String? kyHieu;
+  final String? ticketImageUrl;
 
   factory SuggestedTicketModel.fromJson(Map<String, dynamic> json) {
+    final qty = (json['availableQuantity'] ??
+        json['remainingQuantity'] ??
+        json['quantity'] ??
+        json['maxStock'] ??
+        json['inventory']) as num?;
     return SuggestedTicketModel(
       id: (json['id'] as num).toInt(),
       numbers: json['numbers']?.toString() ?? '',
@@ -259,6 +272,13 @@ class SuggestedTicketModel {
       stationName: json['stationName']?.toString(),
       drawDate: json['drawDate']?.toString(),
       price: json['price'] as num?,
+      quantity: qty?.toInt(),
+      isBeautiful: json['isBeautiful'] == true ||
+          json['isSpecial'] == true ||
+          json['soDep'] == true,
+      kyHieu: json['kyHieu']?.toString() ?? json['batchCode']?.toString(),
+      ticketImageUrl: json['ticketImageUrl']?.toString() ??
+          json['imageUrl']?.toString(),
     );
   }
 }

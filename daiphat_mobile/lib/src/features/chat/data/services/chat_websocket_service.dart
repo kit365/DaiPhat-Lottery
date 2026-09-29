@@ -22,13 +22,26 @@ class _ChatSubscription {
 class ChatWebSocketService {
   StompClient? _client;
   String? _token;
+  Future<void>? _connectFuture;
   final Map<String, _ChatSubscription> _subscriptions = {};
 
   Future<void> connect(String token) async {
     if (_client != null && _token == token && _client!.connected) {
       return;
     }
+    if (_connectFuture != null && _token == token) {
+      return _connectFuture;
+    }
 
+    _connectFuture = _doConnect(token);
+    try {
+      await _connectFuture;
+    } finally {
+      _connectFuture = null;
+    }
+  }
+
+  Future<void> _doConnect(String token) async {
     await disconnect();
     _token = token;
 
@@ -47,9 +60,9 @@ class ChatWebSocketService {
           }
           if (!completer.isCompleted) completer.complete();
         },
-        onWebSocketError: (_) {
+        onWebSocketError: (error) {
           if (!completer.isCompleted) {
-            completer.completeError(Exception('WebSocket connection failed'));
+            completer.completeError(Exception('WebSocket connection failed: $error'));
           }
         },
         onStompError: (frame) {
@@ -61,16 +74,30 @@ class ChatWebSocketService {
         },
         onDisconnect: (_) {
           _clearActiveSubscriptions();
+          if (!completer.isCompleted) {
+            completer.completeError(Exception('WebSocket disconnected'));
+          }
           _client = null;
         },
       ),
     );
 
     _client!.activate();
-    await completer.future.timeout(const Duration(seconds: 15));
+    await completer.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        if (!completer.isCompleted) {
+          completer.completeError(
+            Exception('Không thể kết nối máy chủ chat (quá thời gian kết nối).'),
+          );
+        }
+        throw Exception('Không thể kết nối máy chủ chat (quá thời gian kết nối).');
+      },
+    );
   }
 
   Future<void> disconnect() async {
+    _connectFuture = null;
     _clearActiveSubscriptions();
     _client?.deactivate();
     _client = null;

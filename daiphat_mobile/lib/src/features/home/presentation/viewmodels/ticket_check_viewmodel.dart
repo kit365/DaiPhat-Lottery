@@ -40,7 +40,8 @@ class TicketCheckState {
     this.dateError,
     this.stationError,
     this.numberError,
-  });
+    int? checkSequence,
+  }) : _checkSequence = checkSequence ?? 0;
 
   final DateTime? selectedDate;
   final List<LotteryStationDraw> stations;
@@ -56,6 +57,9 @@ class TicketCheckState {
   final String? dateError;
   final String? stationError;
   final String? numberError;
+  final int? _checkSequence;
+
+  int get checkSequence => _checkSequence ?? 0;
 
   LotteryStationDraw? get selectedStation {
     final id = selectedStationId;
@@ -88,6 +92,7 @@ class TicketCheckState {
     bool clearStationError = false,
     String? numberError,
     bool clearNumberError = false,
+    int? checkSequence,
   }) {
     return TicketCheckState(
       selectedDate: selectedDate ?? this.selectedDate,
@@ -110,6 +115,7 @@ class TicketCheckState {
       stationError:
           clearStationError ? null : (stationError ?? this.stationError),
       numberError: clearNumberError ? null : (numberError ?? this.numberError),
+      checkSequence: checkSequence ?? this.checkSequence,
     );
   }
 }
@@ -261,6 +267,7 @@ class TicketCheckViewModel extends Notifier<TicketCheckState> {
           checkResult: checkResult,
           checkedStationResult: stationResult,
           isLoadingCheckedStationResult: false,
+          checkSequence: state.checkSequence + 1,
         );
       }
     } catch (e) {

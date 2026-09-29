@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { toast } from 'react-toastify';
 import { Button } from '../../../../components/ui/Button';
+import { confirmDelete } from '../../../../utils/swal';
 import {
     createOcrFieldValidationRule,
     deleteOcrFieldValidationRule,
@@ -147,17 +148,16 @@ export const OcrFieldValidationRulesPanel = ({ templateId }: Props) => {
         }
     };
 
-    const handleDelete = async (ruleId: number) => {
-        if (!window.confirm('Xóa luật kiểm tra này?')) {
-            return;
-        }
-        try {
-            await deleteOcrFieldValidationRule(templateId, ruleId);
-            toast.success('Đã xóa luật.');
-            await reload();
-        } catch {
-            toast.error('Không xóa được luật.');
-        }
+    const handleDelete = (ruleId: number) => {
+        confirmDelete('Bạn có chắc chắn muốn xóa luật kiểm tra này?', async () => {
+            try {
+                await deleteOcrFieldValidationRule(templateId, ruleId);
+                toast.success('Đã xóa luật.');
+                await reload();
+            } catch {
+                toast.error('Không xóa được luật.');
+            }
+        });
     };
 
     return (

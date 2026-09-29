@@ -29,7 +29,7 @@ class _PrizePayoutsViewState extends ConsumerState<PrizePayoutsView> {
 
   static const _statusTabs = <(String?, String)>[
     (null, 'Tất cả'),
-    ('PENDING', 'Cần xử lý'),
+    ('PENDING', 'Đang xử lý'),
     ('APPROVED', 'Đã duyệt'),
     ('COMPLETED', 'Đã chuyển'),
     ('REJECTED', 'Từ chối'),

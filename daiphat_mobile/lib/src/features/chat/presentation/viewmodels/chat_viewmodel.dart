@@ -210,7 +210,7 @@ class ChatViewModel extends Notifier<ChatState> {
       await _markReadIfNeeded();
     } catch (error) {
       if (_isCurrentSession(sessionEpoch)) {
-        state = state.copyWith(errorMessage: error.toString());
+        state = state.copyWith(errorMessage: formatChatError(error));
       }
     } finally {
       if (_isCurrentSession(sessionEpoch)) {
@@ -237,8 +237,9 @@ class ChatViewModel extends Notifier<ChatState> {
         beforeId: beforeId,
       );
       final older = mapTimelineItems(page.items);
+      final combined = [...older, ...state.timelineMessages]..sort(compareChatMessages);
       state = state.copyWith(
-        timelineMessages: [...older, ...state.timelineMessages],
+        timelineMessages: combined,
         hasMoreTimeline: page.hasMore,
       );
       _timelineCursor = page.nextCursor;
@@ -253,12 +254,14 @@ class ChatViewModel extends Notifier<ChatState> {
 
     final wantsStaff = isStaffRequestText(text);
     final sendToken = DateTime.now().millisecondsSinceEpoch.toString();
+    final now = DateTime.now();
     final optimistic = UiChatMessage(
       id: 'optimistic-user-$sendToken',
       isUser: true,
       text: mapCustomerDisplayText(text),
       sentContent: mapCustomerDisplayText(text) == text ? null : text,
-      timeLabel: formatMessageTime(DateTime.now()),
+      timeLabel: formatMessageTime(now),
+      createdAt: now,
     );
 
     final botCount = countBotReplies(state.timelineMessages);
@@ -317,7 +320,7 @@ class ChatViewModel extends Notifier<ChatState> {
         overlayMessages: state.overlayMessages
             .where((message) => !message.id.contains(sendToken))
             .toList(),
-        errorMessage: error.toString(),
+        errorMessage: formatChatError(error),
       );
     } finally {
       state = state.copyWith(isSending: false);
@@ -364,7 +367,7 @@ class ChatViewModel extends Notifier<ChatState> {
         );
       }
     } catch (error) {
-      state = state.copyWith(errorMessage: error.toString());
+      state = state.copyWith(errorMessage: formatChatError(error));
     } finally {
       state = state.copyWith(isSending: false);
       _refreshQuickReplies();
@@ -391,7 +394,7 @@ class ChatViewModel extends Notifier<ChatState> {
       state = state.copyWith(statusBanner: 'Đã huỷ yêu cầu gặp nhân viên.');
       await _loadTimeline(reset: true);
     } catch (error) {
-      if (ref.mounted) state = state.copyWith(errorMessage: error.toString());
+      if (ref.mounted) state = state.copyWith(errorMessage: formatChatError(error));
     } finally {
       if (ref.mounted) {
         state = state.copyWith(isCancellingStaff: false);
@@ -420,7 +423,7 @@ class ChatViewModel extends Notifier<ChatState> {
       state = state.copyWith(statusBanner: 'Đã ngắt kết nối với nhân viên.');
       await _loadTimeline(reset: true);
     } catch (error) {
-      if (ref.mounted) state = state.copyWith(errorMessage: error.toString());
+      if (ref.mounted) state = state.copyWith(errorMessage: formatChatError(error));
     } finally {
       if (ref.mounted) {
         state = state.copyWith(isDisconnectingStaff: false);
@@ -440,14 +443,15 @@ class ChatViewModel extends Notifier<ChatState> {
     if (reset) _timelineRefreshInFlight = true;
     try {
       final page = await _chat.getTimeline();
-      final mapped = mapTimelineItems(page.items);
+      final mapped = mapTimelineItems(page.items)..sort(compareChatMessages);
+      final combined = reset
+          ? mapped
+          : ([...mapped, ...state.timelineMessages]..sort(compareChatMessages));
       state = state.copyWith(
-        timelineMessages: reset
-            ? mapped
-            : [...mapped, ...state.timelineMessages],
+        timelineMessages: combined,
         hasMoreTimeline: page.hasMore,
-        overlayMessages: reset ? _pruneOverlay(mapped) : state.overlayMessages,
-        showWelcome: mapped.isEmpty,
+        overlayMessages: reset ? _pruneOverlay(combined) : state.overlayMessages,
+        showWelcome: combined.isEmpty,
       );
       _timelineCursor = page.nextCursor;
     } finally {
@@ -504,10 +508,12 @@ class ChatViewModel extends Notifier<ChatState> {
       return;
     }
 
+    final updatedTimeline = [...state.timelineMessages, mapped]..sort(compareChatMessages);
     state = state.copyWith(
-      timelineMessages: [...state.timelineMessages, mapped],
-      overlayMessages: _pruneOverlay([...state.timelineMessages, mapped]),
+      timelineMessages: updatedTimeline,
+      overlayMessages: _pruneOverlay(updatedTimeline),
       showWelcome: false,
+      clearError: true,
     );
     _refreshQuickReplies();
     unawaited(_markReadIfNeeded());
@@ -771,4 +777,21 @@ List<UiChatMessage> mapTimelineItems(List<ChatTimelineItemModel> items) {
   if (parts.length != 2) return (null, null);
   final beforeId = int.tryParse(parts[1]);
   return (parts[0], beforeId);
+}
+
+String formatChatError(Object error) {
+  final str = error.toString().toLowerCase();
+  if (str.contains('timeout') ||
+      str.contains('future not completed') ||
+      str.contains('quá thời gian')) {
+    return 'Kết nối mạng không ổn định, vui lòng thử lại.';
+  }
+  if (str.contains('socket') ||
+      str.contains('network') ||
+      str.contains('connection') ||
+      str.contains('mất kết nối')) {
+    return 'Lỗi kết nối máy chủ chat, vui lòng thử lại.';
+  }
+  final clean = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+  return clean.isNotEmpty ? clean : 'Đã có lỗi xảy ra, vui lòng thử lại.';
 }

@@ -10,6 +10,7 @@ import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders
 import 'package:daiphat_mobile/src/features/orders/presentation/widgets/payment_timeout_complaint_dialog.dart';
 import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/transaction_type.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
 
 class FakeOrdersRepository implements OrdersRepository {
   String? lastSubmittedOrderId;
@@ -189,6 +190,28 @@ void main() {
       // Buttons check
       expect(find.text('Hủy'), findsOneWidget);
       expect(find.text('Gửi khiếu nại'), findsOneWidget);
+    });
+  });
+
+  group('Support Ticket Resolution Confirmation Tests', () {
+    test('canCustomerConfirmTicket returns true for active tickets and false for terminal tickets', () {
+      expect(canCustomerConfirmTicket(TicketStatus.open), isTrue);
+      expect(canCustomerConfirmTicket(TicketStatus.inProgress), isTrue);
+      expect(canCustomerConfirmTicket(TicketStatus.waitingForCustomer), isTrue);
+
+      expect(canCustomerConfirmTicket(TicketStatus.resolved), isFalse);
+      expect(canCustomerConfirmTicket(TicketStatus.rejected), isFalse);
+      expect(canCustomerConfirmTicket(TicketStatus.closed), isFalse);
+    });
+
+    test('canCustomerCancelTicket returns true for active tickets and false for terminal tickets', () {
+      expect(canCustomerCancelTicket(TicketStatus.open), isTrue);
+      expect(canCustomerCancelTicket(TicketStatus.inProgress), isTrue);
+      expect(canCustomerCancelTicket(TicketStatus.waitingForCustomer), isTrue);
+
+      expect(canCustomerCancelTicket(TicketStatus.resolved), isFalse);
+      expect(canCustomerCancelTicket(TicketStatus.rejected), isFalse);
+      expect(canCustomerCancelTicket(TicketStatus.closed), isFalse);
     });
   });
 }

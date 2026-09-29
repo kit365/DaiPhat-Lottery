@@ -82,7 +82,6 @@ public class OrderService implements OrderServicePort {
     private static final Set<String> MY_ORDERS_SORT_FIELDS = Set.of("createdAt", "totalAmount");
 
     private static final BigDecimal ONLINE_PAYMENT_MIN_AMOUNT = BigDecimal.valueOf(10_000);
-    private static final long MAX_PICKUP_LEAD_DAYS = 3;
 
     private final OrderRepositoryPort orderRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
@@ -116,7 +115,7 @@ public class OrderService implements OrderServicePort {
             totalAmount = totalAmount.add(ticketSnapshot.price());
         }
 
-        ensureValidPickupTime(request.expectedPickupAt(), ticketSnapshots);
+        ensureValidPickupTime(request.expectedPickupAt());
 
         TransactionModel transaction = orderApplicationMapper.toOnlineTransactionModel(totalAmount, request.note());
         transaction.initializeForCreate();
@@ -954,23 +953,8 @@ public class OrderService implements OrderServicePort {
         }
     }
 
-    private void ensureValidPickupTime(LocalDateTime expectedPickupAt, List<OrderTicketSnapshot> ticketSnapshots) {
+    private void ensureValidPickupTime(LocalDateTime expectedPickupAt) {
         if (expectedPickupAt == null || expectedPickupAt.isBefore(LocalDateTime.now().plusMinutes(15))) {
-            throw new DomainException(ErrorCode.INVALID_PICKUP_TIME);
-        }
-
-        LocalDate earliestDrawDate = ticketSnapshots.stream()
-                .map(OrderTicketSnapshot::drawDate)
-                .filter(java.util.Objects::nonNull)
-                .min(LocalDate::compareTo)
-                .orElse(null);
-        if (earliestDrawDate == null) {
-            throw new DomainException(ErrorCode.INVALID_PICKUP_TIME);
-        }
-
-        LocalDate pickupDate = expectedPickupAt.toLocalDate();
-        LocalDate earliestAllowedPickupDate = earliestDrawDate.minusDays(MAX_PICKUP_LEAD_DAYS);
-        if (pickupDate.isBefore(earliestAllowedPickupDate) || pickupDate.isAfter(earliestDrawDate)) {
             throw new DomainException(ErrorCode.INVALID_PICKUP_TIME);
         }
     }

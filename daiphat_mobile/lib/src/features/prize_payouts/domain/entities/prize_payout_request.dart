@@ -57,7 +57,7 @@ class PrizePayoutRequestResult {
 
 /// Trạng thái của yêu cầu trả thưởng (đồng bộ BE / FE web).
 enum PrizePayoutRequestStatus {
-  pending('PENDING', 'Cần xử lý'),
+  pending('PENDING', 'Đang xử lý'),
   approved('APPROVED', 'Đã duyệt'),
   completed('COMPLETED', 'Đã chuyển'),
   rejected('REJECTED', 'Từ chối'),

@@ -217,7 +217,7 @@ class _FullResultsTable extends StatelessWidget {
       borderRadius: BorderRadius.circular(15),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.borderSubtle),
+          border: Border.all(color: AppColors.cardBorder, width: 1.0),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
@@ -238,15 +238,42 @@ class _TableHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.surfaceSlate100,
-      padding: const EdgeInsets.symmetric(vertical: 11),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceBrandLight.withValues(alpha: .3),
+        border: const Border(
+          bottom: BorderSide(color: AppColors.cardBorder, width: .8),
+        ),
+      ),
       child: Row(
         children: [
-          const SizedBox(
-            width: 104,
-            child: Text('Giải', textAlign: TextAlign.center),
+          Container(
+            width: 90,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              border: Border(right: BorderSide(color: AppColors.cardBorder)),
+            ),
+            child: Text(
+              'Giải',
+              textAlign: TextAlign.center,
+              style: AppTypography.labelSmall(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted,
+              ),
+            ),
           ),
-          Expanded(child: Text('Kết quả', textAlign: TextAlign.center)),
+          Expanded(
+            child: Text(
+              'Kết quả',
+              textAlign: TextAlign.center,
+              style: AppTypography.labelSmall(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -262,38 +289,51 @@ class _PrizeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSpecial = row.label == 'Đặc biệt';
-    final labelStyle = AppTypography.bodyMedium(
-      color: row.highlight || isSpecial
-          ? AppColors.primary
-          : AppColors.contentMuted,
+    final labelStyle = AppTypography.labelSmall(
+      fontSize: 11,
       fontWeight: FontWeight.w700,
+      color: AppColors.primary,
     );
     final valueStyle = isSpecial
-        ? AppTypography.priceLarge(color: AppColors.primary)
-        : AppTypography.lotteryPrize(
-            color: row.highlight ? AppColors.primary : AppColors.contentHeading,
-            fontWeight: row.highlight ? FontWeight.w800 : FontWeight.w500,
+        ? AppTypography.lotterySpecial(
+            fontSize: 32,
+            fontWeight: FontWeight.w900,
+            color: AppColors.primary,
+            letterSpacing: -1,
+          )
+        : AppTypography.lotteryDigit(
+            fontSize: row.highlight ? 18 : 15,
+            fontWeight: row.highlight ? FontWeight.w800 : FontWeight.w600,
+            color: row.highlight ? AppColors.primary : AppColors.textMain,
+            height: 1.6,
           );
 
     return Container(
-      color: odd ? AppColors.tableRowOdd : AppColors.tableRowEven,
-      constraints: const BoxConstraints(minHeight: 52),
+      decoration: BoxDecoration(
+        color: odd ? AppColors.rowOdd : AppColors.rowEven,
+        border: const Border(
+          bottom: BorderSide(color: AppColors.cardBorder, width: .5),
+        ),
+      ),
+      constraints: const BoxConstraints(minHeight: 46),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              width: 104,
-              alignment: Alignment.topCenter,
-              padding: const EdgeInsets.fromLTRB(6, 13, 6, 10),
+              width: 90,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
               decoration: const BoxDecoration(
-                border: Border(right: BorderSide(color: AppColors.borderSubtle)),
+                border: Border(
+                  right: BorderSide(color: AppColors.cardBorder, width: .5),
+                ),
               ),
               child: Text(row.label, textAlign: TextAlign.center, style: labelStyle),
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 child: row.values.isEmpty
                     ? Text(
                         'Đang cập nhật',
@@ -303,8 +343,8 @@ class _PrizeRow extends StatelessWidget {
                     : Wrap(
                         alignment: WrapAlignment.center,
                         crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 18,
-                        runSpacing: 6,
+                        spacing: 16,
+                        runSpacing: 4,
                         children: [
                           for (final value in row.values)
                             Text(value, textAlign: TextAlign.center, style: valueStyle),

@@ -101,10 +101,9 @@ export const PrizePayoutDetailTab = () => {
               }
             : null;
 
-    const handleCancel = () => {
-        if (!window.confirm('Hủy yêu cầu? Vé sẽ quay về trạng thái đang giữ hộ và bạn có thể gửi lại sau.')) {
-            return;
-        }
+    const handleCancel = async () => {
+        const confirmed = await toast.confirm('Vé sẽ quay về trạng thái đang giữ hộ và bạn có thể gửi lại sau.', 'Hủy yêu cầu đổi thưởng?');
+        if (!confirmed) return;
         cancelMutation.mutate(requestId);
     };
 

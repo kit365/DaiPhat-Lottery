@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:daiphat_mobile/src/features/chat/domain/entities/chat_models.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/viewmodels/chat_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
-import 'package:daiphat_mobile/src/features/chat/utils/chat_constants.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart';
 import 'package:daiphat_mobile/src/features/home/domain/entities/lottery_result.dart';
 import 'package:daiphat_mobile/src/features/home/domain/repositories/home_lottery_repository.dart';
@@ -52,7 +51,7 @@ void main() {
   });
 
   group('mapApiMessage for schedule result summary', () {
-    test('maps SCHEDULE_RESULT_SUMMARY into scheduleResultSummary variant with actions', () {
+    test('maps SCHEDULE_RESULT_SUMMARY into scheduleResultSummary variant without extra actions', () {
       final message = ChatMessageModel(
         id: 101,
         conversationId: 1,
@@ -69,13 +68,7 @@ void main() {
       expect(uiMessage.scheduleResultSummary, isNotNull);
       expect(uiMessage.scheduleResultSummary!.region, 'MIEN_NAM');
       expect(uiMessage.scheduleResultSummary!.drawDate, 'YESTERDAY');
-      expect(uiMessage.actions.length, 3);
-      expect(uiMessage.actions[0].label, 'Tra cứu kết quả khác');
-      expect(uiMessage.actions[0].payload, 'SCHEDULE_SET_GOAL:RESULT');
-      expect(uiMessage.actions[1].label, 'Xem lịch mở thưởng');
-      expect(uiMessage.actions[1].payload, 'SCHEDULE_SET_GOAL:SCHEDULE');
-      expect(uiMessage.actions[2].label, 'Gợi ý vé');
-      expect(uiMessage.actions[2].payload, suggestTicketsMessage);
+      expect(uiMessage.actions.isEmpty, isTrue);
     });
 
     test('maps raw region= token without prefix into scheduleResultSummary variant', () {
@@ -274,11 +267,133 @@ void main() {
       expect(merged[0].id, 'server-user-1');
       expect(merged[1].id, 'bot-2');
     });
+
+    test('maintains strict chronological order when socket delivers bot reply before user message', () {
+      final t0 = DateTime(2026, 9, 29, 10, 4, 0);
+      final t1 = DateTime(2026, 9, 29, 10, 4, 1);
+      final t2 = DateTime(2026, 9, 29, 10, 4, 2);
+      final t3 = DateTime(2026, 9, 29, 10, 4, 3);
+
+      final msg1 = UiChatMessage(
+        id: '1',
+        rawId: 1,
+        isUser: true,
+        text: 'Tìm đuôi số',
+        timeLabel: '10:04',
+        createdAt: t0,
+      );
+      final msg2 = UiChatMessage(
+        id: '2',
+        rawId: 2,
+        isUser: false,
+        text: 'Quý khách muốn tìm đuôi mấy số ạ?',
+        timeLabel: '10:04',
+        createdAt: t1,
+      );
+      final msgBotReply = UiChatMessage(
+        id: '4',
+        rawId: 4,
+        isUser: false,
+        text: 'Dưới đây là 4 vé đang bán khớp đuôi số 12 dành cho quý khách:',
+        timeLabel: '10:04',
+        createdAt: t3,
+      );
+      final msgUser12 = UiChatMessage(
+        id: '3',
+        rawId: 3,
+        isUser: true,
+        text: '12',
+        timeLabel: '10:04',
+        createdAt: t2,
+      );
+
+      // Simulating backend WebSocket delivering bot reply BEFORE user message
+      final scrambledTimeline = <UiChatMessage>[
+        msg1,
+        msg2,
+        msgBotReply,
+        msgUser12,
+      ];
+
+      final sortedTimeline = [...scrambledTimeline]..sort(compareChatMessages);
+      expect(sortedTimeline.map((m) => m.text).toList(), [
+        'Tìm đuôi số',
+        'Quý khách muốn tìm đuôi mấy số ạ?',
+        '12',
+        'Dưới đây là 4 vé đang bán khớp đuôi số 12 dành cho quý khách:',
+      ]);
+
+      final merged = mergeTimelineWithOverlay(
+        timeline: sortedTimeline,
+        overlay: const [],
+      );
+      expect(merged.map((m) => m.text).toList(), [
+        'Tìm đuôi số',
+        'Quý khách muốn tìm đuôi mấy số ạ?',
+        '12',
+        'Dưới đây là 4 vé đang bán khớp đuôi số 12 dành cho quý khách:',
+      ]);
+    });
+
+    test('ensures user prompt strictly precedes bot answer when timestamps are identical', () {
+      final now = DateTime(2026, 9, 29, 10, 4, 0);
+      final userMsg = UiChatMessage(
+        id: '101',
+        rawId: 101,
+        isUser: true,
+        text: '12',
+        timeLabel: '10:04',
+        createdAt: now,
+      );
+      final botMsg = UiChatMessage(
+        id: '102',
+        rawId: 102,
+        isUser: false,
+        text: 'Dưới đây là 4 vé đang bán khớp đuôi số 12 dành cho quý khách:',
+        timeLabel: '10:04',
+        createdAt: now,
+      );
+
+      // Reverse arrival
+      final messages = [botMsg, userMsg]..sort(compareChatMessages);
+      expect(messages.first.id, '101');
+      expect(messages.last.id, '102');
+      expect(messages.first.isUser, isTrue);
+      expect(messages.last.isUser, isFalse);
+    });
+
+    test('compareChatMessages handles welcome, user, bot, and typing correctly', () {
+      final now = DateTime.now();
+      final welcome = welcomeMessage();
+      final typing = typingMessage('token');
+      final user = UiChatMessage(
+        id: '10',
+        rawId: 10,
+        isUser: true,
+        text: 'Xin chào',
+        timeLabel: '10:00',
+        createdAt: now.subtract(const Duration(minutes: 1)),
+      );
+      final bot = UiChatMessage(
+        id: '11',
+        rawId: 11,
+        isUser: false,
+        text: 'Chào bạn',
+        timeLabel: '10:00',
+        createdAt: now,
+      );
+
+      final list = [typing, bot, welcome, user]..sort(compareChatMessages);
+      expect(list[0].id, 'welcome');
+      expect(list[1].id, '10');
+      expect(list[2].id, '11');
+      expect(list[3].variant, ChatMessageVariant.typing);
+    });
   });
 
   group('ChatScreen schedule result summary UI', () {
     testWidgets(
-      'renders schedule result summary card with full prize table and action buttons',
+      'renders schedule result summary card with full prize table and only Xem chi tiết button',
       (tester) async {
         const summaryData = ScheduleResultSummaryData(
           region: 'MIEN_NAM',
@@ -291,20 +406,7 @@ void main() {
           timeLabel: '15:30',
           variant: ChatMessageVariant.scheduleResultSummary,
           scheduleResultSummary: summaryData,
-          actions: [
-            ChatMessageAction(
-              label: 'Tra cứu kết quả khác',
-              payload: 'SCHEDULE_SET_GOAL:RESULT',
-            ),
-            ChatMessageAction(
-              label: 'Xem lịch mở thưởng',
-              payload: 'SCHEDULE_SET_GOAL:SCHEDULE',
-            ),
-            ChatMessageAction(
-              label: 'Gợi ý vé',
-              payload: suggestTicketsMessage,
-            ),
-          ],
+          actions: [],
         );
 
         const state = ChatState(
@@ -341,9 +443,10 @@ void main() {
         expect(find.text('123456'), findsOneWidget);
         expect(find.text('Giải 1'), findsOneWidget);
         expect(find.text('654321'), findsOneWidget);
-        expect(find.text('Tra cứu kết quả khác'), findsOneWidget);
-        expect(find.text('Xem lịch mở thưởng'), findsOneWidget);
-        expect(find.text('Gợi ý vé'), findsOneWidget);
+        expect(find.text('Xem chi tiết'), findsOneWidget);
+        expect(find.text('Tra cứu kết quả khác'), findsNothing);
+        expect(find.text('Xem lịch mở thưởng'), findsNothing);
+        expect(find.text('Gợi ý vé'), findsNothing);
         expect(tester.takeException(), isNull);
       },
     );
