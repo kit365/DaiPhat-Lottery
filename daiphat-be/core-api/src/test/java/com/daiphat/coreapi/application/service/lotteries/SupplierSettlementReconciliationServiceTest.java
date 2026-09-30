@@ -29,6 +29,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepo
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementAdjustmentGroupType;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementAdjustmentReasonCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementDiscrepancyType;
@@ -115,11 +116,14 @@ class SupplierSettlementReconciliationServiceTest {
                 LotterySupplierModel.builder()
                         .id(3L)
                         .defaultImportCost(new BigDecimal("10000"))
+                        .returnCutOffTime(LocalTime.of(17, 30))
                         .paymentCutOffTime(LocalTime.of(17, 0))
                         .build()
         ));
         lenient().when(supplierPaymentCutOffCalculator.isReconciliationWindowOpen(any(), any(), any()))
                 .thenReturn(true);
+        lenient().when(supplierPaymentCutOffCalculator.resolveOpeningStatus(any(), any(), any()))
+                .thenReturn(SupplierSettlementStatus.OPEN);
         lenient().when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
         lenient().when(lotteryStationRepositoryPort.findByNextDrawDate(any())).thenReturn(List.of());
         lenient().when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of());
@@ -140,6 +144,7 @@ class SupplierSettlementReconciliationServiceTest {
         return SupplierSettlementModel.builder()
                 .id(10L)
                 .lotterySupplierId(3L)
+                .periodFrom(LocalDate.of(2026, 8, 8))
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.MATCHING)
                 .periodFrom(LocalDate.of(2026, 8, 8))
@@ -159,6 +164,8 @@ class SupplierSettlementReconciliationServiceTest {
         ));
         lenient().when(supplierPaymentCutOffCalculator.isReconciliationWindowOpen(any(), any(), any()))
                 .thenReturn(true);
+        lenient().when(supplierPaymentCutOffCalculator.resolveOpeningStatus(any(), any(), any()))
+                .thenReturn(SupplierSettlementStatus.OPEN);
         lenient().when(importBatchRepositoryPort.findBySupplierSettlementId(10L)).thenReturn(List.of());
         lenient().when(lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(10L))
                 .thenReturn(List.of());
@@ -1086,7 +1093,7 @@ class SupplierSettlementReconciliationServiceTest {
     private List<SettlementResolvableSerialRow> resolvableRows(long firstId, int count) {
         return LongStream.range(firstId, firstId + count)
                 .mapToObj(id -> new SettlementResolvableSerialRow(
-                        id, null, null, null, null, null, null, null
+                        id, null, null, null, null, null, null, null, null
                 ))
                 .toList();
     }
@@ -1098,6 +1105,7 @@ class SupplierSettlementReconciliationServiceTest {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
                 .lotterySupplierId(3L)
+                .periodFrom(LocalDate.of(2026, 8, 8))
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
                 .importQuantityMismatch(true)
@@ -1198,6 +1206,75 @@ class SupplierSettlementReconciliationServiceTest {
         verify(discrepancyInventoryHelper).createLostPlaceholders(
                 any(), any(), any(), eq(ACTOR), any(), any(), any(), any()
         );
+    }
+
+    @Test
+    @DisplayName("excess-import ticket list is rejected before supplier return cutoff")
+    void listImportResolvableTickets_beforeReturnCutOff_rejected() {
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(10L)
+                .lotterySupplierId(3L)
+                .periodFrom(LocalDate.of(2026, 8, 8))
+                .status(SupplierSettlementStatus.OPEN)
+                .discrepancyItems(List.of(SettlementDiscrepancyItem.ofQuantity(
+                        SupplierSettlementDiscrepancyType.IMPORT_QUANTITY, -10
+                )))
+                .build();
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(lotterySupplierRepositoryPort.findById(3L)).thenReturn(Optional.of(
+                LotterySupplierModel.builder()
+                        .id(3L)
+                        .paymentCutOffTime(LocalTime.of(17, 0))
+                        .returnCutOffTime(LocalTime.of(19, 0))
+                        .build()
+        ));
+
+        assertThatThrownBy(() -> supplierSettlementService.listImportResolvableTickets(10L))
+                .isInstanceOf(DomainException.class)
+                .extracting(error -> ((DomainException) error).getErrorCode())
+                .isEqualTo(ErrorCode.SUPPLIER_SETTLEMENT_EXCESS_IMPORT_NOT_OPEN);
+        verify(supplierSettlementRepositoryPort, never()).findImportResolvableSerialsBySettlementId(10L);
+    }
+
+    @Test
+    @DisplayName("resolve excess-import discrepancy is rejected before supplier return cutoff")
+    void resolveImport_systemOverstated_beforeReturnCutOff_rejected() {
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(10L)
+                .lotterySupplierId(3L)
+                .periodFrom(LocalDate.of(2026, 8, 8))
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
+                .importQuantityMismatch(true)
+                .discrepancyItems(List.of(SettlementDiscrepancyItem.ofQuantity(
+                        SupplierSettlementDiscrepancyType.IMPORT_QUANTITY, -1
+                )))
+                .build();
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(lotterySupplierRepositoryPort.findById(3L)).thenReturn(Optional.of(
+                LotterySupplierModel.builder()
+                        .id(3L)
+                        .paymentCutOffTime(LocalTime.of(17, 0))
+                        .returnCutOffTime(LocalTime.of(19, 0))
+                        .build()
+        ));
+        ResolveImportDiscrepancyRequest request = new ResolveImportDiscrepancyRequest(
+                List.of(201L),
+                TicketCondition.LOST,
+                SupplierSettlementAdjustmentReasonCode.MISSING_IMPORT,
+                BigDecimal.ZERO,
+                "attempt before return cutoff",
+                true,
+                null,
+                null,
+                null
+        );
+
+        assertThatThrownBy(() -> supplierSettlementService.resolveImportDiscrepancy(10L, request, ACTOR))
+                .isInstanceOf(DomainException.class)
+                .extracting(error -> ((DomainException) error).getErrorCode())
+                .isEqualTo(ErrorCode.SUPPLIER_SETTLEMENT_EXCESS_IMPORT_NOT_OPEN);
+        verify(lotteryTicketSerialServicePort, never()).reportFault(any(), any(), any());
     }
 
     @Test
@@ -1698,6 +1775,7 @@ class SupplierSettlementReconciliationServiceTest {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
                 .lotterySupplierId(3L)
+                .periodFrom(LocalDate.of(2026, 8, 8))
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
                 .discrepancyTypes(List.of(

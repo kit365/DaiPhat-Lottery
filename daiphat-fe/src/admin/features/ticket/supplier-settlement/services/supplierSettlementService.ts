@@ -3,12 +3,14 @@ import { withAuthHeaders } from '../../../../../api/authHeaders';
 import { ApiResponse, PageResponse } from '../../../../../types/api.type';
 import type {
     ConfirmSettlementMatchingPayload,
+    FinalizeSettlementProcessingPayload,
     ResolveImportDiscrepancyPayload,
     ResolveReturnDiscrepancyPayload,
     ResolveUnitPriceDiscrepancyPayload,
     AddSettlementMonetaryAdjustmentPayload,
     SettlementCompleteResult,
     SettlementImportFileCheck,
+    SettlementPaymentConfirmationPayload,
     SettlementResolvableSerial,
     SupplierSettlement,
     SupplierSettlementAdjustment,
@@ -126,13 +128,21 @@ export const recalculateSettlementReconciliation = async (
     return response.data;
 };
 
+export const finalizeSettlementProcessing = async (
+    id: number | string,
+    payload: FinalizeSettlementProcessingPayload
+): Promise<ApiResponse<SupplierSettlement>> => {
+    const response = await apiApp.post(`${BASE_URL}/${id}/reconciliation/finalize-processing`, payload);
+    return response.data;
+};
+
 export const completeSettlementReconciliation = async (
     id: number | string,
-    reconciliationNote?: string
+    payload: SettlementPaymentConfirmationPayload
 ): Promise<ApiResponse<SettlementCompleteResult>> => {
     const response = await apiApp.post(
         `${BASE_URL}/${id}/reconciliation/complete`,
-        { reconciliationNote }
+        payload
     );
     return response.data;
 };

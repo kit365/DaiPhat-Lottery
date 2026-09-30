@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.request.refund.CreateUserBankAccountR
 import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.request.refund.VerifyRefundCounterIdentityRequest;
+import com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
@@ -25,6 +26,9 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
+import com.daiphat.coreapi.domain.model.enums.order.TicketIncidentReason;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundCounterPayoutMethod;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
@@ -95,7 +99,6 @@ class RefundRequestStaffServiceTest {
                 refundRequestRepositoryPort,
                 userBankAccountRepositoryPort,
                 orderRepositoryPort,
-                orderDetailSerialRepositoryPort,
                 userRepositoryPort,
                 lotteryTicketServicePort,
                 refundApplicationMapper,
@@ -108,7 +111,13 @@ class RefundRequestStaffServiceTest {
                 eventPublisher,
                 orderIncidentTicketServicePort,
                 ekycVerificationService,
-                userBankAccountServicePort);
+                userBankAccountServicePort,
+                new OrderCancellationRefundService(
+                        orderRepositoryPort,
+                        refundRequestRepositoryPort,
+                        orderDetailSerialRepositoryPort,
+                        lotteryTicketServicePort,
+                        eventPublisher));
 
         when(refundProcessingDeadlineService.evaluate(any())).thenReturn(
                 new RefundProcessingDeadlineService.ProcessingEvaluation(
@@ -329,6 +338,62 @@ class RefundRequestStaffServiceTest {
         verify(lotteryTicketServicePort).returnSoldTicketForOrder(99L);
         verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
         verify(eventPublisher).publishEvent(any(OrderStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("cancelOrderWithRefund: accepts a PREPARING ticket held at the counter")
+    void cancelOrderWithRefund_outOfStockAcceptsProxyHoldingDetail() {
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .id(1L)
+                .lotteryTicketSerialId(99L)
+                .price(BigDecimal.valueOf(20000))
+                .status(OrderDetailStatus.PROXY_HOLDING)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .id(orderId)
+                .userId(customerId)
+                .orderCode("ORD-PHU123-PREPARING-01")
+                .orderType(OrderType.ONLINE)
+                .status(OrderStatus.PREPARING)
+                .totalAmount(BigDecimal.valueOf(20000))
+                .transactions(List.of(TransactionModel.builder()
+                        .status(com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus.COMPLETED)
+                        .amount(BigDecimal.valueOf(20000))
+                        .paidAt(LocalDateTime.now())
+                        .build()))
+                .orderDetails(List.of(detail))
+                .build();
+        TicketIncidentItemRequest incident = new TicketIncidentItemRequest(
+                1L,
+                TicketIncidentReason.LOST,
+                null,
+                "Thiếu vé từ khâu nhận bàn giao đại lý",
+                null);
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> {
+            RefundRequestModel model = inv.getArgument(0);
+            model.setId(refundId);
+            return model;
+        });
+        when(refundRequestRepositoryPort.linkOrderDetailsByOrderId(orderId, refundId)).thenReturn(1);
+        when(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(refundId)).thenReturn(List.of(1L));
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
+
+        refundRequestStaffService.cancelOrderWithRefund(
+                orderId,
+                staffId,
+                new com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest(
+                        OrderCancelType.OUT_OF_STOCK_INCIDENT,
+                        "Không còn vé thay thế",
+                        List.of(incident)));
+
+        verify(orderIncidentTicketServicePort)
+                .handlePartialRefundIncidents(orderId, staffId, List.of(incident), null);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
+        verify(lotteryTicketServicePort, never()).returnSoldTicketForOrder(any());
     }
 
     @Test

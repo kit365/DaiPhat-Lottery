@@ -75,6 +75,7 @@ daiphat:
   order:
     pending-payment-ttl-seconds: 600
     pending-payment-expire-rate-ms: 60000
+    preparing-expire-rate-ms: 60000
     payment-failure-max-attempts: 3
     seed:
       enabled: ${ORDER_SEED_ENABLED:false}

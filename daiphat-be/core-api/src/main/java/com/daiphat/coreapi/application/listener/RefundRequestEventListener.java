@@ -14,6 +14,7 @@ import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
+import com.daiphat.coreapi.domain.model.orders.OrderCancelReasonDefaults;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import lombok.RequiredArgsConstructor;
@@ -117,8 +118,12 @@ public class RefundRequestEventListener {
         return event.requestRole() == RefundRequestRole.STAFF;
     }
 
+    private boolean isSystemInitiatedRefund(RefundRequestStatusChangedEvent event) {
+        return event.requestRole() == RefundRequestRole.SYSTEM;
+    }
+
     private String resolveStaffNotificationTitle(RefundRequestStatusChangedEvent event) {
-        if (isStaffInitiatedRefund(event)) {
+        if (isStaffInitiatedRefund(event) || isSystemInitiatedRefund(event)) {
             return "Khách hàng đã cập nhật STK nhận hoàn tiền";
         }
         return "Yêu cầu hoàn tiền mới cần xử lý";
@@ -126,6 +131,12 @@ public class RefundRequestEventListener {
 
     private String resolveStaffNotificationContent(RefundRequestStatusChangedEvent event) {
         String orderLabel = resolveOrderLabel(event);
+        if (isSystemInitiatedRefund(event)) {
+            return "Yêu cầu hoàn tiền #" + event.refundRequestId()
+                    + " do hệ thống tạo cho đơn hàng #" + orderLabel
+                    + " đã được khách hàng cung cấp tài khoản ngân hàng và sẵn sàng để chuyển khoản. "
+                    + "Vui lòng kiểm tra và xử lý.";
+        }
         if (isStaffInitiatedRefund(event)) {
             return "Yêu cầu hoàn tiền #" + event.refundRequestId()
                     + " do nhân viên tạo cho đơn hàng #" + orderLabel
@@ -215,6 +226,10 @@ public class RefundRequestEventListener {
 
     private String resolveContent(RefundRequestStatusChangedEvent event) {
         String orderLabel = resolveOrderLabel(event);
+        if (isSystemInitiatedRefund(event)
+                && event.status() == RefundRequestStatus.WAITING_FOR_INFO) {
+            return OrderCancelReasonDefaults.SYSTEM_PREPARATION_TIMEOUT;
+        }
         if (isPartialInspectionRefund(event)) {
             return "Đơn hàng #" + orderLabel
                     + " có vé bị sự cố (hư hỏng/thất lạc) và không thể đổi sang vé khác. "

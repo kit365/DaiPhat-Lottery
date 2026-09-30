@@ -33,10 +33,15 @@ public class SupplierSettlementApplicationMapper {
 
         int bufferMinutes = paymentCutOffCalculator.resolveSettlementBufferMinutes();
         LocalTime paymentCutOff = null;
+        LocalTime returnCutOff = null;
         if (model.getLotterySupplierId() != null) {
-            paymentCutOff = lotterySupplierRepositoryPort.findById(model.getLotterySupplierId())
-                    .map(LotterySupplierModel::getPaymentCutOffTime)
+            LotterySupplierModel supplier = lotterySupplierRepositoryPort
+                    .findById(model.getLotterySupplierId())
                     .orElse(null);
+            if (supplier != null) {
+                paymentCutOff = supplier.getPaymentCutOffTime();
+                returnCutOff = supplier.getReturnCutOffTime();
+            }
         }
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime windowStart = paymentCutOffCalculator.reconciliationWindowStartAt(
@@ -112,6 +117,7 @@ public class SupplierSettlementApplicationMapper {
                 .createdAt(model.getCreatedAt())
                 .updatedAt(model.getUpdatedAt())
                 .settlementBufferMinutes(bufferMinutes)
+                .supplierReturnCutOffTime(returnCutOff)
                 .paymentCutOffTime(paymentCutOff)
                 .reconciliationWindowStartAt(windowStart)
                 .inReconciliationWindow(inWindow)

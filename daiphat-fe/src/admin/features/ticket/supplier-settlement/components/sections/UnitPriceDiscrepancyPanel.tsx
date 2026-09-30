@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import {
     Alert,
     Box,
     Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     Paper,
     Stack,
     TextField,
@@ -21,6 +26,9 @@ interface Props {
     submitting?: boolean;
     direction: 'POSITIVE' | 'NEGATIVE';
     difference?: number;
+    resolved?: boolean;
+    draftOnly?: boolean;
+    onBackToEdit?: () => void;
     onResolve: (payload: { note?: string; markResolved: boolean }) => void;
 }
 
@@ -30,9 +38,17 @@ export const UnitPriceDiscrepancyPanel = ({
     submitting,
     direction,
     difference,
+    resolved = false,
+    draftOnly = false,
+    onBackToEdit,
     onResolve,
 }: Props) => {
     const [note, setNote] = useState('');
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [expanded, setExpanded] = useState(!resolved);
+    useEffect(() => {
+        if (resolved) setExpanded(false);
+    }, [resolved]);
     const storedOriginal = Number(settlement.originalTicketUnitPrice ?? 0);
     const original = Number(afterCommissionUnitPrice ?? storedOriginal);
     const reconciled = Number(settlement.reconciledTicketUnitPrice ?? settlement.actualTicketPrice ?? original);
@@ -48,14 +64,46 @@ export const UnitPriceDiscrepancyPanel = ({
         : null;
     const noAfterCommissionGap = Math.abs(delta) < 0.5;
 
+    if (resolved && !expanded) {
+        return (
+            <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: '12px', borderColor: '#bbf7d0', bgcolor: '#f0fdf4' }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between">
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                        <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} />
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight={800} color="#166534">
+                                {draftOnly ? 'Đã xác nhận tạm' : 'Đã xác nhận'} {isIncrease ? 'tăng giá nhập' : 'giảm giá nhập'}
+                            </Typography>
+                            <Typography variant="caption" color="#15803d">
+                                Giá đối chiếu {formatSettlementMoney(reconciled)} VNĐ/vé · Ảnh hưởng {impact > 0 ? '+' : ''}{formatSettlementMoney(impact)} VNĐ
+                                {draftOnly ? ' · Chưa lưu lên hệ thống' : ''}
+                            </Typography>
+                        </Box>
+                    </Stack>
+                    <Button
+                        variant="outlined"
+                        startIcon={<ArrowBackOutlinedIcon />}
+                        onClick={() => {
+                            onBackToEdit?.();
+                            setExpanded(true);
+                        }}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '9px' }}
+                    >
+                        Quay lại
+                    </Button>
+                </Stack>
+            </Paper>
+        );
+    }
+
     return (
-        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', borderColor: '#fde68a', bgcolor: '#fffbeb' }}>
+        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', borderColor: resolved ? '#bbf7d0' : '#fde68a', bgcolor: resolved ? '#f7fef9' : '#fffbeb' }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
                 <PaymentsOutlinedIcon sx={{ color: '#d97706' }} />
                 <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
                     {noAfterCommissionGap
                         ? 'Xác nhận giá vốn sau hoa hồng'
-                        : isIncrease ? 'Xử lý tăng giá nhập (dương)' : 'Xử lý giảm giá nhập (âm)'}
+                        : isIncrease ? 'Xử lý tăng giá nhập' : 'Xử lý giảm giá nhập'}
                 </Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -114,24 +162,46 @@ export const UnitPriceDiscrepancyPanel = ({
                 sx={{ mb: 2, bgcolor: '#ffffff' }}
             />
 
-            <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
-                Δ mỗi vé: {delta > 0 ? '+' : ''}
-                {formatSettlementMoney(delta)} VNĐ · SL ròng đối chiếu: {netQty.toLocaleString('vi-VN')} vé.
-            </Alert>
-
             <Stack direction="row" justifyContent="flex-end">
                 <Button
                     variant="contained"
                     startIcon={<CheckCircleOutlinedIcon />}
                     disabled={submitting}
-                    onClick={() => onResolve({ note: note.trim() || undefined, markResolved: true })}
+                    onClick={() => setConfirmOpen(true)}
                     sx={{ textTransform: 'none', fontWeight: 800, borderRadius: '10px', bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' } }}
                 >
                     {submitting ? 'Đang ghi nhận...' : noAfterCommissionGap
                         ? 'Xác nhận đã khớp giá sau HH'
-                        : isIncrease ? 'Xác nhận tăng giá (dương)' : 'Xác nhận giảm giá (âm)'}
+                        : isIncrease ? 'Xác nhận tăng giá' : 'Xác nhận giảm giá'}
                 </Button>
             </Stack>
+            <Dialog open={confirmOpen} onClose={() => !submitting && setConfirmOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ fontWeight: 800 }}>Xác nhận điều chỉnh giá nhập?</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                        Thông tin sẽ được giữ tạm trên màn hình, chưa lưu lên hệ thống. Giá đối chiếu <strong>{formatSettlementMoney(reconciled)} VNĐ/vé</strong>,
+                        {' '}ảnh hưởng <strong>{impact > 0 ? '+' : ''}{formatSettlementMoney(impact)} VNĐ</strong> trên
+                        {' '}{netQty.toLocaleString('vi-VN')} vé ròng. Dữ liệu chỉ được gửi khi bấm Hoàn tất xử lý.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2.5 }}>
+                    <Button disabled={submitting} onClick={() => setConfirmOpen(false)} sx={{ textTransform: 'none', fontWeight: 700 }}>
+                        Hủy
+                    </Button>
+                    <Button
+                        variant="contained"
+                        disabled={submitting}
+                        startIcon={<CheckCircleOutlinedIcon />}
+                        onClick={() => {
+                            onResolve({ note: note.trim() || undefined, markResolved: true });
+                            setConfirmOpen(false);
+                        }}
+                        sx={{ textTransform: 'none', fontWeight: 800, bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' } }}
+                    >
+                        {submitting ? 'Đang xác nhận...' : 'Xác nhận'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Paper>
     );
 };

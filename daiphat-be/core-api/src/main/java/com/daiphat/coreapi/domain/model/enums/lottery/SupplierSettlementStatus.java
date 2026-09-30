@@ -6,8 +6,10 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum SupplierSettlementStatus {
+    NOT_OPEN("Chưa mở"),
     OPEN("Đang mở"),
     RECEIPT_OVERDUE("Trễ hạn thanh toán"),
+    WAITING_FOR_PAYMENT("Chờ thanh toán"),
     /** Legacy DB value before rename to {@link #COMPLETED}. */
     @Deprecated
     CLOSED("Đã thanh toán"),

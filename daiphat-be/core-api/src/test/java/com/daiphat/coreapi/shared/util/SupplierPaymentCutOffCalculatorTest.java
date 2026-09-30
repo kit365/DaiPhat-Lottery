@@ -3,6 +3,7 @@ package com.daiphat.coreapi.shared.util;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,40 @@ class SupplierPaymentCutOffCalculatorTest {
                 LocalTime.of(19, 0),
                 LocalDateTime.of(2026, 8, 15, 23, 59)
         )).isFalse();
+        assertThat(calculator.resolveOpeningStatus(
+                LocalDate.of(2026, 8, 16),
+                LocalTime.of(19, 0),
+                LocalDateTime.of(2026, 8, 16, 0, 0)
+        )).isEqualTo(SupplierSettlementStatus.OPEN);
+    }
+
+    @Test
+    @DisplayName("future settlement stays NOT_OPEN until its own payment cutoff minus buffer")
+    void resolveOpeningStatus_usesSettlementPeriodNotToday() {
+        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.SETTLEMENT_BUFFER_TIME.name()))
+                .thenReturn(Optional.of(SystemConfigModel.builder()
+                        .configKey(SystemConfigEnum.SETTLEMENT_BUFFER_TIME.name())
+                        .configValue("60")
+                        .build()));
+
+        LocalDate tomorrow = LocalDate.of(2026, 10, 1);
+        LocalTime paymentCutOff = LocalTime.of(18, 30);
+
+        assertThat(calculator.resolveOpeningStatus(
+                tomorrow,
+                paymentCutOff,
+                LocalDateTime.of(2026, 9, 30, 18, 0)
+        )).isEqualTo(SupplierSettlementStatus.NOT_OPEN);
+        assertThat(calculator.resolveOpeningStatus(
+                tomorrow,
+                paymentCutOff,
+                LocalDateTime.of(2026, 10, 1, 17, 29, 59)
+        )).isEqualTo(SupplierSettlementStatus.NOT_OPEN);
+        assertThat(calculator.resolveOpeningStatus(
+                tomorrow,
+                paymentCutOff,
+                LocalDateTime.of(2026, 10, 1, 17, 30)
+        )).isEqualTo(SupplierSettlementStatus.OPEN);
     }
 
     @Test

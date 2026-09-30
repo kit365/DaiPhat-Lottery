@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -40,10 +39,6 @@ public class LotteryTicketAggregateSyncService implements LotteryTicketAggregate
     public void syncTicketAggregate(Long ticketId) {
         LotteryTicketModel ticket = lotteryTicketRepositoryPort.findById(ticketId)
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
-        LotteryStationModel station = lotteryStationServicePort.findModelById(ticket.getStationId())
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
-
-        LocalTime cutoffTime = station.getDrawTime();
         lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(ticketId, EXPIRABLE_STATUSES)
                 .stream()
                 .filter(ticketSalesCutoffPolicy::isClosed)
@@ -64,13 +59,25 @@ public class LotteryTicketAggregateSyncService implements LotteryTicketAggregate
                 .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .filter(serial -> serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported())
                 .toList();
-        ticket.syncAggregateState(
-                (int) availableSerialCount,
-                totalSerialCount,
-                soldSerialCount,
-                faultySerials.size(),
-                cutoffTime,
-                LotteryTicketModel.buildAllSerialsFaultyReason(faultySerials));
+        String allFaultyReason = LotteryTicketModel.buildAllSerialsFaultyReason(faultySerials);
+        if (allSerials.isEmpty()) {
+            LotteryStationModel station = lotteryStationServicePort.findModelById(ticket.getStationId())
+                    .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
+            ticket.syncAggregateState(
+                    (int) availableSerialCount,
+                    totalSerialCount,
+                    soldSerialCount,
+                    faultySerials.size(),
+                    station.getDrawTime(),
+                    allFaultyReason);
+        } else {
+            ticket.syncAggregateStateFromSerials(
+                    (int) availableSerialCount,
+                    totalSerialCount,
+                    soldSerialCount,
+                    faultySerials.size(),
+                    allFaultyReason);
+        }
         boolean hasReserved = allSerials.stream()
                 .anyMatch(serial -> serial.getStatus() == LotteryTicketSerialStatus.RESERVED);
         boolean hasExpired = allSerials.stream()
