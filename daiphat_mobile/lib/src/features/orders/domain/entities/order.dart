@@ -194,6 +194,7 @@ class OrderResponse {
   final int? refundGraceMinutes;
   final String? refundPaymentSuccessAt;
   final String? refundDeadlineAt;
+  final String? updatedAt;
   final List<TransactionResponse>? transactions;
   final List<OrderDetailItem>? orderDetails;
 
@@ -220,6 +221,7 @@ class OrderResponse {
     this.refundGraceMinutes,
     this.refundPaymentSuccessAt,
     this.refundDeadlineAt,
+    this.updatedAt,
     this.transactions,
     this.orderDetails,
   });
@@ -263,6 +265,7 @@ class OrderResponse {
       refundGraceMinutes: json['refundGraceMinutes'] as int?,
       refundPaymentSuccessAt: json['refundPaymentSuccessAt']?.toString(),
       refundDeadlineAt: json['refundDeadlineAt']?.toString(),
+      updatedAt: json['updatedAt']?.toString(),
       transactions: (json['transactions'] as List<dynamic>?)
           ?.map((e) => TransactionResponse.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -304,6 +307,7 @@ class TransactionResponse {
   final String? paymentRef;
   final String status;
   final String type;
+  final String? paidAt;
 
   const TransactionResponse({
     required this.id,
@@ -314,6 +318,7 @@ class TransactionResponse {
     this.paymentRef,
     required this.status,
     required this.type,
+    this.paidAt,
   });
 
   factory TransactionResponse.fromJson(Map<String, dynamic> json) {
@@ -326,6 +331,7 @@ class TransactionResponse {
       paymentRef: json['paymentRef']?.toString(),
       status: json['status']?.toString() ?? '',
       type: json['type']?.toString() ?? '',
+      paidAt: json['paidAt']?.toString(),
     );
   }
 }

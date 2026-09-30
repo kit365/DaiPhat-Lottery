@@ -140,7 +140,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     @Value("${daiphat.lottery.seed.tickets-per-batch-past:36}")
     private int ticketsPerBatchPast;
 
-    @Value("${daiphat.lottery.seed.serials-per-ticket:4}")
+    @Value("${daiphat.lottery.seed.serials-per-ticket:15}")
     private int serialsPerTicket;
 
     /** How many calendar days before today to seed (scheduled stations only). Cap 30. */

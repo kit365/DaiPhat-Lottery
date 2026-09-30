@@ -141,7 +141,7 @@ daiphat:
       enabled: ${LOTTERY_SEED_ENABLED:false}
       past-days: 30
       tickets-per-batch-past: 36
-      serials-per-ticket: 10
+      serials-per-ticket: ${LOTTERY_SEED_SERIALS_PER_TICKET:15}
       status-coverage:
         # Optional QA matrix — off by default to avoid a second ticket universe.
         enabled: false
