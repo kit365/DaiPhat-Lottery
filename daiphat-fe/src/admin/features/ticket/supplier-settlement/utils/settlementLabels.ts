@@ -19,8 +19,14 @@ export const getSupplierSettlementStatusLabel = (
     if (status === 'OPEN') {
         return 'Đang mở';
     }
+    if (status === 'NOT_OPEN') {
+        return 'Chưa mở';
+    }
     if (status === 'RECEIPT_OVERDUE') {
         return 'Trễ hạn';
+    }
+    if (status === 'WAITING_FOR_PAYMENT') {
+        return 'Chờ thanh toán';
     }
     if (status === 'COMPLETED' || status === 'CLOSED') {
         return 'Đã thanh toán';
@@ -34,7 +40,10 @@ export const getSupplierSettlementStatusModifier = (
     if (status === 'OPEN') {
         return 'admin-status-badge--active';
     }
-    if (status === 'RECEIPT_OVERDUE') {
+    if (status === 'NOT_OPEN') {
+        return 'admin-status-badge--draft';
+    }
+    if (status === 'RECEIPT_OVERDUE' || status === 'WAITING_FOR_PAYMENT') {
         return 'admin-status-badge--pending';
     }
     if (status === 'COMPLETED' || status === 'CLOSED') {
@@ -387,6 +396,8 @@ export type ReturnMatchingLockDetails = {
      */
     inputsLocked: boolean;
     overdue: boolean;
+    /** An active return batch exists but its configured inspection window has not opened. */
+    beforeStart: boolean;
     /** Non-cancelled return batches linked to the settlement. */
     hasActiveReturnBatches: boolean;
     /** Any linked return batch, including CANCELLED. */
@@ -435,6 +446,7 @@ export const getReturnMatchingLockDetails = (
         drawDate?: string | null;
         returnCutOffTime?: string | null;
         returnCutOffAt?: string | null;
+        inspectionWindowStartAt?: string | null;
         inspectionExpired?: boolean | null;
     }> | null,
     overdueContext?: ReturnOverdueContext | null,
@@ -444,10 +456,16 @@ export const getReturnMatchingLockDetails = (
     const cancelledBatches = allBatches.filter((batch) => batch.status === 'CANCELLED');
     const activeBatches = allBatches.filter((batch) => batch.status !== 'CANCELLED');
     const pendingBatches = activeBatches.filter((batch) => !isReturnBatchHandedOver(batch.status));
+    const notStartedBatches = activeBatches.filter((batch) =>
+        batch.inspectionWindowStartAt
+        && dayjs(batch.inspectionWindowStartAt).isValid()
+        && dayjs().isBefore(dayjs(batch.inspectionWindowStartAt))
+    );
+    const beforeStart = notStartedBatches.length > 0;
     const locked = pendingBatches.length > 0;
     const expired = Boolean(overdueContext?.isReturnExpired);
     const allCancelled = allBatches.length > 0 && activeBatches.length === 0;
-    const inputsLocked = locked || allCancelled || expired;
+    const inputsLocked = locked || allCancelled || expired || beforeStart;
     const overdue = locked
         ? isReturnMatchingOverdueUnhanded(overdueContext, returnBatches)
         : expired;
@@ -460,12 +478,18 @@ export const getReturnMatchingLockDetails = (
             batchId: batch.id,
             batchCode,
             status,
-            message: getReturnBatchLockMessage(status, batchCode),
+            message: batch.inspectionWindowStartAt && dayjs().isBefore(dayjs(batch.inspectionWindowStartAt))
+                ? `Phiếu ${batchCode} chưa đến giờ bắt đầu xử lý trả vé (từ ${dayjs(batch.inspectionWindowStartAt).format('HH:mm DD/MM/YYYY')}) — chưa thể xác nhận đối chiếu.`
+                : getReturnBatchLockMessage(status, batchCode),
         };
     });
 
     let summaryMessage = '';
-    if (overdue || expired) {
+    if (beforeStart) {
+        summaryMessage = notStartedBatches.length === 1
+            ? `Phiếu ${returnBatchDisplayCode(notStartedBatches[0])} chưa đến giờ bắt đầu xử lý trả vé (từ ${dayjs(notStartedBatches[0].inspectionWindowStartAt).format('HH:mm DD/MM/YYYY')}) — chưa thể xác nhận đối chiếu.`
+            : `Có ${notStartedBatches.length} phiếu trả chưa đến giờ bắt đầu xử lý — chưa thể xác nhận đối chiếu.`;
+    } else if (overdue || expired) {
         summaryMessage = cutOffTimeDisplay
             ? `Đã quá giờ trả vé (chốt ${cutOffTimeDisplay}). Các vé còn tồn kho không được trả và đại lý phải chịu khoản này.`
             : 'Đã quá giờ trả vé. Các vé còn tồn kho không được trả và đại lý phải chịu khoản này.';
@@ -501,6 +525,7 @@ export const getReturnMatchingLockDetails = (
         locked,
         inputsLocked,
         overdue,
+        beforeStart,
         hasActiveReturnBatches: activeBatches.length > 0,
         hasAnyReturnBatches: allBatches.length > 0,
         allCancelled,

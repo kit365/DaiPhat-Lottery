@@ -5,6 +5,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import {
     completeSettlementReconciliation,
     confirmSettlementMatching,
+    finalizeSettlementProcessing,
     downloadSupplierSettlementReconciliationReport,
     checkImportFiles,
     getSupplierSettlementById,
@@ -21,10 +22,12 @@ import {
 } from '../services/supplierSettlementService';
 import type {
     ConfirmSettlementMatchingPayload,
+    FinalizeSettlementProcessingPayload,
     ResolveImportDiscrepancyPayload,
     ResolveReturnDiscrepancyPayload,
     ResolveUnitPriceDiscrepancyPayload,
     AddSettlementMonetaryAdjustmentPayload,
+    SettlementPaymentConfirmationPayload,
     SupplierSettlementListParams,
     SupplierSettlementStatus,
 } from '../types/supplierSettlement.type';
@@ -181,10 +184,18 @@ export const useRecalculateSettlementReconciliation = (id?: string | number) => 
     });
 };
 
+export const useFinalizeSettlementProcessing = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: FinalizeSettlementProcessingPayload) => finalizeSettlementProcessing(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
 export const useCompleteSettlementReconciliation = (id?: string | number) => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (note?: string) => completeSettlementReconciliation(id!, note),
+        mutationFn: (payload: SettlementPaymentConfirmationPayload) => completeSettlementReconciliation(id!, payload),
         onSuccess: () => invalidateSettlement(queryClient, id),
     });
 };

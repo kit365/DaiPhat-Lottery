@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import {
     Alert,
@@ -300,7 +299,7 @@ export const MatchingStationPricingTable = ({
                             2. Giá vé theo từng nhà đài
                         </Typography>
                         <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.75rem' }}>
-                            Giá nhập lấy từ defaultImportCost của NCC; từng đài chỉ đối chiếu hoa hồng
+                            Đối chiều giá nhập và hoa hồng của từng đài của hệ thống với biên lai từ nhà cung cấp
                         </Typography>
                     </Box>
                 </Stack>
@@ -440,7 +439,7 @@ export const MatchingStationPricingTable = ({
                                     width: '33%',
                                 }}
                             >
-                                Thực tế (Admin nhập)
+                                Thực tế
                             </TableCell>
                             <TableCell
                                 rowSpan={2}
@@ -594,67 +593,9 @@ export const MatchingStationPricingTable = ({
                             );
                         })}
 
-                        {rows.length > 0 && (
-                            <TableRow sx={{ bgcolor: '#f8fafc', borderTop: '2px solid #cbd5e1' }}>
-                                <TableCell sx={{ py: 1.25, px: 2, fontWeight: 800, color: '#0f172a', fontSize: '0.825rem', borderRight: '1px solid #e2e8f0' }}>
-                                    Bình quân kỳ này
-                                    <Typography variant="caption" display="block" color="#64748b" sx={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'none' }}>
-                                        Gia quyền theo SL nhập
-                                    </Typography>
-                                </TableCell>
-                                <TableCell align="center" sx={{ py: 1.25, px: 1.5, fontWeight: 800, color: '#0f172a', fontSize: '0.85rem', borderRight: '1px solid #e2e8f0' }}>
-                                    {computed.totalQty.toLocaleString('vi-VN')}
-                                </TableCell>
-                                <TableCell align="center" sx={{ py: 1.25, px: 1, fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>
-                                    {formatMoney(computed.systemImportCostAvg)}
-                                </TableCell>
-                                <TableCell align="center" sx={{ py: 1.25, px: 1, fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>
-                                    {formatCommissionPercent(computed.systemCommissionAvg)}%
-                                </TableCell>
-                                <TableCell align="center" sx={{ py: 1.25, px: 1, fontWeight: 800, color: '#0f172a', fontSize: '0.875rem', borderRight: '1px solid #e2e8f0' }}>
-                                    {formatMoney(computed.systemNet)}
-                                </TableCell>
-                                <TableCell align="center" sx={{ py: 1.25, px: 1, fontWeight: 700, color: '#166534', fontSize: '0.85rem' }}>
-                                    {formatMoney(actualImportPrice)}
-                                </TableCell>
-                                <TableCell align="center" sx={{ py: 1.25, px: 1, fontWeight: 700, color: '#166534', fontSize: '0.85rem' }}>
-                                    {computed.complete ? `${formatCommissionPercent(computed.actualCommissionAvg)}%` : '—'}
-                                </TableCell>
-                                <TableCell
-                                    align="center"
-                                    sx={{
-                                        py: 1.25,
-                                        px: 1,
-                                        fontWeight: 900,
-                                        fontSize: '0.925rem',
-                                        borderRight: '1px solid #e2e8f0',
-                                        color: computed.actualNet && computed.systemNet && !nearlyEqual(computed.actualNet, computed.systemNet, 0.5)
-                                            ? '#b45309'
-                                            : '#166534',
-                                    }}
-                                >
-                                    {computed.actualNet ? formatMoney(computed.actualNet) : '—'}
-                                </TableCell>
-                                <TableCell align="center" sx={{ py: 1.25, px: 1 }}>
-                                    <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                                        —
-                                    </Typography>
-                                </TableCell>
-                            </TableRow>
-                        )}
                     </TableBody>
                 </Table>
             </TableContainer>
-
-            <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#f8fafc', p: 1.2, borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
-                <InfoOutlinedIcon sx={{ fontSize: '1rem', color: '#64748b', flexShrink: 0 }} />
-                <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.75rem', lineHeight: 1.4 }}>
-                    <strong>Công thức:</strong> Giá sau hoa hồng = Giá nhập × (1 − Tỉ lệ hoa hồng). Trang này luôn
-                    tính live từ giá NCC và hoa hồng đài. Hệ thống snapshot giá nhập + HH lúc tạo kỳ đối soát để lưu DB;
-                    đổi master sau này không làm lệch số đã chốt. Hoa hồng thực tế chỉ lưu trên kỳ đối soát, không ghi đè
-                    giá bán đài. Khi lệch, dùng nút &quot;Cập nhật giá / HH hệ thống&quot; để ghi giá nhập NCC hoặc hoa hồng đài.
-                </Typography>
-            </Box>
 
             <MatchingMasterPricingUpdateDialog
                 open={masterUpdateOpen}

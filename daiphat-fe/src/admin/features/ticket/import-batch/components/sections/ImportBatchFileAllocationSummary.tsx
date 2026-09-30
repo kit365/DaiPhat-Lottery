@@ -135,8 +135,20 @@ export const ImportBatchFileAllocationSummary = ({
             )}
 
             <TableContainer sx={{ maxHeight: 300 }}>
-                <Table size="small" stickyHeader aria-label="Đối chiếu số vé trong tệp với dòng phiếu nhập">
-                    <TableHead>
+                <Table size="small" stickyHeader aria-label="Đối chiếu số vé trong tệp với dòng phiếu nhập" sx={{ '--TableCell-stickyHeader-background': '#f8fafc' }}>
+                    <TableHead
+                        sx={{
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 10,
+                            '& .MuiTableCell-head, & .MuiTableCell-stickyHeader': {
+                                backgroundColor: '#f8fafc !important',
+                                bgcolor: '#f8fafc !important',
+                                zIndex: 10,
+                                fontWeight: 800,
+                            },
+                        }}
+                    >
                         <TableRow>
                             <TableCell sx={{ fontWeight: 800 }}>Nhà đài</TableCell>
                             <TableCell align="right" sx={{ fontWeight: 800 }}>Sê-ri trong tệp</TableCell>

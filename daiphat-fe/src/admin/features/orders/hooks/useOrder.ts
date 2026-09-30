@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import {
     getOrders,
@@ -13,14 +13,11 @@ import {
     reviewPaymentTimeoutComplaint,
     getPendingPaymentTimeoutComplaintCount,
 } from "../services/orderService";
-import { OrderFilterParams } from '../../../../types/order.type';
+import { OrderFilterParams, OrderResponse, OrderStatus } from '../../../../types/order.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { QUERY_KEYS as TICKET_QUERY_KEYS } from '../../ticket/inventory/constants/queryKeys';
 import { QUERY_KEYS as NOTIFICATION_QUERY_KEYS } from '../../notifications/constants/queryKeys';
 import { QUERY_KEYS as REFUND_QUERY_KEYS } from '../../refund/constants/queryKeys';
-import { getSystemConfigs } from '../../system-config/services/systemConfigService';
-import { ConfigType } from '../../system-config/types/system-config';
-import { SYSTEM_CONFIG_KEYS } from '../../system-config/hooks/useSystemConfig';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
@@ -299,35 +296,22 @@ export const usePreparingOrderCount = () => {
     };
 };
 
-/** Matches backend `VENDOR_RETURN_CUTOFF` default (giờ chốt trả vé / draw ops cutoff). */
-export const DEFAULT_ORDER_DRAW_CUTOFF = '15:00';
-export const ORDER_DRAW_CUTOFF_CONFIG_KEY = 'VENDOR_RETURN_CUTOFF';
 const APPROACHING_WINDOW_MINUTES = 60;
 
 export type OrderCutoffPhase = 'none' | 'approaching' | 'past';
 
-export const parseCutoffTime = (cutoffTime?: string | null): { hour: number; minute: number } | null => {
-    if (!cutoffTime?.trim()) return null;
-    const [hourPart, minutePart] = cutoffTime.trim().split(':');
-    const hour = Number(hourPart);
-    const minute = Number(minutePart ?? 0);
-    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
-    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
-    return { hour, minute };
-};
-
-export const resolveCutoffMoment = (cutoffTime: string, now: Dayjs = dayjs()): Dayjs | null => {
-    const parsed = parseCutoffTime(cutoffTime);
-    if (!parsed) return null;
-    return now.hour(parsed.hour).minute(parsed.minute).second(0).millisecond(0);
+export const resolveCutoffMoment = (cutoffAt?: string | null): Dayjs | null => {
+    if (!cutoffAt) return null;
+    const parsed = dayjs(cutoffAt);
+    return parsed.isValid() ? parsed : null;
 };
 
 export const resolveOrderCutoffPhase = (
-    cutoffTime: string,
+    cutoffAt?: string | null,
     now: Dayjs = dayjs(),
     approachingWindowMinutes = APPROACHING_WINDOW_MINUTES
 ): OrderCutoffPhase => {
-    const cutoff = resolveCutoffMoment(cutoffTime, now);
+    const cutoff = resolveCutoffMoment(cutoffAt);
     if (!cutoff) return 'none';
 
     if (!now.isBefore(cutoff)) {
@@ -342,40 +326,48 @@ export const resolveOrderCutoffPhase = (
     return 'none';
 };
 
-/** Draw/vendor-return cutoff + whether PREPARING orders need attention. */
-export const useOrderDrawCutoff = (preparingCount = 0) => {
-    const { user } = useAuthStore();
-    const canViewSettings = hasPermission(user, PERMISSIONS.SETTINGS.VIEW);
+/** Supplier-derived order cutoffs returned by the backend. */
+export const useOrderDrawCutoff = (
+    orders: Pick<OrderResponse, 'id' | 'status' | 'preparationCutoffAt'>[],
+    preparingCount = 0,
+    onCutoffReached?: () => void | Promise<unknown>,
+) => {
     const [now, setNow] = useState(() => dayjs());
+    const refreshedCutoffRef = useRef<string | null>(null);
 
     useEffect(() => {
         const tick = window.setInterval(() => setNow(dayjs()), 30_000);
         return () => window.clearInterval(tick);
     }, []);
 
-    const configQuery = useQuery({
-        queryKey: SYSTEM_CONFIG_KEYS.list(ConfigType.ORDER_SETTING),
-        queryFn: () => getSystemConfigs(ConfigType.ORDER_SETTING),
-        enabled: canViewSettings,
-        staleTime: 60_000,
-        retry: false,
-    });
+    const preparingCutoffs = useMemo(() => orders
+        .filter((order) => order.status === OrderStatus.PREPARING)
+        .map((order) => ({ orderId: order.id, cutoff: resolveCutoffMoment(order.preparationCutoffAt) }))
+        .filter((item): item is { orderId: string; cutoff: Dayjs } => item.cutoff !== null), [orders]);
 
-    const cutoffTime = useMemo(() => {
-        const configs = configQuery.data?.data ?? [];
-        const match = configs.find((c) => c.configKey === ORDER_DRAW_CUTOFF_CONFIG_KEY);
-        return parseCutoffTime(match?.configValue) ? match!.configValue : DEFAULT_ORDER_DRAW_CUTOFF;
-    }, [configQuery.data?.data]);
+    const cutoffMoment = useMemo(() => preparingCutoffs
+        .map((item) => item.cutoff)
+        .sort((a, b) => a.valueOf() - b.valueOf())[0] ?? null, [preparingCutoffs]);
 
     const phase = useMemo(
-        () => resolveOrderCutoffPhase(cutoffTime, now),
-        [cutoffTime, now]
+        () => resolveOrderCutoffPhase(cutoffMoment?.toISOString(), now),
+        [cutoffMoment, now]
     );
 
-    const cutoffMoment = useMemo(
-        () => resolveCutoffMoment(cutoffTime, now),
-        [cutoffTime, now]
-    );
+    const urgentOrderIds = useMemo(() => new Set(preparingCutoffs
+        .filter(({ cutoff }) => {
+            const approachingAt = cutoff.subtract(APPROACHING_WINDOW_MINUTES, 'minute');
+            return !now.isBefore(approachingAt);
+        })
+        .map(({ orderId }) => orderId)), [preparingCutoffs, now]);
+
+    useEffect(() => {
+        const cutoffKey = cutoffMoment?.toISOString() ?? null;
+        if (phase !== 'past' || !cutoffKey || !onCutoffReached) return;
+        if (refreshedCutoffRef.current === cutoffKey) return;
+        refreshedCutoffRef.current = cutoffKey;
+        void onCutoffReached();
+    }, [cutoffMoment, onCutoffReached, phase]);
 
     const shouldHighlightPreparing =
         preparingCount > 0 && (phase === 'approaching' || phase === 'past');
@@ -384,11 +376,11 @@ export const useOrderDrawCutoff = (preparingCount = 0) => {
         phase === 'approaching' || (phase === 'past' && preparingCount > 0);
 
     return {
-        cutoffTime,
-        cutoffLabel: cutoffMoment?.format('HH:mm') ?? cutoffTime,
+        cutoffLabel: cutoffMoment?.format('HH:mm') ?? '—',
         phase,
         shouldHighlightPreparing,
         showReminderBanner,
+        urgentOrderIds,
         preparingCount,
         now,
     };

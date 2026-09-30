@@ -66,6 +66,15 @@ export const TICKET_REF_TYPE_LABELS: Record<TicketRefType, string> = {
     [TicketRefType.REFUND_REQUEST]: 'Yêu cầu hoàn tiền',
 };
 
+/** Shared Font Awesome icon used anywhere a support-ticket category is shown. */
+export const getTicketCategoryIcon = (code?: string | null) => {
+    const normalized = code?.toUpperCase() || '';
+    if (normalized.includes('ORDER')) return 'fa-box';
+    if (normalized.includes('PRIZE_PAYOUT') || normalized.includes('PRIZE')) return 'fa-trophy';
+    if (normalized.includes('PAYMENT') || normalized.includes('REFUND')) return 'fa-money-bill-wave';
+    return 'fa-headset';
+};
+
 export interface TicketCategoryResponse {
     id: number;
     name: string;

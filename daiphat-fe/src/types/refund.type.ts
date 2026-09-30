@@ -32,7 +32,8 @@ export enum ReimburseStatus {
 export enum RefundRequestRole {
     CUSTOMER = 'CUSTOMER',
     STAFF = 'STAFF',
-    ADMIN = 'ADMIN'
+    ADMIN = 'ADMIN',
+    SYSTEM = 'SYSTEM'
 }
 
 export enum RefundProcessingUrgency {
