@@ -1,4 +1,3 @@
-import threading
 import numpy as np
 
 from domain.ocr.base import DEFAULT_LANGUAGES, OcrStrategy, OcrTextResult
@@ -353,53 +352,49 @@ def _results_from_raw(raw_results, *, height: int, width: int) -> list[OcrTextRe
     return results
 
 
-_PADDLE_PREDICT_LOCK = threading.Lock()
-
-
 def _run_paddle_ocr(engine, image: np.ndarray, *, field_mode: bool = False):
     """Call PaddleOCR across 2.x (ocr) and 3.x (predict) APIs."""
-    with _PADDLE_PREDICT_LOCK:
-        errors: list[BaseException] = []
+    errors: list[BaseException] = []
 
-        def _call(fn):
-            try:
-                return fn(), None
-            except Exception as exc:  # noqa: BLE001
-                return None, exc
+    def _call(fn):
+        try:
+            return fn(), None
+        except Exception as exc:  # noqa: BLE001
+            return None, exc
 
-        attempts = []
-        if hasattr(engine, "predict"):
-            if field_mode:
-                # Soft det thresholds for padded YOLO crops (PaddleOCR 3.x has no det=False).
-                attempts.append(
-                    lambda: engine.predict(
-                        image,
-                        text_det_thresh=0.2,
-                        text_det_box_thresh=0.35,
-                        text_det_unclip_ratio=2.0,
-                    )
-                )
-            attempts.append(lambda: engine.predict(image))
-        # Legacy 2.x: det=False is recognition-only on a single crop.
+    attempts = []
+    if hasattr(engine, "predict"):
         if field_mode:
-            attempts.append(lambda: engine.ocr(image, det=False, cls=False))
-            attempts.append(lambda: engine.ocr(image, det=False))
-        attempts.append(lambda: engine.ocr(image, cls=True))
-        attempts.append(lambda: engine.ocr(image))
+            # Soft det thresholds for padded YOLO crops (PaddleOCR 3.x has no det=False).
+            attempts.append(
+                lambda: engine.predict(
+                    image,
+                    text_det_thresh=0.2,
+                    text_det_box_thresh=0.35,
+                    text_det_unclip_ratio=2.0,
+                )
+            )
+        attempts.append(lambda: engine.predict(image))
+    # Legacy 2.x: det=False is recognition-only on a single crop.
+    if field_mode:
+        attempts.append(lambda: engine.ocr(image, det=False, cls=False))
+        attempts.append(lambda: engine.ocr(image, det=False))
+    attempts.append(lambda: engine.ocr(image, cls=True))
+    attempts.append(lambda: engine.ocr(image))
 
-        for fn in attempts:
-            result, err = _call(fn)
-            if err is None:
-                return result
-            errors.append(err)
+    for fn in attempts:
+        result, err = _call(fn)
+        if err is None:
+            return result
+        errors.append(err)
 
-        if not errors:
-            return None
-        last = errors[-1]
-        if _is_paddle_runtime_poison(last):
-            raise last
-        logger.warning("PaddleOCR inference failed (%s) — returning empty", last)
+    if not errors:
         return None
+    last = errors[-1]
+    if _is_paddle_runtime_poison(last):
+        raise last
+    logger.warning("PaddleOCR inference failed (%s) — returning empty", last)
+    return None
 
 
 def _iter_paddle_lines(raw_results):
