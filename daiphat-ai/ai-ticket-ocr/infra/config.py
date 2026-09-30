@@ -239,8 +239,6 @@ class Settings(BaseSettings):
     # EasyOCR pass per ticket (skip header/body split + ROI refine) to stay
     # under Admin scan deadlines.
     TICKET_VISION_LEGACY_FAST_MULTI_TICKET: bool = True
-    # Maximum concurrent worker threads for scanning multiple tickets in one upload
-    TICKET_VISION_MAX_PARALLEL_TICKETS: int = 3
     # Skip ROI re-OCR for low-confidence numbers/date (extra Paddle passes).
     TICKET_VISION_LEGACY_SKIP_ROI_REFINE: bool = True
     # Legacy field location: YOLO only frames the ticket; PaddleOCR reads the
