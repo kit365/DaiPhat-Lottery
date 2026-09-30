@@ -88,7 +88,9 @@ class OrderServiceCustomerRefundTest {
                 orderRefundGraceService,
                 paymentTimeoutConfigService,
                 org.mockito.Mockito.mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class),
-                storagePort);
+                storagePort,
+                mock(OrderPreparationExpiryService.class),
+                mock(com.daiphat.coreapi.application.service.lotteries.TicketSalesCutoffPolicy.class));
 
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("30").build()));

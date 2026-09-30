@@ -213,22 +213,26 @@ export const SkippedTicketsTable = ({
 
             {/* Table */}
             <TableContainer sx={{ maxHeight, overflowY: 'auto' }}>
-                <Table size="small" stickyHeader>
-                    <TableHead>
-                        <TableRow
-                            sx={{
-                                '& .MuiTableCell-head': {
-                                    fontWeight: 800,
-                                    fontSize: '0.725rem',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.04em',
-                                    color: '#475569',
-                                    bgcolor: '#fffaf5',
-                                    borderBottom: '1px solid #fed7aa',
-                                    py: 1,
-                                },
-                            }}
-                        >
+                <Table size="small" stickyHeader sx={{ '--TableCell-stickyHeader-background': '#fffaf5' }}>
+                    <TableHead
+                        sx={{
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 10,
+                            '& .MuiTableCell-head, & .MuiTableCell-stickyHeader': {
+                                fontWeight: 800,
+                                fontSize: '0.725rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                color: '#475569',
+                                bgcolor: '#fffaf5 !important',
+                                backgroundColor: '#fffaf5 !important',
+                                borderBottom: '1px solid #fed7aa',
+                                py: 1,
+                            },
+                        }}
+                    >
+                        <TableRow>
                             <TableCell sx={{ width: 70 }}>Dòng #</TableCell>
                             <TableCell sx={{ width: 140 }}>Nhà đài</TableCell>
                             <TableCell sx={{ width: 110 }}>Ngày quay</TableCell>

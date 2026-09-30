@@ -66,6 +66,9 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSp
             @Param("threshold") LocalDateTime threshold
     );
 
+    @Query("select o.id from OrderEntity o where o.status = :status")
+    List<UUID> findIdsByStatus(@Param("status") OrderStatus status);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update OrderEntity o

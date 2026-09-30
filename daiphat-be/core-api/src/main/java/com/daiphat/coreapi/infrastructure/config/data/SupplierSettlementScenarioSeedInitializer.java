@@ -34,6 +34,7 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Retur
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.SupplierSettlementAdjustmentRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.SupplierSettlementRepository;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
+import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
 import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -149,6 +150,7 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
     private final SupplierSettlementRepository supplierSettlementRepository;
     private final SupplierSettlementAdjustmentRepository supplierSettlementAdjustmentRepository;
     private final SupplierSettlementCodeGenerator supplierSettlementCodeGenerator;
+    private final SupplierPaymentCutOffCalculator supplierPaymentCutOffCalculator;
     private final UserRepository userRepository;
     private final SeedSupplierSupport seedSupplierSupport;
     private final Clock clock;
@@ -747,6 +749,7 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
     ) {
         return supplierSettlementRepository
                 .findByLotterySupplier_IdAndPeriodFromAndDeletedAtIsNull(supplier.getId(), drawDate)
+                .map(existing -> synchronizeOpeningStatus(existing, supplier, drawDate, now))
                 .orElseGet(() -> supplierSettlementRepository.save(
                         SupplierSettlementEntity.builder()
                                 .lotterySupplier(supplier)
@@ -758,7 +761,11 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
                                 .totalPaidAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                                 .remainingAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                                 .systemTicketImportPrice(ImportCostCalculator.scaleMoney(DEFAULT_IMPORT_COST))
-                                .status(SupplierSettlementStatus.OPEN)
+                                .status(supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                                        drawDate,
+                                        supplier.getPaymentCutOffTime(),
+                                        now
+                                ))
                                 .reconciliationPhase(SupplierSettlementReconciliationPhase.MATCHING)
                                 .createdAt(now)
                                 .updatedAt(now)
@@ -766,6 +773,30 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
                                 .lastModifiedBy(SYSTEM_ACTOR)
                                 .build()
                 ));
+    }
+
+    private SupplierSettlementEntity synchronizeOpeningStatus(
+            SupplierSettlementEntity settlement,
+            LotterySupplierEntity supplier,
+            LocalDate drawDate,
+            LocalDateTime now
+    ) {
+        if (settlement.getStatus() != SupplierSettlementStatus.OPEN
+                && settlement.getStatus() != SupplierSettlementStatus.NOT_OPEN) {
+            return settlement;
+        }
+        SupplierSettlementStatus expected = supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                drawDate,
+                supplier.getPaymentCutOffTime(),
+                now
+        );
+        if (settlement.getStatus() == expected) {
+            return settlement;
+        }
+        settlement.setStatus(expected);
+        settlement.setUpdatedAt(now);
+        settlement.setLastModifiedBy(SYSTEM_ACTOR);
+        return supplierSettlementRepository.save(settlement);
     }
 
     private List<LotteryStationEntity> findIssuersForDrawDate(LocalDate drawDate) {

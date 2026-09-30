@@ -22,6 +22,7 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Retur
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ReturnBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.SupplierSettlementRepository;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
+import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
 import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,6 +75,7 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
     private final SupplierSettlementRepository supplierSettlementRepository;
     private final SupplierSettlementCodeGenerator supplierSettlementCodeGenerator;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
+    private final SupplierPaymentCutOffCalculator supplierPaymentCutOffCalculator;
     private final Clock clock;
 
     @Override
@@ -404,6 +406,7 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
     ) {
         return supplierSettlementRepository
                 .findByLotterySupplier_IdAndPeriodFromAndDeletedAtIsNull(supplier.getId(), drawDate)
+                .map(existing -> synchronizeOpeningStatus(existing, supplier, drawDate, now))
                 .orElseGet(() -> {
                     int termDays = supplier.getPaymentTermDays() != null ? supplier.getPaymentTermDays() : 0;
                     if (termDays < 0) {
@@ -420,7 +423,11 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
                                     .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                                     .totalPaidAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                                     .remainingAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
-                                    .status(SupplierSettlementStatus.OPEN)
+                                    .status(supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                                            drawDate,
+                                            supplier.getPaymentCutOffTime(),
+                                            now
+                                    ))
                                     .createdAt(now)
                                     .updatedAt(now)
                                     .createdBy(SYSTEM_ACTOR)
@@ -436,6 +443,30 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
                     );
                     return created;
                 });
+    }
+
+    private SupplierSettlementEntity synchronizeOpeningStatus(
+            SupplierSettlementEntity settlement,
+            LotterySupplierEntity supplier,
+            LocalDate drawDate,
+            LocalDateTime now
+    ) {
+        if (settlement.getStatus() != SupplierSettlementStatus.OPEN
+                && settlement.getStatus() != SupplierSettlementStatus.NOT_OPEN) {
+            return settlement;
+        }
+        SupplierSettlementStatus expected = supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                drawDate,
+                supplier.getPaymentCutOffTime(),
+                now
+        );
+        if (settlement.getStatus() == expected) {
+            return settlement;
+        }
+        settlement.setStatus(expected);
+        settlement.setUpdatedAt(now);
+        settlement.setLastModifiedBy(SYSTEM_ACTOR);
+        return supplierSettlementRepository.save(settlement);
     }
 
     private record SupplierDrawKey(Long supplierId, LocalDate drawDate) {

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
+    getTicketCategoryIcon,
     SupportTicketResponse,
     TicketCategoryResponse,
     TicketRefType,
@@ -35,13 +36,6 @@ interface ComplaintFormModalProps {
     defaultCategoryCode?: string;
     requireEvidence?: boolean;
 }
-
-const getCategoryIcon = (code: string) => {
-    if (code.includes('ORDER')) return 'fa-box';
-    if (code.includes('PRIZE_PAYOUT') || code.includes('PRIZE')) return 'fa-trophy';
-    if (code.includes('PAYMENT') || code.includes('REFUND')) return 'fa-money-bill-wave';
-    return 'fa-headset';
-};
 
 export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     isOpen,
@@ -396,7 +390,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                         <div className="flex items-center gap-3">
                                             {selectedCategory ? (
                                                 <>
-                                                    <i className={`fa-solid ${getCategoryIcon(selectedCategory.code)} text-[#ee1314]`}></i>
+                                                    <i className={`fa-solid ${getTicketCategoryIcon(selectedCategory.code)} text-[#ee1314]`}></i>
                                                     <span className="text-[#212B36] font-medium">{selectedCategory.name}</span>
                                                 </>
                                             ) : (
@@ -428,7 +422,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                                                 onClick={() => handleCategoryChange(cat.id)}
                                                             >
                                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ticketCategoryId === cat.id ? 'bg-[#ee1314]/10' : 'bg-white shadow-sm border border-[#E5E8EB]'}`}>
-                                                                    <i className={`fa-solid ${getCategoryIcon(cat.code)} ${ticketCategoryId === cat.id ? 'text-[#ee1314]' : 'text-[#637381]'}`}></i>
+                                                                    <i className={`fa-solid ${getTicketCategoryIcon(cat.code)} ${ticketCategoryId === cat.id ? 'text-[#ee1314]' : 'text-[#637381]'}`}></i>
                                                                 </div>
                                                                 <div className="flex flex-col">
                                                                     <span className="font-semibold text-[13px]">{cat.name}</span>
@@ -455,7 +449,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                                                 onClick={() => handleCategoryChange(cat.id)}
                                                             >
                                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ticketCategoryId === cat.id ? 'bg-[#ee1314]/10' : 'bg-white shadow-sm border border-[#E5E8EB]'}`}>
-                                                                    <i className={`fa-solid ${getCategoryIcon(cat.code)} ${ticketCategoryId === cat.id ? 'text-[#ee1314]' : 'text-[#637381]'}`}></i>
+                                                                    <i className={`fa-solid ${getTicketCategoryIcon(cat.code)} ${ticketCategoryId === cat.id ? 'text-[#ee1314]' : 'text-[#637381]'}`}></i>
                                                                 </div>
                                                                 <div className="flex flex-col">
                                                                     <span className="font-semibold text-[13px]">{cat.name}</span>

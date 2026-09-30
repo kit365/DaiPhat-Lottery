@@ -123,6 +123,32 @@ public class LotteryTicketModel {
         return LotteryTicketStatus.IN_STOCK;
     }
 
+    /**
+     * Resolves the aggregate strictly from physical serial state. Supplier-aware callers
+     * have already expired serials at their individual cutoffs, so station draw time must
+     * not be applied again here.
+     */
+    public LotteryTicketStatus resolveAggregateStatusFromSerials(
+            long availableSerialCount,
+            long totalSerialCount,
+            long soldSerialCount,
+            long faultySerialCount
+    ) {
+        if (availableSerialCount > 0) {
+            return LotteryTicketStatus.IN_STOCK;
+        }
+        if (totalSerialCount == 0) {
+            return LotteryTicketStatus.IN_STOCK;
+        }
+        if (soldSerialCount > 0) {
+            return LotteryTicketStatus.SOLD_OUT;
+        }
+        if (faultySerialCount == totalSerialCount) {
+            return LotteryTicketStatus.SOLD_OUT;
+        }
+        return LotteryTicketStatus.IN_STOCK;
+    }
+
     public void syncAggregateState(
             int availableSerialCount,
             int totalSerialCount,
@@ -166,6 +192,34 @@ public class LotteryTicketModel {
             this.statusReason = allFaultyReason != null && !allFaultyReason.isBlank()
                     ? allFaultyReason
                     : ALL_SERIALS_FAULTY_STATUS_REASON;
+        } else if (isSystemCancelReason(this.statusReason)) {
+            this.statusReason = null;
+        }
+    }
+
+    public void syncAggregateStateFromSerials(
+            int availableSerialCount,
+            int totalSerialCount,
+            int soldSerialCount,
+            int faultySerialCount,
+            String allFaultyReason
+    ) {
+        this.quantity = totalSerialCount;
+        if (this.status == LotteryTicketStatus.IMPORTING) {
+            return;
+        }
+        LotteryTicketStatus resolvedStatus = resolveAggregateStatusFromSerials(
+                availableSerialCount,
+                totalSerialCount,
+                soldSerialCount,
+                faultySerialCount);
+        this.status = resolvedStatus;
+        if (faultySerialCount == totalSerialCount
+                && totalSerialCount > 0
+                && resolvedStatus == LotteryTicketStatus.SOLD_OUT) {
+            this.statusReason = allFaultyReason == null || allFaultyReason.isBlank()
+                    ? ALL_SERIALS_FAULTY_STATUS_REASON
+                    : allFaultyReason;
         } else if (isSystemCancelReason(this.statusReason)) {
             this.statusReason = null;
         }

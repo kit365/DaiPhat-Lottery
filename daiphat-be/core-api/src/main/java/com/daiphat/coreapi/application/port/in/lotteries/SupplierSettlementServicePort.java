@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.port.in.lotteries;
 import com.daiphat.coreapi.application.dto.request.lotteries.AddSettlementMonetaryAdjustmentRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CompleteSettlementReconciliationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSettlementMatchingRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.FinalizeSettlementProcessingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveImportDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveReturnDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveUnitPriceDiscrepancyRequest;
@@ -127,6 +128,12 @@ public interface SupplierSettlementServicePort {
     );
 
     SupplierSettlementResponse recalculateReconciliation(Long settlementId, UUID actorId);
+
+    SupplierSettlementResponse finalizeProcessing(
+            Long settlementId,
+            FinalizeSettlementProcessingRequest request,
+            UUID actorId
+    );
 
     SettlementCompleteResultResponse completeReconciliation(
             Long settlementId,

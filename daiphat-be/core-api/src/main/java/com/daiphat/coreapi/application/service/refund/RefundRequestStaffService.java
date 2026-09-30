@@ -24,7 +24,6 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestStaffServicePort;
 import com.daiphat.coreapi.application.port.in.refund.UserBankAccountServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
-import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
@@ -38,7 +37,6 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
-import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketIncidentReason;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundCounterPayoutMethod;
@@ -92,7 +90,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final RefundRequestRepositoryPort refundRequestRepositoryPort;
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
     private final OrderRepositoryPort orderRepositoryPort;
-    private final OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final RefundApplicationMapper refundApplicationMapper;
@@ -106,6 +103,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort orderIncidentTicketServicePort;
     private final EkycVerificationService ekycVerificationService;
     private final UserBankAccountServicePort userBankAccountServicePort;
+    private final OrderCancellationRefundService orderCancellationRefundService;
 
     @Override
     @Transactional(readOnly = true)
@@ -294,40 +292,13 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
         }
 
-        // Only bill details not already covered by a prior partial refund.
-        BigDecimal refundAmount = calculateUnlinkedRefundAmount(order);
-        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0
-                && !hasUnlinkedOrderDetails(order)) {
-            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
-        }
-        cancelOrderForStaffApproval(order, cancelReason, cancelType);
-        if (cancelType == OrderCancelType.ADMIN_FORCE_CANCEL) {
-            // Faulted OUT_OF_STOCK tickets stay marked damaged/lost — do not return to stock.
-            releaseSoldTickets(order);
-        }
-        orderRepositoryPort.save(order);
-
-        RefundRequestModel refundRequest = RefundRequestModel.builder()
-                .refundType(hasAnyLinkedOrderDetail(order) ? RefundType.ORDER_DETAIL : RefundType.FULL_ORDER)
-                .requestedBy(order.getUserId())
-                .requestRole(RefundRequestRole.STAFF)
-                .refundAmount(refundAmount)
-                .refundReason(cancelReason)
-                .createdBy(staffId.toString())
-                .build();
-        refundRequest.initializeForStaffIncidentCancel();
-
-        RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
-        int linked = refundRequestRepositoryPort.linkOrderDetailsByOrderId(orderId, savedRefund.getId());
-        if (linked <= 0) {
-            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
-        }
-        savedRefund.setOrderId(orderId);
-        savedRefund.setOrderDetailIds(
-                refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(savedRefund.getId()));
-
-        publishRefundStatusChanged(savedRefund);
-        publishOrderCancelled(order);
+        RefundRequestModel savedRefund = orderCancellationRefundService.cancelLockedOrder(
+                order,
+                cancelReason,
+                cancelType,
+                RefundRequestRole.STAFF,
+                staffId.toString(),
+                cancelType == OrderCancelType.ADMIN_FORCE_CANCEL);
 
         return toEnrichedResponse(savedRefund, null, order.getOrderCode());
     }
@@ -353,7 +324,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         List<OrderDetailModel> activeDetails = order.getOrderDetails() == null
                 ? List.of()
                 : order.getOrderDetails().stream()
-                        .filter(d -> d.getStatus() == OrderDetailStatus.HANDOVER_IN_PROGRESS)
+                        .filter(OrderDetailModel::isAwaitingHandover)
                         .toList();
         if (activeDetails.isEmpty()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Đơn hàng không còn vé hiệu lực để hủy.");
@@ -394,22 +365,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         orderIncidentTicketServicePort.handlePartialRefundIncidents(
                 orderId, staffId, List.copyOf(byDetailId.values()), null);
-    }
-
-    private void cancelOrderForStaffApproval(
-            OrderModel order,
-            String cancelReason,
-            OrderCancelType cancelType
-    ) {
-        if (order.getOrderType() == OrderType.DIRECT) {
-            order.cancelDirectOrderForRefund(cancelReason, cancelType);
-            return;
-        }
-        if (order.getStatus() == OrderStatus.PAID) {
-            order.cancelByCustomerRefund(cancelReason, cancelType);
-            return;
-        }
-        order.cancelAfterPaymentForRefund(cancelReason, cancelType);
     }
 
     @Override
@@ -700,34 +655,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .orElse(null));
     }
 
-    private void releaseSoldTickets(OrderModel order) {
-        if (order.getOrderDetails() == null) {
-            return;
-        }
-        for (OrderDetailModel detail : order.getOrderDetails()) {
-            List<Long> serialIds = resolveAllocatedSerialIds(detail);
-            for (Long serialId : serialIds) {
-                lotteryTicketServicePort.returnSoldTicketForOrder(serialId);
-            }
-        }
-    }
-
-    private List<Long> resolveAllocatedSerialIds(OrderDetailModel detail) {
-        if (detail.getAllocatedSerialIds() != null && !detail.getAllocatedSerialIds().isEmpty()) {
-            return detail.getAllocatedSerialIds();
-        }
-        if (detail.getId() != null) {
-            List<Long> persistedSerialIds = orderDetailSerialRepositoryPort.findSerialIdsByOrderDetailId(detail.getId());
-            if (!persistedSerialIds.isEmpty()) {
-                return persistedSerialIds;
-            }
-        }
-        if (detail.getLotteryTicketSerialId() != null) {
-            return List.of(detail.getLotteryTicketSerialId());
-        }
-        return List.of();
-    }
-
     private void publishRefundStatusChanged(RefundRequestModel refund) {
         UUID orderId = refund.getOrderId();
         if (orderId == null && refund.getId() != null) {
@@ -749,18 +676,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .retryCount(refund.getRetryCount())
                 .refundType(refund.getRefundType())
                 .requestRole(refund.getRequestRole())
-                .build());
-    }
-
-    private void publishOrderCancelled(OrderModel order) {
-        if (order.getId() == null || order.getUserId() == null || order.getStatus() == null) {
-            return;
-        }
-        eventPublisher.publishEvent(OrderStatusChangedEvent.builder()
-                .orderId(order.getId())
-                .customerId(order.getUserId())
-                .orderCode(order.getOrderCode())
-                .status(order.getStatus())
                 .build());
     }
 
@@ -787,6 +702,11 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     || request.getRequestRole() == RefundRequestRole.ADMIN) {
                 history.add(new RefundProcessingHistoryItem(
                         "Nhân viên báo lỗi & hủy đơn",
+                        request.getRefundReason(),
+                        request.getCreatedAt()));
+            } else if (request.getRequestRole() == RefundRequestRole.SYSTEM) {
+                history.add(new RefundProcessingHistoryItem(
+                        "Hệ thống hủy đơn quá hạn chuẩn bị",
                         request.getRefundReason(),
                         request.getCreatedAt()));
             } else {

@@ -341,6 +341,11 @@ public enum ErrorCode {
             "Chưa đến giờ đối soát. Vui lòng đợi đến mốc thời gian đệm trước thanh toán NCC.",
             HttpStatus.CONFLICT
     ),
+    SUPPLIER_SETTLEMENT_EXCESS_IMPORT_NOT_OPEN(
+            "LT_144",
+            "Danh sách vé nhập thừa chỉ được xử lý sau giờ chốt trả vé và khi đã đến giờ đối soát NCC.",
+            HttpStatus.CONFLICT
+    ),
     IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_NO_SUPPLIER_CONFIGURED(
             "LT_084",

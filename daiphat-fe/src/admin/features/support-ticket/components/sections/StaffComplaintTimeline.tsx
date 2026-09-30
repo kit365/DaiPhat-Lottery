@@ -11,6 +11,7 @@ import {
     DialogContent,
     DialogTitle,
     IconButton,
+    Stack,
     TextField,
     Typography,
 } from '@mui/material';
@@ -44,6 +45,9 @@ interface StaffComplaintTimelineProps {
     ticketId: number;
     status: TicketStatus;
     formatSystemNote?: (content: string) => string;
+    onResolveClick?: () => void;
+    canResolve?: boolean;
+    isResolving?: boolean;
 }
 
 const MAX_CONTENT_LENGTH = 2000;
@@ -136,6 +140,9 @@ export const StaffComplaintTimeline = ({
     ticketId,
     status,
     formatSystemNote,
+    onResolveClick,
+    canResolve = false,
+    isResolving = false,
 }: StaffComplaintTimelineProps) => {
     const [replyOpen, setReplyOpen] = useState(false);
     const [content, setContent] = useState('');
@@ -314,15 +321,57 @@ export const StaffComplaintTimeline = ({
                         Với khách hàng
                     </Typography>
                 </Box>
-                {canReject && (
-                    <Button
-                        variant="outlined"
-                        className="btn-outlined-admin"
-                        disabled={respondMutation.isPending}
-                        onClick={openRejectDialog}
-                    >
-                        Từ chối
-                    </Button>
+                {(canResolve || canReject) && (
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                        {canResolve && (
+                            <Button
+                                variant="contained"
+                                color="success"
+                                disabled={isResolving}
+                                onClick={onResolveClick}
+                                sx={{
+                                    height: 36,
+                                    px: 2,
+                                    borderRadius: '8px',
+                                    fontWeight: 700,
+                                    textTransform: 'none',
+                                    boxShadow: 'none',
+                                    bgcolor: 'var(--palette-success-main, #22C55E)',
+                                    color: '#fff',
+                                    '&:hover': {
+                                        bgcolor: 'var(--palette-success-dark, #118D57)',
+                                        boxShadow: 'none',
+                                    },
+                                }}
+                            >
+                                Đã giải quyết
+                            </Button>
+                        )}
+                        {canReject && (
+                            <Button
+                                variant="contained"
+                                color="error"
+                                disabled={respondMutation.isPending}
+                                onClick={openRejectDialog}
+                                sx={{
+                                    height: 36,
+                                    px: 2,
+                                    borderRadius: '8px',
+                                    fontWeight: 700,
+                                    textTransform: 'none',
+                                    boxShadow: 'none',
+                                    bgcolor: 'var(--palette-error-main, #FF4842)',
+                                    color: '#fff',
+                                    '&:hover': {
+                                        bgcolor: 'var(--palette-error-dark, #B71D18)',
+                                        boxShadow: 'none',
+                                    },
+                                }}
+                            >
+                                Từ chối
+                            </Button>
+                        )}
+                    </Stack>
                 )}
             </Box>
 

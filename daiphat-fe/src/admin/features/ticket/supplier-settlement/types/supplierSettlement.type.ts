@@ -1,4 +1,4 @@
-export type SupplierSettlementStatus = 'OPEN' | 'RECEIPT_OVERDUE' | 'CLOSED' | 'COMPLETED';
+export type SupplierSettlementStatus = 'NOT_OPEN' | 'OPEN' | 'RECEIPT_OVERDUE' | 'WAITING_FOR_PAYMENT' | 'CLOSED' | 'COMPLETED';
 
 export type SupplierSettlementReconciliationPhase =
     | 'MATCHING'
@@ -114,6 +114,7 @@ export interface SupplierSettlement {
     createdAt?: string | null;
     updatedAt?: string | null;
     settlementBufferMinutes?: number | null;
+    supplierReturnCutOffTime?: string | null;
     paymentCutOffTime?: string | null;
     reconciliationWindowStartAt?: string | null;
     inReconciliationWindow?: boolean | null;
@@ -180,6 +181,15 @@ export interface SettlementOverviewImportBatch {
     ticketListImageUrls?: string[] | null;
     receiptImageUrl?: string | null;
     evidenceUrl?: string | null;
+    supplierName?: string | null;
+    importMode?: string | null;
+    importedBy?: string | null;
+    importedByDisplayName?: string | null;
+    importedAt?: string | null;
+    submittedAt?: string | null;
+    completedAt?: string | null;
+    createdAt?: string | null;
+    note?: string | null;
 }
 
 export interface SettlementOverviewReturnBatch {
@@ -191,10 +201,18 @@ export interface SettlementOverviewReturnBatch {
     totalQuantity?: number | null;
     totalReturnValue?: number | null;
     supplierName?: string | null;
+    returnedBy?: string | null;
+    returnedByDisplayName?: string | null;
+    returnedAt?: string | null;
+    confirmedAt?: string | null;
+    deliveryModeLabel?: string | null;
+    createdAt?: string | null;
+    note?: string | null;
     returnReceiptUrl?: string | null;
     returnEvidenceUrl?: string | null;
     returnCutOffTime?: string | null;
     returnCutOffAt?: string | null;
+    inspectionWindowStartAt?: string | null;
     inspectionExpired?: boolean;
     minutesUntilCutoff?: number | null;
 }
@@ -212,6 +230,7 @@ export interface SupplierSettlementOverview {
 export interface SettlementResolvableSerial {
     serialId: number;
     serialNumber: string;
+    numbers?: string | null;
     status?: string | null;
     ticketCondition?: string | null;
     stationName?: string | null;
@@ -316,6 +335,22 @@ export interface ResolveReturnDiscrepancyPayload {
 export interface ResolveUnitPriceDiscrepancyPayload {
     note?: string;
     markResolved: boolean;
+}
+
+export interface FinalizeSettlementProcessingPayload {
+    importResolution?: ResolveImportDiscrepancyPayload;
+    returnResolution?: ResolveReturnDiscrepancyPayload;
+    unitPriceResolution?: ResolveUnitPriceDiscrepancyPayload;
+    reconciliationNote?: string;
+}
+
+export type SettlementPaymentMethod = 'OFFLINE' | 'ONLINE';
+
+export interface SettlementPaymentConfirmationPayload {
+    reconciliationNote?: string;
+    paymentMethod: SettlementPaymentMethod;
+    /** Required for cash payments; transfer amount is the finalized settlement value. */
+    paidAmount?: number;
 }
 
 export interface AddSettlementMonetaryAdjustmentPayload {

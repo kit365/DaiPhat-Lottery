@@ -79,6 +79,26 @@ export const useAssignSupportTicket = () => {
     });
 };
 
+export const useResolveSupportTicket = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, response }: { id: number; response: string }) =>
+            supportTicketAdminApi.resolveTicket(id, { response }),
+        onSuccess: (result, variables) => {
+            if (result.success) {
+                toast.success(result.message || 'Đã đánh dấu khiếu nại là đã giải quyết');
+                invalidateTicketQueries(queryClient, variables.id);
+            } else {
+                toast.error(result.message || 'Không thể giải quyết khiếu nại');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        },
+    });
+};
+
 export const useRespondSupportTicket = () => {
     const queryClient = useQueryClient();
 

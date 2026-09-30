@@ -123,7 +123,9 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 orderRefundGraceService,
                 paymentTimeoutConfigService,
                 mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class),
-                storagePort
+                storagePort,
+                mock(OrderPreparationExpiryService.class),
+                mock(com.daiphat.coreapi.application.service.lotteries.TicketSalesCutoffPolicy.class)
         );
         when(orderRefundGraceService.evaluate(any())).thenReturn(
                 new OrderRefundGraceService.RefundGraceEvaluation(false, null, 0L, 0, null, null)

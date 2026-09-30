@@ -366,6 +366,7 @@ class ChatViewModel extends Notifier<ChatState> {
         state = state.copyWith(
           statusBanner: 'Yêu cầu gặp nhân viên đã được ghi nhận.',
         );
+        _dismissStatusBannerAfterDelay('Yêu cầu gặp nhân viên đã được ghi nhận.');
       }
     } catch (error) {
       state = state.copyWith(errorMessage: formatChatError(error));
@@ -392,7 +393,9 @@ class ChatViewModel extends Notifier<ChatState> {
         throw Exception('Không thể huỷ yêu cầu gặp nhân viên.');
       }
       _applyConversation(detail.conversation);
-      state = state.copyWith(statusBanner: 'Đã huỷ yêu cầu gặp nhân viên.');
+      const banner = 'Đã huỷ yêu cầu gặp nhân viên.';
+      state = state.copyWith(statusBanner: banner);
+      _dismissStatusBannerAfterDelay(banner);
       await _loadTimeline(reset: true);
     } catch (error) {
       if (ref.mounted) state = state.copyWith(errorMessage: formatChatError(error));
@@ -421,7 +424,9 @@ class ChatViewModel extends Notifier<ChatState> {
         throw Exception('Không thể ngắt kết nối với nhân viên.');
       }
       _applyConversation(detail.conversation);
-      state = state.copyWith(statusBanner: 'Đã ngắt kết nối với nhân viên.');
+      const banner = 'Đã ngắt kết nối với nhân viên.';
+      state = state.copyWith(statusBanner: banner);
+      _dismissStatusBannerAfterDelay(banner);
       await _loadTimeline(reset: true);
     } catch (error) {
       if (ref.mounted) state = state.copyWith(errorMessage: formatChatError(error));
@@ -548,8 +553,8 @@ class ChatViewModel extends Notifier<ChatState> {
           ? state.statusBanner
           : _bannerForEvent(event.eventType, previousStatus: previousStatus),
     );
-    if (!isStaleEscalation && event.eventType == 'CONVERSATION_CLOSED') {
-      _dismissClosedBannerAfterDelay();
+    if (!isStaleEscalation && state.statusBanner != null) {
+      _dismissStatusBannerAfterDelay(state.statusBanner!);
     }
 
     // The backend emits MESSAGE_READ after the detail/read endpoints update
@@ -614,10 +619,10 @@ class ChatViewModel extends Notifier<ChatState> {
     };
   }
 
-  void _dismissClosedBannerAfterDelay() {
+  void _dismissStatusBannerAfterDelay(String bannerText) {
     _statusBannerTimer?.cancel();
     _statusBannerTimer = Timer(const Duration(seconds: 3), () {
-      if (!ref.mounted || state.statusBanner != 'Phiên chat đã kết thúc.') {
+      if (!ref.mounted || state.statusBanner != bannerText) {
         return;
       }
       state = state.copyWith(clearStatusBanner: true);

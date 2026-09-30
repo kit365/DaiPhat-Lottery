@@ -2,15 +2,21 @@
 
 import { useState, type ReactNode } from 'react';
 import AssignmentReturnOutlinedIcon from '@mui/icons-material/AssignmentReturnOutlined';
+import FormatListBulletedOutlinedIcon from '@mui/icons-material/FormatListBulletedOutlined';
 import MoveToInboxOutlinedIcon from '@mui/icons-material/MoveToInboxOutlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import SummarizeOutlinedIcon from '@mui/icons-material/SummarizeOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import {
     Box,
+    Button,
+    ButtonGroup,
     Card,
     Chip,
     CircularProgress,
     Grid,
     IconButton,
+    Paper,
     Stack,
     Tab,
     Table,
@@ -34,6 +40,8 @@ import {
     getImportBatchLineStatusLabel,
     getImportBatchStatusBadgeClass,
     getImportBatchStatusLabel,
+    getBatchTypeLabel,
+    getImportModeLabel,
 } from '../../../import-batch/utils/batchTypeLabels';
 import { useReturnBatchDetail } from '../../../return-batch/hooks/useReturnBatch';
 import type { ReturnBatchStatus } from '../../../return-batch/types/returnBatch.type';
@@ -125,8 +133,15 @@ export const AllStationsTable = ({
     const totalDelta = totals.excessReturn > 0 ? totals.excessReturn : -totals.returnShortfall;
 
     return (
-        <TableContainer sx={{ border: '1px solid #e2e8f0', borderRadius: '14px', overflow: 'auto', bgcolor: '#ffffff' }}>
-            <Table size="small" sx={{ minWidth: 920 }}>
+        <TableContainer sx={{ border: '1px solid #dbe4f0', borderRadius: '12px', overflow: 'auto', bgcolor: '#ffffff' }}>
+            <Table
+                size="small"
+                sx={{
+                    minWidth: 980,
+                    '& .MuiTableCell-root': { px: 1.5, py: 1.1, borderColor: '#e8edf4' },
+                    '& tbody tr:nth-of-type(even)': { bgcolor: '#fbfdff' },
+                }}
+            >
                 <TableHead>
                     <TableRow>
                         <TableCell colSpan={2} sx={{ ...headerCellSx, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }} />
@@ -155,14 +170,14 @@ export const AllStationsTable = ({
                     <TableRow sx={{ bgcolor: '#f8fafc' }}>
                         <TableCell sx={headerCellSx}>STT</TableCell>
                         <TableCell sx={headerCellSx}>Nhà đài</TableCell>
-                        <TableCell align="right" sx={headerCellSx}>Nhập</TableCell>
+                        <TableCell align="right" sx={{ ...headerCellSx, borderLeft: '1px solid #bfdbfe' }}>Nhập</TableCell>
                         <TableCell align="right" sx={{ ...headerCellSx, color: '#0284c7' }}>Đã bán</TableCell>
                         <TableCell align="right" sx={{ ...headerCellSx, color: '#16a34a' }}>Tồn kho</TableCell>
                         <TableCell align="right" sx={{ ...headerCellSx, color: '#ea580c' }}>Đã lập phiếu</TableCell>
-                        <TableCell align="right" sx={{ ...headerCellSx, bgcolor: '#fffbeb', color: '#dc2626' }}>Thất lạc</TableCell>
+                        <TableCell align="right" sx={{ ...headerCellSx, bgcolor: '#fffbeb', color: '#dc2626', borderLeft: '1px solid #fde68a' }}>Thất lạc</TableCell>
                         <TableCell align="right" sx={{ ...headerCellSx, bgcolor: '#fffbeb', color: '#ea580c' }}>Hư hỏng</TableCell>
                         <TableCell align="right" sx={{ ...headerCellSx, bgcolor: '#fffbeb', color: '#7c3aed' }}>Báo hủy</TableCell>
-                        <TableCell align="right" sx={{ ...headerCellSx, bgcolor: '#f0fdfa' }}>Dự kiến trả</TableCell>
+                        <TableCell align="right" sx={{ ...headerCellSx, bgcolor: '#f0fdfa', borderLeft: '1px solid #99f6e4' }}>Dự kiến trả</TableCell>
                         <TableCell align="right" sx={{ ...headerCellSx, bgcolor: '#f0fdfa' }}>Chênh lệch trả</TableCell>
                     </TableRow>
                 </TableHead>
@@ -176,7 +191,7 @@ export const AllStationsTable = ({
                                 <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>
                                     {row.lotteryStationName || `Đài #${row.lotteryStationId}`}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 600 }}>
+                                <TableCell align="right" sx={{ fontWeight: 600, borderLeft: '1px solid #dbeafe' }}>
                                     {m.imported.toLocaleString('vi-VN')}
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 600, color: m.sold > 0 ? '#0284c7' : '#94a3b8' }}>
@@ -188,7 +203,7 @@ export const AllStationsTable = ({
                                 <TableCell align="right" sx={{ fontWeight: 700, color: m.returned > 0 ? '#ea580c' : '#94a3b8' }}>
                                     {m.returned.toLocaleString('vi-VN')}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: m.lost > 0 ? '#dc2626' : '#94a3b8', bgcolor: '#fffbeb' }}>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: m.lost > 0 ? '#dc2626' : '#94a3b8', bgcolor: '#fffbeb', borderLeft: '1px solid #fef3c7' }}>
                                     {m.lost.toLocaleString('vi-VN')}
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700, color: m.damaged > 0 ? '#ea580c' : '#94a3b8', bgcolor: '#fffbeb' }}>
@@ -197,7 +212,7 @@ export const AllStationsTable = ({
                                 <TableCell align="right" sx={{ fontWeight: 700, color: m.voided > 0 ? '#7c3aed' : '#94a3b8', bgcolor: '#fffbeb' }}>
                                     {m.voided.toLocaleString('vi-VN')}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#f0fdfa', color: m.returnShortfall > 0 ? '#0f766e' : '#94a3b8' }}>
+                                <TableCell align="right" sx={{ fontWeight: 700, bgcolor: '#f0fdfa', color: m.returnShortfall > 0 ? '#0f766e' : '#94a3b8', borderLeft: '1px solid #ccfbf1' }}>
                                     {m.returnShortfall.toLocaleString('vi-VN')}
                                 </TableCell>
                                 <TableCell
@@ -284,20 +299,29 @@ const ViewDetailButton = ({
     href: string;
 }) => (
     <Tooltip title={`${title} (tab mới)`}>
-        <IconButton
+        <Button
             size="small"
-            color="primary"
+            variant="outlined"
+            startIcon={<VisibilityOutlinedIcon fontSize="small" />}
             aria-label={title}
             onClick={() => openInNewTab(href)}
             sx={{
-                bgcolor: '#f1f5f9',
-                '&:hover': { bgcolor: '#e2e8f0' },
+                bgcolor: '#ffffff',
+                borderColor: '#cbd5e1',
+                color: '#334155',
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: '9px',
+                '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
             }}
         >
-            <VisibilityOutlinedIcon fontSize="small" />
-        </IconButton>
+            Xem phiếu
+        </Button>
     </Tooltip>
 );
+
+const formatDateTime = (value?: string | null) =>
+    value ? dayjs(value).format('DD/MM/YYYY HH:mm') : '—';
 
 const Fact = ({
     label,
@@ -335,9 +359,11 @@ const Fact = ({
 const ImportBatchItem = ({
     batch,
     inventoryByStation,
+    showDetails,
 }: {
     batch: SettlementOverviewImportBatch;
     inventoryByStation: SettlementStationInventory[];
+    showDetails: boolean;
 }) => {
     const { data: detail, isLoading, isError } = useImportBatchDetail(batch.id);
     const lines = detail?.lines || [];
@@ -352,6 +378,12 @@ const ImportBatchItem = ({
     );
     const status = detail?.status || batch.status || undefined;
     const drawDate = detail?.drawDate || batch.drawDate;
+    const importedBy = detail?.importedByDisplayName || batch.importedByDisplayName || detail?.importedBy || batch.importedBy || 'Chưa ghi nhận';
+    const importedAt = detail?.importedAt || batch.importedAt;
+    const createdAt = detail?.createdAt || batch.createdAt;
+    const importMode = detail?.importMode || batch.importMode;
+    const supplierName = detail?.supplierName || batch.supplierName;
+    const note = detail?.note || batch.note;
 
     const linesTotalDeclare = lines.reduce((acc, l) => acc + (l.declareQuantity ?? 0), 0);
     const linesTotalImport = lines.reduce((acc, l) => acc + (l.totalQuantity ?? 0), 0);
@@ -386,23 +418,37 @@ const ImportBatchItem = ({
                         href={ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id)}
                     />
                 </Stack>
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                    <Grid size={{ xs: 6, sm: 3 }}>
+                <Grid container spacing={1.5} sx={{ mt: 1 }}>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
                         <Fact label="Ngày quay" value={drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—'} />
                     </Grid>
-                    <Grid size={{ xs: 6, sm: 3 }}>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
                         <Fact label="SL khai báo" value={`${declareQty.toLocaleString('vi-VN')} vé`} />
                     </Grid>
-                    <Grid size={{ xs: 6, sm: 3 }}>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
                         <Fact label="SL thực nhập" value={`${importedQty.toLocaleString('vi-VN')} vé`} emphasize color="#2563eb" />
                     </Grid>
-                    <Grid size={{ xs: 6, sm: 3 }}>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
                         <Fact label="Thành tiền" value={`${formatSettlementMoney(value)} VNĐ`} emphasize color="#0f172a" />
                     </Grid>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+                        <Fact label="Người nhập phiếu" value={importedBy} emphasize color="#1d4ed8" />
+                    </Grid>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+                        <Fact label="Thời điểm nhập" value={formatDateTime(importedAt || createdAt)} />
+                    </Grid>
                 </Grid>
+                {showDetails && (
+                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ mt: 1.25, pt: 1.25, borderTop: '1px dashed #dbe4f0' }}>
+                        <Typography variant="caption" color="#64748b"><strong>Nhà cung cấp:</strong> {supplierName || '—'}</Typography>
+                        <Typography variant="caption" color="#64748b"><strong>Hình thức nhập:</strong> {getImportModeLabel(importMode || undefined)}</Typography>
+                        <Typography variant="caption" color="#64748b"><strong>Khởi tạo:</strong> {formatDateTime(createdAt)}</Typography>
+                        {note && <Typography variant="caption" color="#64748b"><strong>Ghi chú:</strong> {note}</Typography>}
+                    </Stack>
+                )}
             </Box>
 
-            {isLoading ? (
+            {!showDetails ? null : isLoading ? (
                 <Box display="flex" justifyContent="center" py={3}>
                     <CircularProgress size={22} />
                 </Box>
@@ -416,17 +462,19 @@ const ImportBatchItem = ({
                         <TableHead>
                             <TableRow sx={{ bgcolor: '#ffffff' }}>
                                 <TableCell sx={headerCellSx}>Nhà đài</TableCell>
+                                <TableCell sx={headerCellSx}>Loại dòng</TableCell>
                                 <TableCell align="right" sx={headerCellSx}>SL khai báo</TableCell>
                                 <TableCell align="right" sx={{ ...headerCellSx, color: '#2563eb' }}>SL thực nhập</TableCell>
                                 <TableCell align="right" sx={headerCellSx}>Đơn giá</TableCell>
                                 <TableCell align="right" sx={{ ...headerCellSx, color: '#0f172a' }}>Thành tiền</TableCell>
+                                <TableCell sx={headerCellSx}>Thời điểm nhập</TableCell>
                                 <TableCell sx={headerCellSx}>Trạng thái</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {lines.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center">
+                                    <TableCell colSpan={8} align="center">
                                         <Typography color="text.secondary" sx={{ py: 2 }}>
                                             Phiếu nhập chưa có dòng nhà đài.
                                         </Typography>
@@ -437,6 +485,9 @@ const ImportBatchItem = ({
                                     <TableRow key={line.id || idx} hover>
                                         <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>
                                             {stationNameFromInventory(line.lotteryStationId, inventoryByStation)}
+                                        </TableCell>
+                                        <TableCell sx={{ color: '#475569', whiteSpace: 'nowrap' }}>
+                                            {getBatchTypeLabel(line.batchType)}
                                         </TableCell>
                                         <TableCell align="right" sx={{ color: '#64748b' }}>
                                             {(line.declareQuantity ?? 0).toLocaleString('vi-VN')}
@@ -449,6 +500,9 @@ const ImportBatchItem = ({
                                         </TableCell>
                                         <TableCell align="right" sx={{ fontWeight: 700, color: '#0f172a' }}>
                                             {formatSettlementMoney(line.totalCostValue ?? line.declaredCostValue)} VNĐ
+                                        </TableCell>
+                                        <TableCell sx={{ color: '#64748b', whiteSpace: 'nowrap' }}>
+                                            {formatDateTime(line.importedAt)}
                                         </TableCell>
                                         <TableCell>
                                             <AdminStatusBadge
@@ -466,6 +520,7 @@ const ImportBatchItem = ({
                                     <TableCell sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#334155' }}>
                                         TỔNG CỘNG ({lines.length} đài)
                                     </TableCell>
+                                    <TableCell />
                                     <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#64748b' }}>
                                         {linesTotalDeclare.toLocaleString('vi-VN')}
                                     </TableCell>
@@ -476,6 +531,7 @@ const ImportBatchItem = ({
                                     <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#0f172a' }}>
                                         {formatSettlementMoney(linesTotalValue)} VNĐ
                                     </TableCell>
+                                    <TableCell />
                                     <TableCell />
                                 </TableRow>
                             </TableFooter>
@@ -489,8 +545,10 @@ const ImportBatchItem = ({
 
 const ReturnBatchItem = ({
     batch,
+    showDetails,
 }: {
     batch: SettlementOverviewReturnBatch;
+    showDetails: boolean;
 }) => {
     const { data: detail, isLoading, isError } = useReturnBatchDetail(batch.id);
     const lines = detail?.lines || [];
@@ -504,10 +562,17 @@ const ReturnBatchItem = ({
     const cutoff = cutoffAt
         ? dayjs(cutoffAt).format('DD/MM/YYYY HH:mm')
         : cutoffTime || '—';
+    const returnedBy = detail?.returnedByDisplayName || batch.returnedByDisplayName || detail?.returnedBy || batch.returnedBy || 'Chưa ghi nhận';
+    const returnedAt = detail?.returnedAt || batch.returnedAt;
+    const confirmedAt = detail?.confirmedAt || batch.confirmedAt;
+    const deliveryMode = detail?.deliveryModeLabel || batch.deliveryModeLabel;
+    const createdAt = detail?.createdAt || batch.createdAt;
+    const note = detail?.note || batch.note;
 
     const linesTotalQty = lines.reduce((acc, l) => acc + (l.totalQuantity ?? 0), 0);
     const linesTotalValue = lines.reduce((acc, l) => acc + (l.totalReturnValue ?? 0), 0);
     const linesTotalInspectable = lines.reduce((acc, l) => acc + (l.remainingInspectableQuantity ?? 0), 0);
+    const linesTotalAttached = lines.reduce((acc, l) => acc + (l.attachedSerialCount ?? 0), 0);
 
     return (
         <Box
@@ -538,23 +603,37 @@ const ReturnBatchItem = ({
                         href={ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id)}
                     />
                 </Stack>
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                    <Grid size={{ xs: 6, sm: 3 }}>
+                <Grid container spacing={1.5} sx={{ mt: 1 }}>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
                         <Fact label="Ngày quay" value={drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—'} />
                     </Grid>
-                    <Grid size={{ xs: 6, sm: 3 }}>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
                         <Fact label="SL thực trả" value={`${qty.toLocaleString('vi-VN')} vé`} emphasize color="#ea580c" />
                     </Grid>
-                    <Grid size={{ xs: 6, sm: 3 }}>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
                         <Fact label="Giá trị trả" value={`${formatSettlementMoney(value)} VNĐ`} emphasize color="#0f172a" />
                     </Grid>
-                    <Grid size={{ xs: 6, sm: 3 }}>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
                         <Fact label="Hạn trả vé" value={cutoff} />
                     </Grid>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+                        <Fact label="Người trả phiếu" value={returnedBy} emphasize color="#c2410c" />
+                    </Grid>
+                    <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+                        <Fact label="Thời điểm trả" value={formatDateTime(returnedAt || confirmedAt || createdAt)} />
+                    </Grid>
                 </Grid>
+                {showDetails && (
+                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ mt: 1.25, pt: 1.25, borderTop: '1px dashed #fed7aa' }}>
+                        <Typography variant="caption" color="#64748b"><strong>Hình thức giao:</strong> {deliveryMode || '—'}</Typography>
+                        <Typography variant="caption" color="#64748b"><strong>Xác nhận:</strong> {formatDateTime(confirmedAt)}</Typography>
+                        <Typography variant="caption" color="#64748b"><strong>Khởi tạo:</strong> {formatDateTime(createdAt)}</Typography>
+                        {note && <Typography variant="caption" color="#64748b"><strong>Ghi chú:</strong> {note}</Typography>}
+                    </Stack>
+                )}
             </Box>
 
-            {isLoading ? (
+            {!showDetails ? null : isLoading ? (
                 <Box display="flex" justifyContent="center" py={3}>
                     <CircularProgress size={22} />
                 </Box>
@@ -570,6 +649,7 @@ const ReturnBatchItem = ({
                                 <TableCell sx={headerCellSx}>Nhà đài</TableCell>
                                 <TableCell align="right" sx={{ ...headerCellSx, color: '#ea580c' }}>SL trả</TableCell>
                                 <TableCell align="right" sx={{ ...headerCellSx, color: '#0f172a' }}>Giá trị trả</TableCell>
+                                <TableCell align="right" sx={headerCellSx}>Đã gắn sê-ri</TableCell>
                                 <TableCell align="right" sx={headerCellSx}>Còn kiểm tra</TableCell>
                                 <TableCell sx={headerCellSx}>Trạng thái</TableCell>
                             </TableRow>
@@ -577,7 +657,7 @@ const ReturnBatchItem = ({
                         <TableBody>
                             {lines.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} align="center">
+                                    <TableCell colSpan={6} align="center">
                                         <Typography color="text.secondary" sx={{ py: 2 }}>
                                             Phiếu trả chưa có dòng nhà đài.
                                         </Typography>
@@ -594,6 +674,9 @@ const ReturnBatchItem = ({
                                         </TableCell>
                                         <TableCell align="right" sx={{ fontWeight: 700, color: line.totalReturnValue ? '#0f172a' : '#94a3b8' }}>
                                             {formatSettlementMoney(line.totalReturnValue)} VNĐ
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ color: line.attachedSerialCount ? '#2563eb' : '#94a3b8', fontWeight: 700 }}>
+                                            {(line.attachedSerialCount ?? 0).toLocaleString('vi-VN')}
                                         </TableCell>
                                         <TableCell align="right" sx={{ color: line.remainingInspectableQuantity ? '#0f766e' : '#94a3b8', fontWeight: 600 }}>
                                             {(line.remainingInspectableQuantity ?? 0).toLocaleString('vi-VN')}
@@ -620,6 +703,9 @@ const ReturnBatchItem = ({
                                     <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#0f172a' }}>
                                         {formatSettlementMoney(linesTotalValue)} VNĐ
                                     </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#2563eb' }}>
+                                        {linesTotalAttached.toLocaleString('vi-VN')}
+                                    </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#0f766e' }}>
                                         {linesTotalInspectable.toLocaleString('vi-VN')}
                                     </TableCell>
@@ -637,9 +723,11 @@ const ReturnBatchItem = ({
 const ImportBatchesCard = ({
     importBatches,
     inventoryByStation,
+    showDetails,
 }: {
     importBatches: SettlementOverviewImportBatch[];
     inventoryByStation: SettlementStationInventory[];
+    showDetails: boolean;
 }) => {
     const showAllTab = importBatches.length > 1;
     const [tab, setTab] = useState(0);
@@ -736,6 +824,7 @@ const ImportBatchesCard = ({
                                 key={batch.id}
                                 batch={batch}
                                 inventoryByStation={inventoryByStation}
+                                showDetails={showDetails}
                             />
                         ))}
                     </Stack>
@@ -747,8 +836,10 @@ const ImportBatchesCard = ({
 
 const ReturnBatchesCard = ({
     returnBatches,
+    showDetails,
 }: {
     returnBatches: SettlementOverviewReturnBatch[];
+    showDetails: boolean;
 }) => {
     const showAllTab = returnBatches.length > 1;
     const [tab, setTab] = useState(0);
@@ -835,7 +926,7 @@ const ReturnBatchesCard = ({
                 ) : (
                     <Stack spacing={2}>
                         {visibleBatches.map((batch) => (
-                            <ReturnBatchItem key={batch.id} batch={batch} />
+                            <ReturnBatchItem key={batch.id} batch={batch} showDetails={showDetails} />
                         ))}
                     </Stack>
                 )}
@@ -850,33 +941,87 @@ export const SettlementReconciliationTabs = ({
     returnBatches,
     remainingPayableAmount,
 }: Props) => {
+    const [viewMode, setViewMode] = useState<'SUMMARY' | 'DETAIL'>('SUMMARY');
+    const showDetails = viewMode === 'DETAIL';
+
     return (
-        <Stack spacing={2.5} sx={{ mb: 3 }}>
+        <Paper
+            elevation={0}
+            sx={{
+                mb: 3,
+                borderRadius: '16px',
+                border: '1px solid #dbe4f0',
+                bgcolor: '#ffffff',
+                overflow: 'hidden',
+                boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)',
+            }}
+        >
             <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={1}
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={1.5}
                 justifyContent="space-between"
-                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                alignItems={{ xs: 'flex-start', md: 'center' }}
+                flexWrap="wrap"
+                useFlexGap
+                sx={{ px: { xs: 2, md: 2.5 }, py: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
             >
-                <Box>
-                    <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                        Chi tiết phiếu nhập / trả
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                        {importBatches.length} phiếu nhập · {returnBatches.length} phiếu trả
-                    </Typography>
-                </Box>
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                    <Box
+                        sx={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: '10px',
+                            bgcolor: '#eff6ff',
+                            color: '#2563eb',
+                            display: 'grid',
+                            placeItems: 'center',
+                            flexShrink: 0,
+                        }}
+                    >
+                        <ReceiptLongOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                    </Box>
+                    <Box>
+                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ lineHeight: 1.3 }}>
+                            Chi tiết phiếu nhập / trả
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            {importBatches.length} phiếu nhập · {returnBatches.length} phiếu trả
+                        </Typography>
+                    </Box>
+                </Stack>
                 {remainingPayableAmount != null && (
-                    <Typography variant="caption" color="text.secondary">
-                        Tổng phải trả NCC còn lại:{' '}
-                        <strong style={{ color: '#dc2626' }}>
+                    <Box sx={{ px: 1.5, py: 0.85, borderRadius: '10px', bgcolor: '#fff7ed', border: '1px solid #fed7aa' }}>
+                        <Typography variant="caption" color="#9a3412" fontWeight={700}>
+                            Tổng phải trả NCC còn lại:{' '}
+                            <strong style={{ color: '#dc2626' }}>
                             {formatSettlementMoney(remainingPayableAmount)} VNĐ
-                        </strong>
-                    </Typography>
+                            </strong>
+                        </Typography>
+                    </Box>
                 )}
+                <ButtonGroup size="small" aria-label="Chế độ hiển thị phiếu">
+                    <Button
+                        variant={viewMode === 'SUMMARY' ? 'contained' : 'outlined'}
+                        startIcon={<SummarizeOutlinedIcon />}
+                        onClick={() => setViewMode('SUMMARY')}
+                        sx={{ textTransform: 'none', fontWeight: 700 }}
+                    >
+                        Tóm tắt
+                    </Button>
+                    <Button
+                        variant={viewMode === 'DETAIL' ? 'contained' : 'outlined'}
+                        startIcon={<FormatListBulletedOutlinedIcon />}
+                        onClick={() => setViewMode('DETAIL')}
+                        sx={{ textTransform: 'none', fontWeight: 700 }}
+                    >
+                        Chi tiết
+                    </Button>
+                </ButtonGroup>
             </Stack>
-            <ImportBatchesCard importBatches={importBatches} inventoryByStation={inventoryByStation} />
-            <ReturnBatchesCard returnBatches={returnBatches} />
-        </Stack>
+            <Stack spacing={2} sx={{ p: { xs: 2, md: 2.5 } }}>
+                <ImportBatchesCard importBatches={importBatches} inventoryByStation={inventoryByStation} showDetails={showDetails} />
+                <ReturnBatchesCard returnBatches={returnBatches} showDetails={showDetails} />
+            </Stack>
+        </Paper>
     );
 };

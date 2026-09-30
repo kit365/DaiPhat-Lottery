@@ -10,6 +10,7 @@ public enum OrderCancelType implements LabeledEnum {
     CUSTOMER_REQUEST("Khách hàng hủy đơn"),
     ADMIN_FORCE_CANCEL("Nhân viên hủy đơn hộ khách"),
     SYSTEM_PAYMENT_TIMEOUT("Hủy do quá hạn thanh toán"),
+    SYSTEM_PREPARATION_TIMEOUT("Hủy do quá hạn chuẩn bị đơn"),
     OUT_OF_STOCK_INCIDENT("Hủy do sự cố kho / hết vé thay thế");
 
     private final String label;

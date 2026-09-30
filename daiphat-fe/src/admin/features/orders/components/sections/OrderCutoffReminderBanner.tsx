@@ -22,8 +22,8 @@ export const OrderCutoffReminderBanner = ({
     return (
         <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '12px' }}>
             {phase === 'past'
-                ? `Đã qua giờ chốt xổ (${cutoffLabel})${preparingHint}.`
-                : `Sắp đến giờ chốt xổ (${cutoffLabel})${preparingHint}.`}
+                ? `Đã qua hạn chuẩn bị đơn / bán vé trực tuyến (${cutoffLabel})${preparingHint}.`
+                : `Sắp đến hạn chuẩn bị đơn / bán vé trực tuyến (${cutoffLabel})${preparingHint}.`}
         </Alert>
     );
 };

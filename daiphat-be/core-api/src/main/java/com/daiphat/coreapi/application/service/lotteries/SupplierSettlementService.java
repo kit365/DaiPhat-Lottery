@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.lotteries.ImportBatchOriginalFileBund
 import com.daiphat.coreapi.application.dto.request.lotteries.AddSettlementMonetaryAdjustmentRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CompleteSettlementReconciliationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSettlementMatchingRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.FinalizeSettlementProcessingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SettlementMatchingAdjustmentItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.SettlementStationCommissionItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveImportDiscrepancyRequest;
@@ -65,6 +66,7 @@ import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
@@ -77,6 +79,7 @@ import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
+import com.daiphat.coreapi.shared.util.ReturnBatchCutoffTiming;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
@@ -180,6 +183,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
 
         return supplierSettlementRepositoryPort
                 .findBySupplierIdAndPeriodFrom(supplier.getId(), drawDate)
+                .map(existing -> refreshOpeningStatus(existing, supplier, LocalDateTime.now(clock)))
                 .orElseGet(() -> createForImport(supplier, drawDate));
     }
 
@@ -364,7 +368,8 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     }
 
     private boolean shouldRefreshMatchingSystemTotals(SupplierSettlementModel settlement) {
-        if (settlement.getStatus().isCompleted()) {
+        if (settlement.getStatus().isCompleted()
+                || settlement.getStatus() == SupplierSettlementStatus.WAITING_FOR_PAYMENT) {
             return false;
         }
         return settlement.getReconciliationPhase() != SupplierSettlementReconciliationPhase.COMPLETED;
@@ -410,6 +415,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     @Override
     @Transactional
     public int markReceiptOverdueSettlements() {
+        refreshOpeningStatuses();
         LocalDateTime now = LocalDateTime.now(clock);
         List<SupplierSettlementModel> openSettlements =
                 supplierSettlementRepositoryPort.findByStatus(SupplierSettlementStatus.OPEN);
@@ -508,7 +514,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PageResponse<SupplierSettlementResponse> getAll(
             int page,
             int size,
@@ -520,6 +526,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             String sortBy,
             String direction
     ) {
+        refreshOpeningStatuses();
         PageRequest pageRequest = PageRequest.of(
                 Math.max(page - 1, 0),
                 size,
@@ -532,10 +539,11 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public SupplierSettlementResponse getById(Long id) {
         SupplierSettlementModel model = supplierSettlementRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
+        model = refreshOpeningStatus(model);
         return supplierSettlementApplicationMapper.toResponse(model);
     }
 
@@ -602,9 +610,9 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     @Override
     @Transactional
     public SupplierSettlementOverviewResponse getOverview(Long id) {
-        if (supplierSettlementRepositoryPort.findById(id).isEmpty()) {
-            throw new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND);
-        }
+        SupplierSettlementModel initial = supplierSettlementRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
+        refreshOpeningStatus(initial);
         recalculateAmounts(id);
 
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(id)
@@ -671,10 +679,18 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         SupplierSettlementResponse settlementResponse = supplierSettlementApplicationMapper.toResponse(settlement);
 
         List<ImportBatchResponse> importBatches = importBatchRepositoryPort.findBySupplierSettlementId(id).stream()
-                .map(importBatchApplicationMapper::toResponse)
+                .map(batch -> importBatchApplicationMapper.toResponse(
+                        batch,
+                        false,
+                        List.of(),
+                        resolveActorDisplayName(batch.getImportedBy())
+                ))
                 .toList();
         List<ReturnBatchResponse> returnBatches = returnBatchRepositoryPort.findBySupplierSettlementId(id).stream()
-                .map(returnBatchApplicationMapper::toResponse)
+                .map(batch -> returnBatchApplicationMapper.toResponseWithActor(
+                        batch,
+                        resolveActorDisplayName(batch.getReturnedBy())
+                ))
                 .toList();
 
         List<SettlementStationInventoryRow> stationRows =
@@ -759,6 +775,16 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
         ensureReconciliationWindowOpen(settlement);
         assertPhaseAllowsMatching(settlement);
+        LocalDateTime matchingNow = LocalDateTime.now(clock);
+        boolean returnWindowNotStarted = returnBatchRepositoryPort.findBySupplierSettlementId(settlementId).stream()
+                .map(returnBatchApplicationMapper::toResponse)
+                .anyMatch(batch -> batch.status() != ReturnBatchStatus.CANCELLED
+                        && batch.inspectionWindowStartAt() != null
+                        && matchingNow.isBefore(batch.inspectionWindowStartAt()));
+        if (returnWindowNotStarted) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Chưa đến giờ bắt đầu xử lý phiếu trả vé. Không thể xác nhận đối chiếu.");
+        }
         // A rematch replaces the price evidence; any prior unit-price adjustment must
         // not leak into the next recalculation.
         supplierSettlementAdjustmentRepositoryPort.deleteBySettlementIdAndGroupTypeAndReasonCode(
@@ -974,9 +1000,15 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SettlementResolvableSerialResponse> listImportResolvableTickets(Long settlementId) {
-        requireOpenSettlement(settlementId);
+        SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        SettlementDiscrepancyItem importItem = settlement.findDiscrepancyItem(
+                SupplierSettlementDiscrepancyType.IMPORT_QUANTITY
+        );
+        if (importItem != null && importItem.isNegative()) {
+            ensureExcessImportWindowOpen(settlement);
+        }
         return mapResolvableRows(
                 supplierSettlementRepositoryPort.findImportResolvableSerialsBySettlementId(settlementId)
         );
@@ -1042,6 +1074,9 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         SettlementDiscrepancyItem importItem = requireDiscrepancyItem(
                 settlement, SupplierSettlementDiscrepancyType.IMPORT_QUANTITY
         );
+        if (importItem.isNegative()) {
+            ensureReturnCutOffReached(settlement);
+        }
         boolean hasMissing = request.missingPlaceholders() != null && !request.missingPlaceholders().isEmpty();
         boolean hasExcess = request.excessTickets() != null && !request.excessTickets().isEmpty();
         boolean hasExistingFault = request.serialIds() != null && !request.serialIds().isEmpty()
@@ -1697,6 +1732,57 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
 
     @Override
     @Transactional
+    public SupplierSettlementResponse finalizeProcessing(
+            Long settlementId,
+            FinalizeSettlementProcessingRequest request,
+            UUID actorId
+    ) {
+        SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        if (settlement.getStatus() == SupplierSettlementStatus.WAITING_FOR_PAYMENT) {
+            return supplierSettlementApplicationMapper.toResponse(settlement);
+        }
+        ensureReconciliationWindowOpen(settlement);
+
+        if (settlement.needsImportResolution()) {
+            if (request.importResolution() == null) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu thông tin xử lý chênh lệch vé nhập.");
+            }
+            resolveImportDiscrepancy(settlementId, request.importResolution(), actorId);
+        }
+
+        settlement = requireOpenSettlement(settlementId);
+        if (settlement.needsReturnResolution()) {
+            if (request.returnResolution() == null) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu thông tin xử lý chênh lệch vé trả.");
+            }
+            resolveReturnDiscrepancy(settlementId, request.returnResolution(), actorId);
+        }
+
+        settlement = requireOpenSettlement(settlementId);
+        if (settlement.needsUnitPriceResolution()) {
+            if (request.unitPriceResolution() == null) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu thông tin xử lý chênh lệch giá nhập.");
+            }
+            resolveUnitPriceDiscrepancy(settlementId, request.unitPriceResolution(), actorId);
+        }
+
+        settlement = requireOpenSettlement(settlementId);
+        if (settlement.hasUnresolvedDiscrepancies()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Cần xử lý hết mọi chênh lệch trước khi hoàn tất.");
+        }
+
+        recalculateReconciliation(settlementId, actorId);
+        settlement = requireOpenSettlement(settlementId);
+        if (request.reconciliationNote() != null && !request.reconciliationNote().isBlank()) {
+            settlement.setReconciliationNote(request.reconciliationNote().trim());
+        }
+        settlement.setStatus(SupplierSettlementStatus.WAITING_FOR_PAYMENT);
+        SupplierSettlementModel saved = supplierSettlementRepositoryPort.save(settlement);
+        return supplierSettlementApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public SettlementCompleteResultResponse completeReconciliation(
             Long settlementId,
             CompleteSettlementReconciliationRequest request,
@@ -1742,6 +1828,20 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                 ? ImportCostCalculator.scaleMoney(settlement.getRecalculatedTotalPaidAmount())
                 : null;
         BigDecimal finalValue = ImportCostCalculator.scaleMoney(settlement.getFinalSettlementValue());
+        TransactionType paymentMethod = request != null ? request.paymentMethod() : null;
+        if (paymentMethod != null && paymentMethod != TransactionType.OFFLINE && paymentMethod != TransactionType.ONLINE) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Phương thức thanh toán không hợp lệ.");
+        }
+        if (paymentMethod == TransactionType.OFFLINE) {
+            if (request.paidAmount() == null || request.paidAmount().signum() < 0) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Cần nhập số tiền đã trả bằng tiền mặt.");
+            }
+            BigDecimal paidAmount = ImportCostCalculator.scaleMoney(request.paidAmount().abs());
+            settlement.applyActualPaidAmount(finalValue.signum() < 0 ? paidAmount.negate() : paidAmount);
+        } else if (paymentMethod == TransactionType.ONLINE) {
+            // A transfer settles the finalized payable amount; its receipt is validated below.
+            settlement.applyActualPaidAmount(finalValue);
+        }
         BigDecimal actualPaid = ImportCostCalculator.scaleMoney(settlement.getActualPaidAmount());
         BigDecimal initialValue = settlement.getInitialEstimatedSettlementValue() != null
                 ? ImportCostCalculator.scaleMoney(settlement.getInitialEstimatedSettlementValue())
@@ -1777,10 +1877,12 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                     .build();
         }
 
-        if (!settlement.hasPaymentEvidence()) {
+        // Existing callers without a payment method retain the original proof requirement.
+        // Cash payment is confirmed by the entered amount; a transfer still requires its receipt.
+        if ((paymentMethod == null || paymentMethod == TransactionType.ONLINE) && !settlement.hasPaymentEvidence()) {
             throw new DomainException(
-                    ErrorCode.INVALID_INPUT,
-                    "Cần tải ảnh đã thanh toán thành công cho nhà cung cấp trước khi hoàn tất đối soát."
+                ErrorCode.INVALID_INPUT,
+                "Cần tải ảnh đã thanh toán thành công cho nhà cung cấp trước khi hoàn tất đối soát."
             );
         }
 
@@ -1796,15 +1898,17 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         if (settlement.getPaidAt() == null) {
             settlement.setPaidAt(LocalDateTime.now(clock));
         }
-        String firstEvidenceUrl = settlement.getPaymentEvidenceUrls().stream()
-                .filter(url -> url != null && !url.isBlank())
-                .findFirst()
-                .orElse(null);
+        String firstEvidenceUrl = paymentMethod == TransactionType.OFFLINE
+                ? null
+                : settlement.getPaymentEvidenceUrls().stream()
+                    .filter(url -> url != null && !url.isBlank())
+                    .findFirst()
+                    .orElse(null);
         if (settlement.getTransactionId() == null) {
             boolean supplierRefund = actualPaid.signum() < 0;
             TransactionModel payment = TransactionModel.builder()
                     .amount(actualPaid.abs())
-                    .type(TransactionType.OFFLINE)
+                    .type(paymentMethod != null ? paymentMethod : TransactionType.OFFLINE)
                     .transactionType(supplierRefund
                             ? TransactionBusinessType.SUPPLIER_REFUND
                             : TransactionBusinessType.SUPPLIER_PAYMENT)
@@ -1859,6 +1963,10 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     private SupplierSettlementModel requireOpenSettlement(Long settlementId) {
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
+        settlement = refreshOpeningStatus(settlement);
+        if (settlement.getStatus() == SupplierSettlementStatus.NOT_OPEN) {
+            throw new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_RECONCILIATION_NOT_OPEN);
+        }
         if (settlement.getStatus().isCompleted()
                 || settlement.getReconciliationPhase() == SupplierSettlementReconciliationPhase.COMPLETED) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Kỳ đối soát đã thanh toán, không thể thao tác.");
@@ -1888,6 +1996,87 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                 now
         )) {
             throw new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_RECONCILIATION_NOT_OPEN);
+        }
+    }
+
+    private void ensureExcessImportWindowOpen(SupplierSettlementModel settlement) {
+        ensureReconciliationWindowOpen(settlement);
+        ensureReturnCutOffReached(settlement);
+    }
+
+    private void ensureReturnCutOffReached(SupplierSettlementModel settlement) {
+        LotterySupplierModel supplier = settlement.getLotterySupplierId() != null
+                ? lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId()).orElse(null)
+                : null;
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (supplier == null
+                || !ReturnBatchCutoffTiming.isPastCutoff(
+                        settlement.getPeriodFrom(),
+                        supplier.getReturnCutOffTime(),
+                        now
+                )) {
+            throw new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_EXCESS_IMPORT_NOT_OPEN);
+        }
+    }
+
+    /**
+     * Keeps the persisted opening state aligned with the configured payment window.
+     * Only NOT_OPEN/OPEN are time-derived; later workflow statuses are never changed here.
+     */
+    private SupplierSettlementModel refreshOpeningStatus(SupplierSettlementModel settlement) {
+        if (settlement == null || settlement.getLotterySupplierId() == null) {
+            return settlement;
+        }
+        LotterySupplierModel supplier = lotterySupplierRepositoryPort
+                .findById(settlement.getLotterySupplierId())
+                .orElse(null);
+        return refreshOpeningStatus(settlement, supplier, LocalDateTime.now(clock));
+    }
+
+    private SupplierSettlementModel refreshOpeningStatus(
+            SupplierSettlementModel settlement,
+            LotterySupplierModel supplier,
+            LocalDateTime now
+    ) {
+        if (settlement == null
+                || (settlement.getStatus() != SupplierSettlementStatus.NOT_OPEN
+                && settlement.getStatus() != SupplierSettlementStatus.OPEN)
+                || supplier == null
+                || supplier.getPaymentCutOffTime() == null) {
+            return settlement;
+        }
+        SupplierSettlementStatus expected = supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                settlement.getPeriodFrom(),
+                supplier.getPaymentCutOffTime(),
+                now
+        );
+        if (settlement.getStatus() == expected) {
+            return settlement;
+        }
+        settlement.setStatus(expected);
+        SupplierSettlementModel saved = supplierSettlementRepositoryPort.save(settlement);
+        log.info(
+                "Updated supplier settlement id={} opening status from {} to {}",
+                settlement.getId(),
+                expected == SupplierSettlementStatus.OPEN ? SupplierSettlementStatus.NOT_OPEN : SupplierSettlementStatus.OPEN,
+                expected
+        );
+        return saved;
+    }
+
+    private void refreshOpeningStatuses() {
+        List<SupplierSettlementModel> candidates = supplierSettlementRepositoryPort.findByStatuses(
+                List.of(SupplierSettlementStatus.NOT_OPEN, SupplierSettlementStatus.OPEN)
+        );
+        if (candidates == null || candidates.isEmpty()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+        for (SupplierSettlementModel settlement : candidates) {
+            LotterySupplierModel supplier = settlement != null && settlement.getLotterySupplierId() != null
+                    ? lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId()).orElse(null)
+                    : null;
+            refreshOpeningStatus(settlement, supplier, now);
         }
     }
 
@@ -2504,6 +2693,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             result.add(SettlementResolvableSerialResponse.builder()
                     .serialId(row.serialId())
                     .serialNumber(row.serialNumber())
+                    .numbers(row.numbers())
                     .status(row.status())
                     .ticketCondition(row.ticketCondition())
                     .stationName(row.stationName())
@@ -2539,6 +2729,12 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         }
         LocalDate periodTo = drawDate.plusDays(paymentTermDays);
 
+        SupplierSettlementStatus openingStatus = supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                drawDate,
+                supplier.getPaymentCutOffTime(),
+                LocalDateTime.now(clock)
+        );
+
         SupplierSettlementModel created = SupplierSettlementModel.builder()
                 .lotterySupplierId(supplier.getId())
                 .periodFrom(drawDate)
@@ -2550,7 +2746,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                 .remainingAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                 .systemTicketImportPrice(resolveSupplierDefaultImportCostFromSupplier(supplier))
                 .stationCommissionSnapshots(buildCreateTimeCommissionSnapshots(drawDate))
-                .status(SupplierSettlementStatus.OPEN)
+                .status(openingStatus)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.MATCHING)
                 .build();
 
@@ -2894,6 +3090,23 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
 
     private static String stationSerialKey(SettlementImportFileCheckTicketResponse ticket) {
         return ticket.lotteryStationId() + "|" + normalizeSerial(ticket.serialNumber());
+    }
+
+    private String resolveActorDisplayName(UUID actorId) {
+        if (actorId == null) {
+            return null;
+        }
+        return userRepositoryPort.findById(actorId)
+                .map(user -> {
+                    String fullName = user.getFullName();
+                    if (fullName != null && !fullName.isBlank() && !"User".equalsIgnoreCase(fullName)) {
+                        return fullName;
+                    }
+                    return user.getUsername() != null && !user.getUsername().isBlank()
+                            ? user.getUsername()
+                            : actorId.toString();
+                })
+                .orElse(actorId.toString());
     }
 
     private static String normalizeSerial(String serial) {
