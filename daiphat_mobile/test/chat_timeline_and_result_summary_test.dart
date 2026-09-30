@@ -132,6 +132,24 @@ void main() {
       expect(uiMessage.actions[1].label, 'Vĩnh Long');
       expect(uiMessage.actions[1].payload, 'SCHEDULE_SELECT_STATION:id=13:name=Vĩnh Long');
     });
+
+    test('maps SCHEDULE_RESULT without goal=RESULT into scheduleResultSummary variant', () {
+      final message = ChatMessageModel(
+        id: 105,
+        conversationId: 1,
+        senderType: ChatSenderType.aiSystem,
+        type: 'TEXT',
+        content: 'SCHEDULE_RESULT:station=TPHCM:date=2026-09-30:region=MIEN_NAM',
+        createdAt: DateTime.now(),
+      );
+
+      final uiMessage = mapApiMessage(message);
+      expect(uiMessage.variant, ChatMessageVariant.scheduleResultSummary);
+      expect(uiMessage.text, 'Kết quả xổ số theo yêu cầu của bạn:');
+      expect(uiMessage.scheduleResultSummary, isNotNull);
+      expect(uiMessage.scheduleResultSummary!.region, 'MIEN_NAM');
+      expect(uiMessage.scheduleResultSummary!.drawDate, '2026-09-30');
+    });
   });
 
   group('mergeTimelineWithOverlay ordering', () {
@@ -534,6 +552,7 @@ void main() {
         expect(capturedLookup, isNotNull);
         expect(capturedLookup!.stationName, 'TP. Hồ Chí Minh');
         expect(capturedLookup!.stationId, 1);
+        expect(capturedLookup!.region, 'MIEN_NAM');
         expect(find.text('Home Screen'), findsOneWidget);
       },
     );

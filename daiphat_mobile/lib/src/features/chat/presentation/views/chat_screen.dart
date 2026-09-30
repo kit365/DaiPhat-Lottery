@@ -15,6 +15,8 @@ import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart'
 import 'package:daiphat_mobile/src/features/home/domain/entities/lottery_result.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_results_lookup_provider.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/home_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/schedule/domain/entities/lottery_station_schedule.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
@@ -1262,11 +1264,27 @@ class _ChatLotteryResultSummaryState
     );
     final stationName = result.province.trim();
 
+    String? region = widget.data.region;
+    if (region == null || region.trim().isEmpty) {
+      final schedules = ref.read(lotteryScheduleProvider).maybeWhen(
+            data: (list) => list,
+            orElse: () => const <LotteryStationSchedule>[],
+          );
+      for (final s in schedules) {
+        if ((result.stationId > 0 && s.stationId == result.stationId) ||
+            s.stationName.toLowerCase() == stationName.toLowerCase()) {
+          region = s.region;
+          break;
+        }
+      }
+    }
+
     ref.read(lotteryResultsLookupProvider.notifier).setLookup(
       LotteryResultsLookup(
         drawDate: targetDate,
         stationName: stationName.isNotEmpty ? stationName : null,
         stationId: result.stationId > 0 ? result.stationId : null,
+        region: region,
       ),
     );
 
