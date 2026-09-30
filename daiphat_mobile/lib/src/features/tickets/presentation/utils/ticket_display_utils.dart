@@ -154,14 +154,7 @@ TicketPossessionDisplay? resolveTicketPossessionDisplay(
   if (ticket.orderDetailStatus == 'PROXY_HOLDING' ||
       ticket.serialStatus == 'PROXY_HOLDING' ||
       ticket.serialStatus == 'SOLD') {
-    return const TicketPossessionDisplay(
-      label: 'Đại lý đang giữ hộ',
-      hint: 'Vé chưa được bạn lấy tại quầy',
-      color: AppColors.ticketPossessionHoldingForeground,
-      bgColor: AppColors.ticketPossessionHoldingSurface,
-      borderColor: AppColors.ticketPossessionHoldingBorder,
-      icon: Icons.store_outlined,
-    );
+    return null;
   }
   if (ticket.serialStatus == 'RESERVED') {
     return const TicketPossessionDisplay(
