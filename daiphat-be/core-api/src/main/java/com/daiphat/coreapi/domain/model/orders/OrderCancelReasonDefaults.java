@@ -10,6 +10,9 @@ public final class OrderCancelReasonDefaults {
     public static final String CUSTOMER_REQUEST = "Khách hàng hủy đơn trong thời gian cho phép";
     public static final String ADMIN_FORCE_CANCEL = "Nhân viên hủy đơn theo yêu cầu hỗ trợ khách hàng";
     public static final String SYSTEM_PAYMENT_TIMEOUT = "Quá thời gian thanh toán 3 phút.";
+    public static final String SYSTEM_PREPARATION_TIMEOUT =
+            "The staff were unable to prepare your order within the required timeframe. "
+                    + "We apologize for the inconvenience and kindly ask for your understanding.";
 
     public static String systemPaymentTimeout(int minutes) {
         int safeMinutes = minutes > 0 ? minutes : 3;
@@ -29,6 +32,7 @@ public final class OrderCancelReasonDefaults {
             case CUSTOMER_REQUEST -> CUSTOMER_REQUEST;
             case ADMIN_FORCE_CANCEL -> ADMIN_FORCE_CANCEL;
             case SYSTEM_PAYMENT_TIMEOUT -> SYSTEM_PAYMENT_TIMEOUT;
+            case SYSTEM_PREPARATION_TIMEOUT -> SYSTEM_PREPARATION_TIMEOUT;
             case OUT_OF_STOCK_INCIDENT -> OUT_OF_STOCK_INCIDENT;
         };
     }

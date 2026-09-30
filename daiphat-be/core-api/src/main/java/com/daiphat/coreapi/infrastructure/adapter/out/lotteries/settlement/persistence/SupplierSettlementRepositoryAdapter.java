@@ -200,12 +200,13 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
                 .map(row -> new SettlementResolvableSerialRow(
                         (Long) row[0],
                         (String) row[1],
-                        (LotteryTicketSerialStatus) row[2],
-                        (TicketCondition) row[3],
-                        (String) row[4],
-                        row[5] != null ? (BigDecimal) row[5] : BigDecimal.ZERO,
-                        withImportBatch && row.length > 6 ? (Long) row[6] : null,
-                        withImportBatch && row.length > 7 ? (String) row[7] : null
+                        (String) row[2],
+                        (LotteryTicketSerialStatus) row[3],
+                        (TicketCondition) row[4],
+                        (String) row[5],
+                        row[6] != null ? (BigDecimal) row[6] : BigDecimal.ZERO,
+                        withImportBatch && row.length > 7 ? (Long) row[7] : null,
+                        withImportBatch && row.length > 8 ? (String) row[8] : null
                 ))
                 .toList();
     }

@@ -14,7 +14,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Builder
+@Builder(toBuilder = true)
 public record OrderResponse(
         UUID id,
         UUID userId,
@@ -27,6 +27,8 @@ public record OrderResponse(
         BigDecimal totalAmount,
         OrderStatus status,
         LocalDateTime expectedPickupAt,
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ssXXX")
+        OffsetDateTime preparationCutoffAt,
         LocalDateTime cancelledAt,
         String cancelReason,
         OrderCancelType cancelType,

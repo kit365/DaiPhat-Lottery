@@ -28,6 +28,7 @@ import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
+import com.daiphat.coreapi.application.service.lotteries.TicketSalesCutoffPolicy;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
 import com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategy;
@@ -96,6 +97,8 @@ public class OrderService implements OrderServicePort {
     private final PaymentTimeoutConfigService paymentTimeoutConfigService;
     private final OrderComplaintEligibilityService orderComplaintEligibilityService;
     private final StoragePort storagePort;
+    private final OrderPreparationExpiryService orderPreparationExpiryService;
+    private final TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
 
     @Override
     @Transactional
@@ -224,14 +227,14 @@ public class OrderService implements OrderServicePort {
 
         OrderModel order = getOrderOrThrow(orderId);
         if (order.getStatus() == status) {
-            return orderApplicationMapper.toResponse(order);
+            return toOrderListResponse(order);
         }
 
         applyOrderStatusTransition(order, status, reason, operatorId);
         OrderModel saved = orderRepositoryPort.save(order);
         clearPendingPaymentCountdownIfResolved(saved);
         publishCustomerOrderStatusChanged(saved);
-        return orderApplicationMapper.toResponse(saved);
+        return toOrderListResponse(saved);
     }
 
     @Override
@@ -394,6 +397,7 @@ public class OrderService implements OrderServicePort {
             String sortBy,
             String direction
     ) {
+        orderPreparationExpiryService.expireOverduePreparingOrders();
         validateDateRange(fromDate, toDate);
 
         PageRequest pageable = PageRequest.of(
@@ -415,7 +419,7 @@ public class OrderService implements OrderServicePort {
                         toDate,
                         search
                 )
-                .map(orderApplicationMapper::toResponse);
+                .map(this::toOrderListResponse);
 
         return PageResponse.from(
                 resultPage,
@@ -565,6 +569,7 @@ public class OrderService implements OrderServicePort {
                 .totalAmount(base.totalAmount())
                 .status(base.status())
                 .expectedPickupAt(base.expectedPickupAt())
+                .preparationCutoffAt(resolvePreparationCutoff(order))
                 .cancelledAt(base.cancelledAt())
                 .cancelReason(base.cancelReason())
                 .cancelType(base.cancelType())
@@ -604,6 +609,7 @@ public class OrderService implements OrderServicePort {
                 .totalAmount(base.totalAmount())
                 .status(base.status())
                 .expectedPickupAt(base.expectedPickupAt())
+                .preparationCutoffAt(resolvePreparationCutoff(order))
                 .cancelledAt(base.cancelledAt())
                 .cancelReason(base.cancelReason())
                 .cancelType(base.cancelType())
@@ -626,6 +632,18 @@ public class OrderService implements OrderServicePort {
                 .refundDeadlineAt(DrawScheduleUtils.toVietnamOffset(refundEvaluation.refundDeadlineAt()))
                 .complaintEligibility(orderComplaintEligibilityService.evaluateOrder(order, LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))))
                 .build();
+    }
+
+    private OrderResponse toOrderListResponse(OrderModel order) {
+        return orderApplicationMapper.toResponse(order).toBuilder()
+                .preparationCutoffAt(resolvePreparationCutoff(order))
+                .build();
+    }
+
+    private java.time.OffsetDateTime resolvePreparationCutoff(OrderModel order) {
+        return ticketSalesCutoffPolicy.resolveEarliestCutoff(order)
+                .map(DrawScheduleUtils::toVietnamOffset)
+                .orElse(null);
     }
 
     private List<OrderDetailResponse> enrichOrderDetails(List<OrderDetailModel> details) {

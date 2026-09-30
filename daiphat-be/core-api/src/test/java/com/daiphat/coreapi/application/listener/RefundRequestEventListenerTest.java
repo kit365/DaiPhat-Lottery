@@ -13,6 +13,7 @@ import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
+import com.daiphat.coreapi.domain.model.orders.OrderCancelReasonDefaults;
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -226,6 +227,37 @@ class RefundRequestEventListenerTest {
                 .orElseThrow();
         assertThat(inApp.getTitle()).isEqualTo("Cần cung cấp tài khoản nhận hoàn tiền");
         assertThat(inApp.getContent()).contains("đã được hủy do sự cố");
+    }
+
+    @Test
+    @DisplayName("WAITING_FOR_INFO SYSTEM: sends the exact preparation-timeout message")
+    void handleWaitingForInfo_systemPreparationTimeoutMessage() {
+        stubCustomerEmail();
+        RefundRequestStatusChangedEvent event = RefundRequestStatusChangedEvent.builder()
+                .refundRequestId(33L)
+                .customerId(customerId)
+                .orderCode("ORD-PREP-TIMEOUT")
+                .status(RefundRequestStatus.WAITING_FOR_INFO)
+                .retryCount(0)
+                .refundType(RefundType.FULL_ORDER)
+                .requestRole(RefundRequestRole.SYSTEM)
+                .build();
+
+        listener.handleRefundRequestStatusChanged(event);
+
+        verify(notificationService, org.mockito.Mockito.atLeastOnce()).createNotification(notificationCaptor.capture());
+        NotificationModel inApp = notificationCaptor.getAllValues().stream()
+                .filter(n -> n.getChannel() == NotificationChannel.IN_APP)
+                .findFirst()
+                .orElseThrow();
+        assertThat(inApp.getContent()).isEqualTo(OrderCancelReasonDefaults.SYSTEM_PREPARATION_TIMEOUT);
+
+        verify(emailService).sendEmail(
+                eq(EmailType.REFUND_CUSTOMER_UPDATE),
+                eq("member@daiphat.com"),
+                emailContextCaptor.capture());
+        assertThat(emailContextCaptor.getValue().get("content"))
+                .isEqualTo(OrderCancelReasonDefaults.SYSTEM_PREPARATION_TIMEOUT);
     }
 
     @Test

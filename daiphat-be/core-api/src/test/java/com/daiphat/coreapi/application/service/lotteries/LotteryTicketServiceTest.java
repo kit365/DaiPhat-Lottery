@@ -1189,7 +1189,12 @@ class LotteryTicketServiceTest {
     void expireDueTickets_success() {
         productModel.setDrawTime(LocalTime.MIN); // force expire
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), anyList())).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countByStatuses(eq(TICKET_ID), eq(List.of(LotteryTicketSerialStatus.IN_STOCK))))
+                .thenReturn(1L, 0L);
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(
+                LotteryTicketSerialModel.builder().status(LotteryTicketSerialStatus.EXPIRED).build()));
         when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
 
         int count = lotteryTicketService.expireDueTickets();
@@ -1412,7 +1417,14 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), any()))
                 .thenReturn(List.of(notExpired, expiredWithProxySerials));
+        when(lotteryTicketSerialService.countByStatuses(eq(101L), eq(List.of(LotteryTicketSerialStatus.IN_STOCK))))
+                .thenReturn(1L, 1L);
+        when(lotteryTicketSerialService.countByStatuses(eq(102L), eq(List.of(LotteryTicketSerialStatus.IN_STOCK))))
+                .thenReturn(1L, 0L);
+        when(lotteryTicketRepositoryPort.findById(102L)).thenReturn(Optional.of(expiredWithProxySerials));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketSerialService.findAllByTicketId(102L)).thenReturn(List.of(
+                LotteryTicketSerialModel.builder().status(LotteryTicketSerialStatus.EXPIRED).build()));
         when(lotteryTicketRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         int count = lotteryTicketService.expireDueTickets();
@@ -1585,7 +1597,12 @@ class LotteryTicketServiceTest {
     void expireDueTickets_doesNotPublishLegacyHandoverEvent() {
         productModel.setDrawTime(LocalTime.MIN);
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), anyList())).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countByStatuses(eq(TICKET_ID), eq(List.of(LotteryTicketSerialStatus.IN_STOCK))))
+                .thenReturn(1L, 0L);
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(
+                LotteryTicketSerialModel.builder().status(LotteryTicketSerialStatus.EXPIRED).build()));
         when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
 
         int count = lotteryTicketService.expireDueTickets();

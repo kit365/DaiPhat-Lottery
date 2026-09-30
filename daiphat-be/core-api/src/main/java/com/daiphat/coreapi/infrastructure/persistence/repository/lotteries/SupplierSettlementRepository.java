@@ -182,11 +182,12 @@ public interface SupplierSettlementRepository
 
     /**
      * Prepared-return serials for missing-return resolution UI.
-     * Columns: serialId, serialNumber, status, ticketCondition, stationName, importCost
+     * Columns: serialId, serialNumber, numbers, status, ticketCondition, stationName, importCost
      */
     @Query("""
             SELECT s.id,
                    s.serialNumber,
+                   t.numbers,
                    s.status,
                    s.ticketCondition,
                    st.name,
@@ -218,14 +219,17 @@ public interface SupplierSettlementRepository
     java.util.List<Object[]> findPreparedReturnSerialRowsBySettlementId(@Param("settlementId") Long settlementId);
 
     /**
-     * IN_STOCK|EXPIRED + GOOD serials not yet on a return batch, for import discrepancy
-     * resolution / excess-return selection / inventory browse.
-     * Columns: serialId, serialNumber, status, ticketCondition, stationName, importCost,
+     * Eligible + GOOD serials not yet on a return batch, for import discrepancy
+     * resolution / excess-return selection / inventory browse. Sold serials are
+     * included only while a paid order detail is still PROXY_HOLDING; cancelled
+     * orders are naturally included again after the serial returns to IN_STOCK.
+     * Columns: serialId, serialNumber, numbers, status, ticketCondition, stationName, importCost,
      *          importBatchId, importBatchCode
      */
     @Query("""
             SELECT s.id,
                    s.serialNumber,
+                   t.numbers,
                    s.status,
                    s.ticketCondition,
                    st.name,
@@ -243,9 +247,27 @@ public interface SupplierSettlementRepository
               AND ib.deletedAt IS NULL
               AND t.deletedAt IS NULL
               AND s.returnBatchLineId IS NULL
-              AND s.status IN (
-                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
-                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              AND (
+                  s.status IN (
+                      com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                      com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+                  )
+                  OR (
+                      s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.SOLD
+                      AND EXISTS (
+                          SELECT 1
+                          FROM OrderEntity o
+                          JOIN o.orderDetails od
+                          WHERE (od.lotteryTicketSerial = s OR od.replacedByTicketSerial = s)
+                            AND od.status = com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING
+                            AND o.status IN (
+                                com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PAID,
+                                com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PREPARING,
+                                com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PENDING_PICKUP,
+                                com.daiphat.coreapi.domain.model.enums.order.OrderStatus.COMPLETED
+                            )
+                      )
+                  )
               )
               AND (s.ticketCondition IS NULL
                    OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)

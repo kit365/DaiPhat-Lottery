@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
 import com.daiphat.coreapi.application.dto.request.lotteries.AddSettlementMonetaryAdjustmentRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CompleteSettlementReconciliationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSettlementMatchingRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.FinalizeSettlementProcessingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveImportDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveReturnDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveUnitPriceDiscrepancyRequest;
@@ -217,6 +218,19 @@ public class SupplierSettlementController {
         return ApiResponse.success(
                 "Đã tính lại số tiền đối soát.",
                 supplierSettlementServicePort.recalculateReconciliation(id, principal.getId())
+        );
+    }
+
+    @PostMapping("/{id}/reconciliation/finalize-processing")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SupplierSettlementResponse> finalizeProcessing(
+            @PathVariable Long id,
+            @Valid @RequestBody FinalizeSettlementProcessingRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Đã hoàn tất xử lý và chuyển sang chờ thanh toán.",
+                supplierSettlementServicePort.finalizeProcessing(id, request, principal.getId())
         );
     }
 
