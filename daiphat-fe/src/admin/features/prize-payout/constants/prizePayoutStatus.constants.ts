@@ -12,7 +12,7 @@ export type PrizePayoutStatusTab = PrizePayoutStatusBadge & { value: string };
 
 export const PRIZE_PAYOUT_STATUS_BADGE: Record<PrizePayoutRequestStatus, PrizePayoutStatusBadge> = {
     [PrizePayoutRequestStatus.PENDING]: {
-        label: 'Cần xử lý',
+        label: 'Đang xử lý',
         color: 'var(--palette-warning-dark)',
         bg: 'var(--palette-warning-lighter)',
         activeColor: 'var(--palette-warning-contrastText)',
@@ -54,7 +54,7 @@ export const PRIZE_PAYOUT_STATUS_BADGE: Record<PrizePayoutRequestStatus, PrizePa
         activeBg: 'var(--palette-grey-600)',
     },
     [PrizePayoutRequestStatus.AWAITING_FUND]: {
-        label: 'Chờ quỹ',
+        label: 'Chờ nạp quỹ',
         color: 'var(--palette-warning-dark)',
         bg: 'var(--palette-warning-lighter)',
         activeColor: 'var(--palette-warning-contrastText)',
