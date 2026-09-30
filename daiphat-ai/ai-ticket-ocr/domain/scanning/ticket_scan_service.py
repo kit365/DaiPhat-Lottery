@@ -2,6 +2,7 @@ import threading
 import time
 import uuid
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from typing import Callable
 
@@ -540,9 +541,12 @@ class TicketScanService:
             if complete_tickets:
                 stage_ms["complete_tickets"] = (time.perf_counter() - t0) * 1000.0
             image_h, image_w = image.shape[:2]
-            for index, outline in enumerate(outlines):
-                if len(tickets) >= max_tickets:
-                    break
+            target_outlines = list(enumerate(outlines[:max_tickets]))
+
+            def _process_one_outline(
+                item: tuple[int, _TicketOutline]
+            ) -> tuple[int, TicketScanResult | None, str | None]:
+                index, outline = item
                 tx, ty, tw, th = outline.bbox
                 try:
                     ticket_region = DetectedRegion(bbox=outline.bbox, corners=outline.corners)
@@ -574,7 +578,7 @@ class TicketScanService:
                         else {}
                     )
                     if use_template_strategy:
-                        result = self._scan_one_region_with_template(
+                        res = self._scan_one_region_with_template(
                             image,
                             ticket_region,
                             index,
@@ -588,7 +592,7 @@ class TicketScanService:
                             paper_quad=outline.paper_quad,
                         )
                     else:
-                        result = self._scan_one_region_with_fields(
+                        res = self._scan_one_region_with_fields(
                             image,
                             aabb_region,
                             index,
@@ -596,10 +600,25 @@ class TicketScanService:
                             expected_lengths_by_code,
                             field_boxes=field_boxes,
                         )
-                    tickets.append(result)
+                    return (index, res, None)
                 except Exception:  # noqa: BLE001
                     logger.exception("Failed to process YOLO ticket #%s", index)
-                    warnings.append(f"Vé #{index}: xử lý thất bại, đã bỏ qua.")
+                    return (index, None, f"Vé #{index}: xử lý thất bại, đã bỏ qua.")
+
+            max_parallel = int(getattr(settings, "TICKET_VISION_MAX_PARALLEL_TICKETS", 3) or 3)
+            if len(target_outlines) > 1 and max_parallel > 1:
+                workers = min(len(target_outlines), max_parallel)
+                with ThreadPoolExecutor(max_workers=workers) as executor:
+                    processed_items = list(executor.map(_process_one_outline, target_outlines))
+            else:
+                processed_items = [_process_one_outline(item) for item in target_outlines]
+
+            processed_items.sort(key=lambda x: x[0])
+            for _, res, warn in processed_items:
+                if res is not None:
+                    tickets.append(res)
+                if warn is not None:
+                    warnings.append(warn)
             stage_ms["ocr_tickets"] = (time.perf_counter() - t0) * 1000.0
         else:
             # Contour / classic detector fallback when YOLO finds nothing.
