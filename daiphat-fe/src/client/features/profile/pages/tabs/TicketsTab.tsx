@@ -9,7 +9,6 @@ import {
     normalizeDrawDateIso,
 } from '../../../../utils/vietnameseDate.util';
 import { todayIsoVn } from '../../../../utils/sellableDrawDate.util';
-import { ClientDatePicker } from '../../../../components/ui/ClientDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pagination } from '../../../../components/common/Pagination';
 import { useStationsByDrawDate } from '@/client/hooks/useStationSchedule';
@@ -447,16 +446,11 @@ export const TicketsTab = () => {
     const [wonRedeemFilter, setWonRedeemFilter] = useState<WonRedeemSubFilter>('ALL');
     const [unredeemedClaimFilter, setUnredeemedClaimFilter] = useState<UnredeemedClaimFilter>('ONLINE');
     const [searchCode, setSearchCode] = useState('');
-    const [fromDate, setFromDate] = useState('');
-    const [toDate, setToDate] = useState('');
-    const [fromDateOpen, setFromDateOpen] = useState(false);
-    const [toDateOpen, setToDateOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<PurchasedTicket | null>(null);
     const [payoutModalOpen, setPayoutModalOpen] = useState(false);
     const [payoutTicket, setPayoutTicket] = useState<PurchasedTicket | null>(null);
     const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(new Set());
 
-    const todayIso = todayIsoVn();
     const pageSize = 10;
     const apiStatus = STATUS_TAB_TO_API[activeTab];
     const clientUnredeemedView = activeTab === 'Trúng thưởng' && wonRedeemFilter === 'UNREDEEMED';
@@ -466,20 +460,15 @@ export const TicketsTab = () => {
         activeTab === 'Trúng thưởng' && wonRedeemFilter !== 'ALL'
             ? wonRedeemFilter === 'REDEEMED'
             : undefined;
-    const hasInvalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
 
     const { data, isLoading, isFetching, isError, error, refetch } = usePurchasedTicketLookup({
         page: clientUrgencySortView ? 1 : page,
         size: clientUrgencySortView ? UNREDEEMED_FETCH_SIZE : pageSize,
         status: apiStatus,
         redeemed: redeemedParam,
-        fromDate: fromDate || undefined,
-        toDate: toDate || undefined,
         ticketNumber: searchCode.trim() || undefined,
         sortBy: 'createdAt',
         direction: 'desc',
-    }, {
-        enabled: !hasInvalidDateRange,
     });
 
     const tickets = (data?.data?.recordList ?? []) as PurchasedTicket[];
@@ -952,41 +941,9 @@ export const TicketsTab = () => {
                     </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row lg:items-end gap-3 px-4 md:px-5 py-3.5 border-b border-slate-100 bg-white">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:max-w-[460px]">
-                        <ClientDatePicker
-                            label="Từ ngày"
-                            value={fromDate}
-                            maxDate={toDate || todayIso}
-                            allowClear
-                            open={fromDateOpen}
-                            onOpenChange={setFromDateOpen}
-                            onOpen={() => setToDateOpen(false)}
-                            onChange={(ymd) => {
-                                setFromDate(ymd);
-                                setPage(1);
-                            }}
-                            className="w-full"
-                        />
-                        <ClientDatePicker
-                            label="Đến ngày"
-                            value={toDate}
-                            minDate={fromDate || undefined}
-                            maxDate={todayIso}
-                            allowClear
-                            open={toDateOpen}
-                            onOpenChange={setToDateOpen}
-                            onOpen={() => setFromDateOpen(false)}
-                            onChange={(ymd) => {
-                                setToDate(ymd);
-                                setPage(1);
-                            }}
-                            className="w-full"
-                        />
-                    </div>
-
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 md:px-5 py-3.5 border-b border-slate-100 bg-white">
                     {/* Search Code / Numbers */}
-                    <div className="relative min-w-[240px] w-full lg:flex-1">
+                    <div className="relative w-full">
                         <input
                             type="text"
                             value={searchCode}
@@ -1008,26 +965,7 @@ export const TicketsTab = () => {
                             </button>
                         )}
                     </div>
-                    {(fromDate || toDate) && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setFromDate('');
-                                setToDate('');
-                                setPage(1);
-                            }}
-                            className="h-[42px] px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[13px] font-bold rounded-xl border border-slate-200 transition-colors cursor-pointer whitespace-nowrap"
-                        >
-                            Xóa khoảng ngày
-                        </button>
-                    )}
                 </div>
-
-                {hasInvalidDateRange && (
-                    <div className="px-4 md:px-5 py-2 border-b border-red-100 bg-red-50 text-red-600 text-[13px] font-semibold">
-                        Khoảng ngày không hợp lệ: "Từ ngày" phải nhỏ hơn hoặc bằng "Đến ngày".
-                    </div>
-                )}
 
                 {activeTab === 'Trúng thưởng' && (
                     <div className="flex flex-col gap-2 px-4 md:px-5 py-3 border-b border-slate-100 bg-amber-50/45">
