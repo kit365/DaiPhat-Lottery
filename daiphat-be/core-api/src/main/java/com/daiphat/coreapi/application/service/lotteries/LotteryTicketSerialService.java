@@ -43,7 +43,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
     private static final List<LotteryTicketSerialStatus> AVAILABLE_STATUSES = List.of(LotteryTicketSerialStatus.IN_STOCK);
     private static final List<LotteryTicketSerialStatus> EXPIRABLE_STATUSES =
-            List.of(LotteryTicketSerialStatus.IN_STOCK, LotteryTicketSerialStatus.RESERVED);
+            List.of(LotteryTicketSerialStatus.IN_STOCK);
 
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final StoragePort storagePort;
@@ -215,12 +215,23 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
     @Override
     public long countAvailableSerials(Long ticketId) {
-        return lotteryTicketSerialRepositoryPort.countSellableByTicketId(ticketId);
+        return lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId).stream()
+                .filter(LotteryTicketSerialModel::isAvailableForSale)
+                .filter(serial -> !ticketSalesCutoffPolicy.isClosed(serial))
+                .count();
     }
 
     @Override
     public Map<Long, Long> countAvailableSerialsByTicketIds(Collection<Long> ticketIds) {
-        return countSellableByTicketIds(ticketIds);
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return Map.of();
+        }
+        return lotteryTicketSerialRepositoryPort.findAllByTicketIds(ticketIds).stream()
+                .filter(LotteryTicketSerialModel::isAvailableForSale)
+                .filter(serial -> !ticketSalesCutoffPolicy.isClosed(serial))
+                .collect(Collectors.groupingBy(
+                        LotteryTicketSerialModel::getTicketId,
+                        Collectors.counting()));
     }
 
     @Override
@@ -241,7 +252,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public void expireActiveSerials(Long ticketId) {
         lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(ticketId, EXPIRABLE_STATUSES).forEach(serial -> {
-            if (serial.isVoided()) {
+            if (serial.isVoided() || !ticketSalesCutoffPolicy.isClosed(serial)) {
                 return;
             }
             serial.expire();

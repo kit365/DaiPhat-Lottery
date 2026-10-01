@@ -285,9 +285,9 @@ export const PRIZE_PAYOUT_STATUS_MAP: Record<
     PrizePayoutRequestStatus,
     { label: string; bg: string; text: string }
 > = {
-    [PrizePayoutRequestStatus.PENDING]: { label: 'Cần xử lý', bg: 'bg-[#FFF9F3]', text: 'text-[#B76E00]' },
+    [PrizePayoutRequestStatus.PENDING]: { label: 'Đang xử lý', bg: 'bg-[#FFF9F3]', text: 'text-[#B76E00]' },
     [PrizePayoutRequestStatus.APPROVED]: { label: 'Đã duyệt', bg: 'bg-[#EFF8FF]', text: 'text-[#175CD3]' },
-    [PrizePayoutRequestStatus.COMPLETED]: { label: 'Đã chuyển', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
+    [PrizePayoutRequestStatus.COMPLETED]: { label: 'Đã chuyển', bg: 'bg-[#E4F8ED]', text: 'text-[#118D57]' },
     [PrizePayoutRequestStatus.REJECTED]: { label: 'Từ chối', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]' },
     [PrizePayoutRequestStatus.MANUAL_RESOLUTION]: {
         label: 'Cần xử lý tại đại lý',
@@ -295,7 +295,7 @@ export const PRIZE_PAYOUT_STATUS_MAP: Record<
         text: 'text-[#C62828]',
     },
     [PrizePayoutRequestStatus.CANCELLED]: { label: 'Đã hủy', bg: 'bg-[#F4F6F8]', text: 'text-[#637381]' },
-    [PrizePayoutRequestStatus.AWAITING_FUND]: { label: 'Chờ quỹ', bg: 'bg-[#FFF9F3]', text: 'text-[#B76E00]' },
+    [PrizePayoutRequestStatus.AWAITING_FUND]: { label: 'Chờ nạp quỹ', bg: 'bg-[#FFF9F3]', text: 'text-[#B76E00]' },
 };
 
 export const PRIZE_PAYOUT_CHANNEL_LABELS: Record<PrizePayoutChannel, string> = {

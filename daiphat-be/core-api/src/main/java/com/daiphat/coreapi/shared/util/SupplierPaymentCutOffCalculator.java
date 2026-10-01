@@ -3,6 +3,7 @@ package com.daiphat.coreapi.shared.util;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,20 @@ public class SupplierPaymentCutOffCalculator {
                 ? LocalDateTime.of(periodFrom, LocalTime.MIN)
                 : LocalDateTime.of(periodFrom, paymentCutOff).minusMinutes(buffer);
         return !now.isBefore(windowStart);
+    }
+
+    /** Time-derived status for a settlement before it enters a later workflow state. */
+    public SupplierSettlementStatus resolveOpeningStatus(
+            LocalDate periodFrom,
+            LocalTime paymentCutOff,
+            LocalDateTime now
+    ) {
+        if (paymentCutOff == null) {
+            return SupplierSettlementStatus.OPEN;
+        }
+        return isReconciliationWindowOpen(periodFrom, paymentCutOff, now)
+                ? SupplierSettlementStatus.OPEN
+                : SupplierSettlementStatus.NOT_OPEN;
     }
 
     public LocalDateTime reconciliationWindowStartAt(LocalDate periodFrom, LocalTime paymentCutOff) {

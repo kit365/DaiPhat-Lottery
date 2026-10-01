@@ -7,17 +7,20 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBat
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotterySupplierEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SupplierSettlementEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ReturnBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.SupplierSettlementRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.SupplierSettlementAdjustmentRepository;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
+import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
 import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Ensures one supplier settlement per seeded supplier + draw date (yesterday /
@@ -53,7 +57,7 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
             SYSTEM_ACTOR,
             "return-batch-seed",
             "import-batch-seed",
-            SupplierSettlementScenarioSeedInitializer.SYSTEM_ACTOR
+            "settlement-scenario-seed"
     );
     private static final String RETURN_NOTE_PREFIX = SeedDocumentCodes.RETURN_NOTE_PREFIX;
 
@@ -63,7 +67,12 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
     private final SupplierSettlementAdjustmentRepository supplierSettlementAdjustmentRepository;
     private final SupplierSettlementCodeGenerator supplierSettlementCodeGenerator;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
+    private final SupplierPaymentCutOffCalculator supplierPaymentCutOffCalculator;
+    private final SeedAccountResolver seedAccountResolver;
     private final Clock clock;
+
+    @Value("${daiphat.official-demo.seed.enabled:false}")
+    private boolean officialDemoEnabled;
 
     @Override
     @Transactional
@@ -233,17 +242,36 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
                 );
         if (existing.isPresent()) {
             SupplierSettlementEntity settlement = existing.get();
+            UserEntity executor = resolveOfficialExecutor(drawDate, now.toLocalDate());
+            SupplierSettlementStatus openingStatus = supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                    drawDate,
+                    supplier.getPaymentCutOffTime(),
+                    now
+            );
+            boolean changed = false;
+            if (executor != null && settlement.getMatchingConfirmedBy() == null) {
+                settlement.setMatchingConfirmedBy(executor.getId());
+                changed = true;
+            }
+            if (settlement.getStatus() == SupplierSettlementStatus.OPEN
+                    || settlement.getStatus() == SupplierSettlementStatus.NOT_OPEN) {
+                changed = settlement.getStatus() != openingStatus;
+                settlement.setStatus(openingStatus);
+            }
             if (settlement.getSupplierSettlementCode() == null || settlement.getSupplierSettlementCode().isBlank()) {
                 String code = supplierSettlementCodeGenerator.generateCode(drawDate);
                 settlement.setSupplierSettlementCode(code);
-                settlement.setUpdatedAt(now);
-                settlement.setLastModifiedBy(SYSTEM_ACTOR);
-                settlement = supplierSettlementRepository.save(settlement);
                 log.warn(
                         "Backfilled missing supplier_settlement_code on existing settlement id={} -> {}",
                         settlement.getId(),
                         code
                 );
+                changed = true;
+            }
+            if (changed) {
+                settlement.setUpdatedAt(now);
+                settlement.setLastModifiedBy(SYSTEM_ACTOR);
+                settlement = supplierSettlementRepository.save(settlement);
             }
             return new EnsureResult(settlement, false);
         }
@@ -253,6 +281,7 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
             termDays = 0;
         }
         String code = supplierSettlementCodeGenerator.generateCode(drawDate);
+        UserEntity executor = resolveOfficialExecutor(drawDate, now.toLocalDate());
         try {
             SupplierSettlementEntity created = supplierSettlementRepository.save(
                     SupplierSettlementEntity.builder()
@@ -264,7 +293,12 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
                             .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                             .totalPaidAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                             .remainingAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
-                            .status(SupplierSettlementStatus.OPEN)
+                            .status(supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                                    drawDate,
+                                    supplier.getPaymentCutOffTime(),
+                                    now
+                            ))
+                            .matchingConfirmedBy(executor != null ? executor.getId() : null)
                             .createdAt(now)
                             .updatedAt(now)
                             .createdBy(SYSTEM_ACTOR)
@@ -291,21 +325,47 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
         }
     }
 
+    private UserEntity resolveOfficialExecutor(LocalDate drawDate, LocalDate today) {
+        if (!officialDemoEnabled || drawDate == null) {
+            return null;
+        }
+        long index = ChronoUnit.DAYS.between(today.minusDays(1), drawDate);
+        if (index < 0 || index > 2) {
+            return seedAccountResolver.findOperator();
+        }
+        return seedAccountResolver.findOfficialDemoStaff((int) index);
+    }
+
     private boolean applyPaymentOverdueIfDue(
             SupplierSettlementEntity settlement,
             LocalDateTime now,
             LocalTime paymentCutOff
     ) {
-        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED) {
+        if (settlement.getStatus() != SupplierSettlementStatus.OPEN
+                && settlement.getStatus() != SupplierSettlementStatus.NOT_OPEN) {
             return false;
         }
         if (settlement.getPeriodFrom() == null || paymentCutOff == null) {
             return false;
         }
+        SupplierSettlementStatus openingStatus = supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                settlement.getPeriodFrom(),
+                paymentCutOff,
+                now
+        );
+        if (openingStatus == SupplierSettlementStatus.NOT_OPEN) {
+            if (settlement.getStatus() != SupplierSettlementStatus.NOT_OPEN) {
+                settlement.setStatus(SupplierSettlementStatus.NOT_OPEN);
+                settlement.setUpdatedAt(now);
+                settlement.setLastModifiedBy(SYSTEM_ACTOR);
+                supplierSettlementRepository.save(settlement);
+            }
+            return false;
+        }
         LocalDateTime deadlineAt = LocalDateTime.of(settlement.getPeriodFrom(), paymentCutOff);
         if (!now.isAfter(deadlineAt)) {
             if (settlement.getStatus() != SupplierSettlementStatus.OPEN) {
-                settlement.setStatus(SupplierSettlementStatus.OPEN);
+                settlement.setStatus(openingStatus);
                 settlement.setUpdatedAt(now);
                 settlement.setLastModifiedBy(SYSTEM_ACTOR);
                 supplierSettlementRepository.save(settlement);

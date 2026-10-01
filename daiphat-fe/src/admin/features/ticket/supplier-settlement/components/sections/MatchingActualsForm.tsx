@@ -8,6 +8,7 @@ import {
     ButtonBase,
     Chip,
     CircularProgress,
+    Collapse,
     Dialog,
     DialogActions,
     DialogContent,
@@ -55,6 +56,7 @@ import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
 import TrendingFlatOutlinedIcon from '@mui/icons-material/TrendingFlatOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
+import ExpandMoreOutlinedIcon from '@mui/icons-material/ExpandMoreOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined';
@@ -101,6 +103,7 @@ import type {
 } from '../../types/supplierSettlement.type';
 import { computeImportCostFromStation, formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { MatchingStationPricingTable } from './MatchingStationPricingTable';
+import { QuantityDiscrepancyCard, UnitPriceDiscrepancyCard, type MismatchedStation } from './MatchingDiscrepancyCards';
 import {
     buildLiveDiscrepancyItems,
     getDiscrepancyItemLabel,
@@ -387,6 +390,11 @@ export const MatchingActualsForm = ({
     const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
     const [isUploadingImportReceipt, setIsUploadingImportReceipt] = useState(false);
     const [isFlushingDraft, setIsFlushingDraft] = useState(false);
+    const [clockTick, setClockTick] = useState(0);
+    useEffect(() => {
+        const timer = window.setInterval(() => setClockTick((value) => value + 1), 30_000);
+        return () => window.clearInterval(timer);
+    }, []);
     /** Chưa xác nhận đối chiếu → form chỉ là nháp, không lấy actual* / ảnh đã lưu từ BE. */
     const isMatchingDraft = !settlement.matchingConfirmedAt;
     const [receiptUrl, setReceiptUrl] = useState(() =>
@@ -670,6 +678,7 @@ export const MatchingActualsForm = ({
             settlement.periodFrom,
             supplier?.returnCutOffTime,
             cutOffTimeDisplay,
+            clockTick,
         ]
     );
 
@@ -734,6 +743,10 @@ export const MatchingActualsForm = ({
     const [additionalCostRows, setAdditionalCostRows] = useState<AdditionalCostRow[]>(() =>
         settlement.matchingConfirmedAt ? mapSettlementAdjustmentsToRows(adjustments) : []
     );
+    const [selectedCashflowDetail, setSelectedCashflowDetail] = useState<
+        'initial' | 'variance' | 'final' | null
+    >(null);
+    const [discrepancyView, setDiscrepancyView] = useState<'summary' | 'detail'>('summary');
 
     /** True after the user edits SL nhập — blocks background refetch from overwriting the field. */
     const importQtyDirtyRef = useRef(false);
@@ -1261,6 +1274,28 @@ export const MatchingActualsForm = ({
         }
         return types.size;
     }, [liveDiscrepancyTypes, hasStationPricingMismatch]);
+    const mismatchedStations = useMemo<MismatchedStation[]>(() => {
+        const priceIds = new Set(stationNets.priceMismatchStations.map((row) => row.lotteryStationId));
+        const commissionIds = new Set(stationNets.commissionMismatchStations.map((row) => row.lotteryStationId));
+        return pricingRows
+            .filter((row) => priceIds.has(row.lotteryStationId) || commissionIds.has(row.lotteryStationId))
+            .map((row) => {
+                const actualCommission = stationCommissions.find((entry) => entry.lotteryStationId === row.lotteryStationId)?.actualCommissionRate
+                    ?? row.actualCommissionRate ?? row.commissionRate;
+                return {
+                    id: row.lotteryStationId,
+                    name: row.lotteryStationName || `Đài #${row.lotteryStationId}`,
+                    systemGross: Number(row.importCost || 0),
+                    actualGross: actualImportPrice,
+                    systemCommission: Number(row.commissionRate || 0),
+                    actualCommission: Number(actualCommission || 0),
+                    systemNet: Number(row.netUnitPrice || 0),
+                    actualNet: Number(computeImportCostFromStation(actualImportPrice, Number(actualCommission || 0)) || 0),
+                    priceChanged: priceIds.has(row.lotteryStationId),
+                    commissionChanged: commissionIds.has(row.lotteryStationId),
+                };
+            });
+    }, [pricingRows, stationNets.priceMismatchStations, stationNets.commissionMismatchStations, stationCommissions, actualImportPrice]);
 
     // Settlement amounts use the same after-commission unit price as the station table.
     const initialEstimatedVal = scaleSettlementMoney(
@@ -1390,11 +1425,22 @@ export const MatchingActualsForm = ({
         setAdditionalCostRows((prev) => prev.filter((row) => row.key !== key));
     };
 
+    const importQuantityImpact = hasAllRequiredInputs
+        ? scaleSettlementMoney(originalUnitPrice * importQtyDiff)
+        : null;
+    const returnQuantityImpact = hasAllRequiredInputs
+        ? scaleSettlementMoney(-originalUnitPrice * returnQtyDiff)
+        : null;
     const ticketValDiff = hasAllRequiredInputs && baseFinalVal != null
         ? scaleSettlementMoney(baseFinalVal - initialEstimatedVal)
         : 0;
+    // Use the exact remaining delta after quantity effects so rounded VNĐ rows always reconcile to the total.
     const stationPriceDiffVal = hasAllRequiredInputs
-        ? scaleSettlementMoney((parsedUnitPrice - originalUnitPrice) * (parsedImportQty - parsedReturnQty))
+        ? scaleSettlementMoney(
+            ticketValDiff
+            - (importQuantityImpact ?? 0)
+            - (returnQuantityImpact ?? 0)
+        )
         : 0;
 
     const ticketVarianceTone =
@@ -1410,6 +1456,120 @@ export const MatchingActualsForm = ({
             : manualAdditionalCostTotal > 0
                 ? { bg: '#fff7ed', border: '#fed7aa', color: '#c2410c', label: `+${additionalCostRows.length} khoản`, badgeModifier: 'admin-status-badge--pending' }
                 : { bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8', label: `−${additionalCostRows.length} khoản`, badgeModifier: 'admin-status-badge--active' };
+
+    const formatCashflowImpact = (amount: number | null, showPositiveSign = true) => {
+        if (amount == null) return '—';
+        return `${showPositiveSign && amount > 0 ? '+' : ''}${formatSettlementMoney(amount)} VNĐ`;
+    };
+
+    const quantityFormula = (
+        actualQuantity: number,
+        systemQuantity: number,
+        reverseImpact = false
+    ) => hasAllRequiredInputs
+        ? `${actualQuantity.toLocaleString('vi-VN')} − ${systemQuantity.toLocaleString('vi-VN')} = ${(actualQuantity - systemQuantity).toLocaleString('vi-VN')} vé × ${formatSettlementMoney(originalUnitPrice)} VNĐ/vé${reverseImpact ? ' (đảo chiều do vé trả)' : ''}`
+        : 'Chưa đủ số lượng và đơn giá thực tế để tính';
+
+    const priceFormula = hasAllRequiredInputs
+        ? `(${formatSettlementMoney(parsedUnitPrice)} − ${formatSettlementMoney(originalUnitPrice)}) VNĐ/vé × ${(parsedImportQty - parsedReturnQty).toLocaleString('vi-VN')} vé thanh toán`
+        : 'Chưa đủ số lượng và đơn giá thực tế để tính';
+
+    const cashflowDetail = selectedCashflowDetail === 'initial'
+        ? {
+            title: 'Chi tiết tạm tính ban đầu',
+            description: 'Số tiền hệ thống ghi nhận trước khi nhập số liệu đối soát thực tế.',
+            color: '#334155',
+            background: '#f8fafc',
+            border: '#cbd5e1',
+            totalLabel: 'Tạm tính ban đầu',
+            total: initialEstimatedVal,
+            showPositiveTotalSign: false,
+            rows: [
+                {
+                    label: 'Tiền vé nhập hệ thống',
+                    formula: `${formatSettlementMoney(originalUnitPrice)} VNĐ/vé × ${systemImportQty.toLocaleString('vi-VN')} vé nhập`,
+                    amount: systemImportVal,
+                },
+                {
+                    label: 'Trừ tiền vé trả hệ thống',
+                    formula: `${formatSettlementMoney(originalUnitPrice)} VNĐ/vé × ${systemReturnQty.toLocaleString('vi-VN')} vé trả`,
+                    amount: scaleSettlementMoney(-systemReturnVal),
+                },
+            ],
+        }
+        : selectedCashflowDetail === 'variance'
+            ? {
+                title: 'Chi tiết biến động vé',
+                description: 'Các khoản làm tăng hoặc giảm số tiền phải trả so với dữ liệu hệ thống.',
+                color: ticketVarianceTone.color,
+                background: ticketVarianceTone.bg,
+                border: ticketVarianceTone.border,
+                totalLabel: 'Tổng biến động vé',
+                total: hasAllRequiredInputs ? ticketValDiff : null,
+                showPositiveTotalSign: true,
+                rows: [
+                    {
+                        label: 'Chênh lệch số lượng nhập',
+                        formula: quantityFormula(parsedImportQty, systemImportQty),
+                        amount: importQuantityImpact,
+                    },
+                    {
+                        label: 'Chênh lệch số lượng trả',
+                        formula: quantityFormula(parsedReturnQty, systemReturnQty, true),
+                        amount: returnQuantityImpact,
+                    },
+                    {
+                        label: 'Chênh lệch giá nhập / hoa hồng',
+                        formula: priceFormula,
+                        amount: hasAllRequiredInputs ? stationPriceDiffVal : null,
+                    },
+                ],
+            }
+            : selectedCashflowDetail === 'final'
+                ? {
+                    title: 'Chi tiết quyết toán sau đối soát',
+                    description: 'Tổng hợp dữ liệu gốc, biến động vé và từng khoản chi phí ngoài kỳ.',
+                    color: '#1d4ed8',
+                    background: '#eff6ff',
+                    border: '#93c5fd',
+                    totalLabel: 'Quyết toán sau đối soát',
+                    total: finalVal,
+                    showPositiveTotalSign: false,
+                    rows: [
+                        {
+                            label: 'Tạm tính ban đầu',
+                            formula: 'Tiền vé nhập hệ thống − tiền vé trả hệ thống',
+                            amount: initialEstimatedVal,
+                        },
+                        {
+                            label: 'Biến động số lượng nhập',
+                            formula: quantityFormula(parsedImportQty, systemImportQty),
+                            amount: importQuantityImpact,
+                        },
+                        {
+                            label: 'Biến động số lượng trả',
+                            formula: quantityFormula(parsedReturnQty, systemReturnQty, true),
+                            amount: returnQuantityImpact,
+                        },
+                        {
+                            label: 'Biến động giá nhập / hoa hồng',
+                            formula: priceFormula,
+                            amount: hasAllRequiredInputs ? stationPriceDiffVal : null,
+                        },
+                        ...additionalCostRows.map((row) => {
+                            const type = MONETARY_COST_TYPES.find((item) => item.value === row.additionalCostType);
+                            const label = row.additionalCostType === 'OTHER'
+                                ? row.additionalCostCustomName.trim() || 'Chi phí khác'
+                                : type?.label.replace(/\s*\([+−±\-]\)/g, '') || 'Chi phí ngoài kỳ';
+                            return {
+                                label,
+                                formula: row.additionalCostReason.trim() || 'Chưa nhập lý do / giải thích',
+                                amount: parseCostRowAmount(row),
+                            };
+                        }),
+                    ],
+                }
+                : null;
 
     const differenceTone =
         !hasAllRequiredInputs || Math.abs(differenceAmount) < 0.5
@@ -1434,6 +1594,9 @@ export const MatchingActualsForm = ({
 
     const submitBlockers = useMemo(() => {
         const items: string[] = [];
+        if (returnLockDetails.beforeStart) {
+            items.push(returnLockDetails.summaryMessage || 'Chưa đến giờ bắt đầu xử lý phiếu trả vé.');
+        }
         if (!hasAllRequiredInputs) {
             items.push('Nhập đủ số lượng nhập / trả và giá vé thực tế');
         }
@@ -1488,6 +1651,8 @@ export const MatchingActualsForm = ({
         isReturnQtyEmpty,
         parsedReturnQty,
         systemReturnQty,
+        returnLockDetails.beforeStart,
+        returnLockDetails.summaryMessage,
     ]);
 
     const highlightActualPaid = isActualPaidEmpty;
@@ -1857,6 +2022,10 @@ export const MatchingActualsForm = ({
     };
 
     const handleSubmit = () => {
+        if (returnLockDetails.beforeStart) {
+            AppToast.warning(returnLockDetails.summaryMessage || 'Chưa đến giờ bắt đầu xử lý phiếu trả vé.');
+            return;
+        }
         if (!hasAllRequiredInputs) {
             AppToast.warning('Vui lòng nhập đầy đủ các trường số lượng và giá vé thực tế.');
             return;
@@ -2287,7 +2456,9 @@ export const MatchingActualsForm = ({
                                     {isReturnInputsLocked ? (
                                         <AdminStatusBadge
                                             label={
-                                                returnLockDetails.overdue || returnLockDetails.allCancelled
+                                                returnLockDetails.beforeStart
+                                                    ? 'Chưa đến giờ xử lý'
+                                                    : returnLockDetails.overdue || returnLockDetails.allCancelled
                                                     ? 'Quá hạn / Đã hủy'
                                                     : 'Chưa bàn giao'
                                             }
@@ -2563,7 +2734,9 @@ export const MatchingActualsForm = ({
                                             color="#0f172a"
                                             sx={{ fontSize: '0.975rem', mb: 0.75 }}
                                         >
-                                            {returnLockDetails.overdue || returnLockDetails.allCancelled
+                                            {returnLockDetails.beforeStart
+                                                ? 'Số liệu trả vé chưa mở xử lý'
+                                                : returnLockDetails.overdue || returnLockDetails.allCancelled
                                                 ? 'Số liệu trả vé đã khóa (Quá hạn / Hủy)'
                                                 : 'Số liệu trả vé đang bị khóa'}
                                         </Typography>
@@ -2574,7 +2747,9 @@ export const MatchingActualsForm = ({
                                                 color="#475569"
                                                 sx={{ fontSize: '0.825rem', lineHeight: 1.5, fontWeight: 500 }}
                                             >
-                                                {returnLockDetails.overdue || returnLockDetails.allCancelled ? (
+                                                {returnLockDetails.beforeStart ? (
+                                                    returnLockDetails.summaryMessage
+                                                ) : returnLockDetails.overdue || returnLockDetails.allCancelled ? (
                                                     <>
                                                         {returnLockDetails.summaryMessage || returnLockDetails.emptyStateMessage}
                                                         <Box component="span" sx={{ display: 'block', mt: 0.5, fontWeight: 600, color: '#dc2626' }}>
@@ -3230,7 +3405,11 @@ export const MatchingActualsForm = ({
                                         color={displayedDiscrepancyCount > 0 ? '#9a3412' : '#166534'}
                                         sx={{ textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block' }}
                                     >
-                                        {displayedDiscrepancyCount > 0 ? 'Chi tiết các nguồn chênh lệch phát hiện' : 'Số liệu đối soát hoàn toàn khớp'}
+                                        {displayedDiscrepancyCount > 0
+                                            ? discrepancyView === 'summary'
+                                                ? 'Tóm tắt các nguồn chênh lệch phát hiện'
+                                                : 'Chi tiết các nguồn chênh lệch phát hiện'
+                                            : 'Số liệu đối soát hoàn toàn khớp'}
                                     </Typography>
                                     <Typography
                                         variant="caption"
@@ -3238,19 +3417,69 @@ export const MatchingActualsForm = ({
                                         sx={{ fontSize: '0.75rem', opacity: 0.9 }}
                                     >
                                         {displayedDiscrepancyCount > 0
-                                            ? 'Tự động tính toán lại giá trị thanh toán theo thực tế nhập/trả và đơn giá'
+                                            ? discrepancyView === 'summary'
+                                                ? 'Các số liệu chính cần lưu ý trước khi xử lý đối soát'
+                                                : 'Tự động tính toán lại giá trị thanh toán theo thực tế nhập/trả và đơn giá'
                                             : 'Không phát hiện sai lệch: Số lượng vé nhập, trả và đơn giá khớp hoàn toàn giữa hệ thống và thực tế'}
                                     </Typography>
                                 </Box>
                             </Stack>
-                            <AdminStatusBadge
-                                label={
-                                    displayedDiscrepancyCount === 0
-                                        ? 'Khớp 100%'
-                                        : `${displayedDiscrepancyCount}/${SUPPLIER_SETTLEMENT_DISCREPANCY_TYPES.length} loại lệch`
-                                }
-                                modifier={displayedDiscrepancyCount === 0 ? 'admin-status-badge--success' : 'admin-status-badge--pending'}
-                            />
+                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                                {displayedDiscrepancyCount > 0 && (
+                                    <Box
+                                        role="group"
+                                        aria-label="Chế độ hiển thị nguồn chênh lệch"
+                                        sx={{ display: 'flex', p: 0.35, bgcolor: '#ffffff', border: '1px solid #fed7aa', borderRadius: '8px' }}
+                                    >
+                                        <Button
+                                            size="small"
+                                            onClick={() => setDiscrepancyView('summary')}
+                                            aria-pressed={discrepancyView === 'summary'}
+                                            sx={{
+                                                minHeight: 28,
+                                                px: 1.25,
+                                                py: 0.25,
+                                                borderRadius: '6px',
+                                                textTransform: 'none',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 800,
+                                                color: discrepancyView === 'summary' ? '#9a3412' : '#64748b',
+                                                bgcolor: discrepancyView === 'summary' ? '#ffedd5' : 'transparent',
+                                                '&:hover': { bgcolor: discrepancyView === 'summary' ? '#ffedd5' : '#f8fafc' },
+                                            }}
+                                        >
+                                            Tóm tắt
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            onClick={() => setDiscrepancyView('detail')}
+                                            aria-pressed={discrepancyView === 'detail'}
+                                            sx={{
+                                                minHeight: 28,
+                                                px: 1.25,
+                                                py: 0.25,
+                                                borderRadius: '6px',
+                                                textTransform: 'none',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 800,
+                                                color: discrepancyView === 'detail' ? '#9a3412' : '#64748b',
+                                                bgcolor: discrepancyView === 'detail' ? '#ffedd5' : 'transparent',
+                                                '&:hover': { bgcolor: discrepancyView === 'detail' ? '#ffedd5' : '#f8fafc' },
+                                            }}
+                                        >
+                                            Chi tiết
+                                        </Button>
+                                    </Box>
+                                )}
+                                <AdminStatusBadge
+                                    label={
+                                        displayedDiscrepancyCount === 0
+                                            ? 'Khớp 100%'
+                                            : `${displayedDiscrepancyCount}/${SUPPLIER_SETTLEMENT_DISCREPANCY_TYPES.length} loại lệch`
+                                    }
+                                    modifier={displayedDiscrepancyCount === 0 ? 'admin-status-badge--success' : 'admin-status-badge--pending'}
+                                />
+                            </Stack>
                         </Stack>
 
                         {displayedDiscrepancyCount > 0 && (
@@ -3263,160 +3492,49 @@ export const MatchingActualsForm = ({
                                     if (!isDetected) {
                                         return null;
                                     }
-                                    const isPositive = item?.direction === 'POSITIVE';
-                                    const isExcessReturn = type === 'RETURN_QUANTITY' && isPositive;
-                                    return (
-                                        <Stack
-                                            key={type}
-                                            direction={{ xs: 'column', sm: 'row' }}
-                                            spacing={1.25}
-                                            alignItems={{ xs: 'flex-start', sm: 'center' }}
-                                            justifyContent="space-between"
-                                            sx={{
-                                                p: 1.25,
-                                                borderRadius: '10px',
-                                                bgcolor: '#ffffff',
-                                                border: '1px solid',
-                                                borderColor: isExcessReturn ? '#bfdbfe' : isPositive ? '#fecdd3' : '#fed7aa',
-                                                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                                            }}
-                                        >
-                                            <Box sx={{ minWidth: 0, flex: 1 }}>
-                                                <Typography variant="body2" fontWeight={800} color="#0f172a" sx={{ fontSize: '0.85rem', mb: 0.25 }}>
-                                                    {getDiscrepancyTypeLabel(type)}
-                                                </Typography>
-                                                {type === 'IMPORT_QUANTITY' && (
-                                                    <Typography variant="caption" color="#475569" sx={{ fontSize: '0.775rem', display: 'block' }}>
-                                                        Hệ thống {systemImportQty.toLocaleString('vi-VN')} vé → Thực tế {parsedImportQty.toLocaleString('vi-VN')} vé
-                                                        {' · '}Lệch <strong>{importQtyDiff > 0 ? '+' : ''}{importQtyDiff.toLocaleString('vi-VN')} vé</strong>
-                                                        {' '}({importValDiff > 0 ? '+' : ''}{formatSettlementMoney(importValDiff)} VNĐ)
-                                                    </Typography>
-                                                )}
-                                                {type === 'RETURN_QUANTITY' && (
-                                                    <Typography variant="caption" color="#475569" sx={{ fontSize: '0.775rem', display: 'block' }}>
-                                                        Hệ thống {systemReturnQty.toLocaleString('vi-VN')} vé → Thực tế {parsedReturnQty.toLocaleString('vi-VN')} vé
-                                                        {' · '}Lệch <strong>{returnQtyDiff > 0 ? '+' : ''}{returnQtyDiff.toLocaleString('vi-VN')} vé</strong>
-                                                        {' '}({returnValDiff > 0 ? '+' : ''}{formatSettlementMoney(returnValDiff)} VNĐ)
-                                                    </Typography>
-                                                )}
-                                                {type === 'IMPORT_UNIT_PRICE' && (
-                                                    <Stack spacing={0.35} sx={{ mt: 0.15 }}>
-                                                        {unitPriceDiff !== 0 && parsedUnitPrice > 0 && (
-                                                            <Typography variant="caption" color="#475569" sx={{ fontSize: '0.775rem' }}>
-                                                                Bình quân kỳ này (sau HH): {formatSettlementMoney(originalUnitPrice)} → <strong>{formatSettlementMoney(parsedUnitPrice)} VNĐ/vé</strong>
-                                                                {' '}({unitPriceDiff > 0 ? '+' : ''}{formatSettlementMoney(unitPriceDiff)})
-                                                            </Typography>
-                                                        )}
-                                                        {stationNets.priceMismatchStations.length > 0 && (
-                                                            <Typography variant="caption" color="#9a3412" sx={{ fontSize: '0.725rem' }}>
-                                                                Đài lệch giá nhập: {stationNets.priceMismatchStations.map((s) =>
-                                                                    `${s.lotteryStationName} (${formatSettlementMoney(s.systemImportCost)}→${formatSettlementMoney(s.actualImportCost)})`
-                                                                ).join('; ')}
-                                                            </Typography>
-                                                        )}
-                                                        {stationNets.commissionMismatchStations.length > 0 && (
-                                                            <Typography variant="caption" color="#1d4ed8" sx={{ fontSize: '0.725rem' }}>
-                                                                Đài lệch hoa hồng: {stationNets.commissionMismatchStations.map((s) =>
-                                                                    `${s.lotteryStationName} (${(s.systemCommissionRate * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%→${(s.actualCommissionRate * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%)`
-                                                                ).join('; ')}
-                                                            </Typography>
-                                                        )}
-                                                    </Stack>
-                                                )}
-                                            </Box>
-
-                                        </Stack>
-                                    );
+                                    if (type === 'IMPORT_UNIT_PRICE') {
+                                        return <UnitPriceDiscrepancyCard key={type} systemNetUnitPrice={originalUnitPrice}
+                                            actualNetUnitPrice={parsedUnitPrice} stations={mismatchedStations} mode={discrepancyView} />;
+                                    }
+                                    const isImport = type === 'IMPORT_QUANTITY';
+                                    return <QuantityDiscrepancyCard key={type} title={getDiscrepancyTypeLabel(type)}
+                                        systemQuantity={isImport ? systemImportQty : systemReturnQty}
+                                        actualQuantity={isImport ? parsedImportQty : parsedReturnQty}
+                                        systemGrossUnitPrice={Number(pricingRows[0]?.importCost || settlement.systemTicketImportPrice || 0)}
+                                        actualGrossUnitPrice={actualImportPrice}
+                                        systemNetUnitPrice={originalUnitPrice}
+                                        actualNetUnitPrice={parsedUnitPrice}
+                                        systemTotal={isImport ? systemImportVal : systemReturnVal}
+                                        actualTotal={isImport ? calculatedImportVal : calculatedReturnVal}
+                                        mode={discrepancyView} />;
                                 })}
                             </Stack>
                         )}
-                    </Box>
-
-                    <Box
-                        sx={{
-                            mb: 2,
-                            p: 1.75,
-                            borderRadius: '12px',
-                            bgcolor: '#f8fafc',
-                            border: '1px dashed #cbd5e1',
-                        }}
-                    >
-                        <Stack direction="row" spacing={1} alignItems="flex-start">
-                            <InfoOutlinedIcon sx={{ fontSize: '1.1rem', color: '#64748b', mt: 0.2, flexShrink: 0 }} />
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Typography
-                                    variant="caption"
-                                    fontWeight={800}
-                                    color="#334155"
-                                    sx={{ display: 'block', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.3px' }}
-                                >
-                                    Số tiền cần trả (hệ thống tạm tính)
-                                </Typography>
-                                <Typography variant="caption" color="#475569" sx={{ fontSize: '0.8rem', display: 'block', lineHeight: 1.55, mb: 1.25 }}>
-                                    (Giá nhập sau hoa hồng × tổng vé nhập HT) − tiền vé ế hoàn HT
-                                </Typography>
-                                <Stack
-                                    direction={{ xs: 'column', md: 'row' }}
-                                    spacing={1}
-                                    alignItems={{ xs: 'stretch', md: 'center' }}
-                                    divider={
-                                        <Typography
-                                            variant="caption"
-                                            fontWeight={800}
-                                            color="#64748b"
-                                            sx={{ px: { md: 0.25 }, textAlign: 'center' }}
-                                        >
-                                            −
-                                        </Typography>
-                                    }
-                                >
-                                    <Box sx={{ flex: 1, minWidth: 0, bgcolor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', px: 1.25, py: 1 }}>
-                                        <Typography variant="caption" color="#64748b" fontWeight={700} sx={{ display: 'block', mb: 0.25 }}>
-                                            Tiền nhập HT (sau HH)
-                                        </Typography>
-                                        <Typography variant="caption" color="#0f172a" fontWeight={800} sx={{ display: 'block' }}>
-                                            {formatSettlementMoney(originalUnitPrice)} × {systemImportQty.toLocaleString('vi-VN')} vé
-                                            {' = '}
-                                            {formatSettlementMoney(systemImportVal)} VNĐ
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ flex: 1, minWidth: 0, bgcolor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', px: 1.25, py: 1 }}>
-                                        <Typography variant="caption" color="#64748b" fontWeight={700} sx={{ display: 'block', mb: 0.25 }}>
-                                            Tiền vé ế hoàn HT
-                                        </Typography>
-                                        <Typography variant="caption" color="#0f172a" fontWeight={800} sx={{ display: 'block' }}>
-                                            {formatSettlementMoney(originalUnitPrice)} × {systemReturnQty.toLocaleString('vi-VN')} vé
-                                            {' = '}
-                                            {formatSettlementMoney(systemReturnVal)} VNĐ
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ flex: 1, minWidth: 0, bgcolor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', px: 1.25, py: 1 }}>
-                                        <Typography variant="caption" color="#1d4ed8" fontWeight={700} sx={{ display: 'block', mb: 0.25 }}>
-                                            = Số tiền cần trả (tạm tính)
-                                        </Typography>
-                                        <Typography variant="caption" color="#1e3a8a" fontWeight={900} sx={{ display: 'block', fontSize: '0.85rem' }}>
-                                            {formatSettlementMoney(initialEstimatedVal)} VNĐ
-                                        </Typography>
-                                    </Box>
-                                </Stack>
-                            </Box>
-                        </Stack>
                     </Box>
 
                     {/* Financial Flow: 3-Step or 4-Step Interactive Reconciliation Map */}
                     <Grid container spacing={2}>
                         {/* Bước 1: Tạm tính ban đầu */}
                         <Grid size={additionalCostRows.length > 0 ? { xs: 12, sm: 6, lg: 3 } : { xs: 12, sm: 4, md: 4 }}>
-                            <Box
+                            <ButtonBase
+                                onClick={() => setSelectedCashflowDetail((current) => current === 'initial' ? null : 'initial')}
+                                aria-expanded={selectedCashflowDetail === 'initial'}
+                                aria-controls="cashflow-detail-panel"
                                 sx={{
                                     p: 2,
+                                    width: '100%',
+                                    textAlign: 'left',
+                                    alignItems: 'stretch',
                                     borderRadius: '14px',
                                     bgcolor: '#f8fafc',
-                                    border: '1px solid #e2e8f0',
+                                    border: selectedCashflowDetail === 'initial' ? '2px solid #64748b' : '1px solid #e2e8f0',
+                                    boxShadow: selectedCashflowDetail === 'initial' ? '0 0 0 3px rgba(100, 116, 139, 0.12)' : 'none',
                                     height: '100%',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     justifyContent: 'space-between',
+                                    transition: 'border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease',
+                                    '&:hover': { borderColor: '#94a3b8', transform: 'translateY(-1px)' },
                                 }}
                             >
                                 <Box>
@@ -3436,39 +3554,34 @@ export const MatchingActualsForm = ({
                                     </Typography>
                                 </Box>
 
-                                <Stack spacing={0.75} sx={{ pt: 1.5, borderTop: '1px solid #e2e8f0' }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#ffffff', px: 1.25, py: 0.6, borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                        <Typography variant="caption" color="#64748b" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
-                                            Tiền nhập HT:
-                                        </Typography>
-                                        <Typography variant="caption" color="#0f172a" fontWeight={800} sx={{ fontSize: '0.8rem' }}>
-                                            {formatSettlementMoney(systemImportVal)} VNĐ
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#ffffff', px: 1.25, py: 0.6, borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                        <Typography variant="caption" color="#64748b" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
-                                            Vé ế hoàn HT:
-                                        </Typography>
-                                        <Typography variant="caption" color="#0f172a" fontWeight={800} sx={{ fontSize: '0.8rem' }}>
-                                            {formatSettlementMoney(systemReturnVal)} VNĐ
-                                        </Typography>
-                                    </Box>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 1.25, borderTop: '1px solid #e2e8f0' }}>
+                                    <Typography variant="caption" color="#475569" fontWeight={700}>Xem cách tính</Typography>
+                                    <ExpandMoreOutlinedIcon sx={{ fontSize: 20, color: '#64748b', transform: selectedCashflowDetail === 'initial' ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }} />
                                 </Stack>
-                            </Box>
+                            </ButtonBase>
                         </Grid>
 
                         {/* Bước 2: Biến động số liệu vé */}
                         <Grid size={additionalCostRows.length > 0 ? { xs: 12, sm: 6, lg: 3 } : { xs: 12, sm: 4, md: 4 }}>
-                            <Box
+                            <ButtonBase
+                                onClick={() => setSelectedCashflowDetail((current) => current === 'variance' ? null : 'variance')}
+                                aria-expanded={selectedCashflowDetail === 'variance'}
+                                aria-controls="cashflow-detail-panel"
                                 sx={{
                                     p: 2,
+                                    width: '100%',
+                                    textAlign: 'left',
+                                    alignItems: 'stretch',
                                     borderRadius: '14px',
                                     bgcolor: ticketVarianceTone.bg,
-                                    border: `1.5px solid ${ticketVarianceTone.border}`,
+                                    border: selectedCashflowDetail === 'variance' ? `2px solid ${ticketVarianceTone.color}` : `1.5px solid ${ticketVarianceTone.border}`,
+                                    boxShadow: selectedCashflowDetail === 'variance' ? `0 0 0 3px ${ticketVarianceTone.border}66` : 'none',
                                     height: '100%',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     justifyContent: 'space-between',
+                                    transition: 'border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease',
+                                    '&:hover': { borderColor: ticketVarianceTone.color, transform: 'translateY(-1px)' },
                                 }}
                             >
                                 <Box>
@@ -3488,26 +3601,11 @@ export const MatchingActualsForm = ({
                                     </Typography>
                                 </Box>
 
-                                {/* Structured Key-Value Details */}
-                                <Stack spacing={0.75} sx={{ pt: 1.5, borderTop: `1px solid ${ticketVarianceTone.border}` }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#ffffff', px: 1.25, py: 0.6, borderRadius: '8px', border: `1px solid ${ticketVarianceTone.border}` }}>
-                                        <Typography variant="caption" color="#64748b" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
-                                            Lệch SL nhập & trả:
-                                        </Typography>
-                                        <Typography variant="caption" color={ticketVarianceTone.color} fontWeight={800} sx={{ fontSize: '0.8rem' }}>
-                                            {(importValDiff + returnValDiff) !== 0 ? `${(importValDiff + returnValDiff) > 0 ? '+' : ''}${formatSettlementMoney(importValDiff + returnValDiff)} VNĐ` : '0 VNĐ'}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#ffffff', px: 1.25, py: 0.6, borderRadius: '8px', border: `1px solid ${ticketVarianceTone.border}` }}>
-                                        <Typography variant="caption" color="#64748b" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
-                                            Lệch đơn giá / HH:
-                                        </Typography>
-                                        <Typography variant="caption" color={ticketVarianceTone.color} fontWeight={800} sx={{ fontSize: '0.8rem' }}>
-                                            {stationPriceDiffVal !== 0 ? `${stationPriceDiffVal > 0 ? '+' : ''}${formatSettlementMoney(stationPriceDiffVal)} VNĐ` : '0 VNĐ'}
-                                        </Typography>
-                                    </Box>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 1.25, borderTop: `1px solid ${ticketVarianceTone.border}` }}>
+                                    <Typography variant="caption" color={ticketVarianceTone.color} fontWeight={700}>Xem nguồn biến động</Typography>
+                                    <ExpandMoreOutlinedIcon sx={{ fontSize: 20, color: ticketVarianceTone.color, transform: selectedCashflowDetail === 'variance' ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }} />
                                 </Stack>
-                            </Box>
+                            </ButtonBase>
                         </Grid>
 
                         {/* Bước 3: Ô RIÊNG BIỆT - Chi phí & Điều chỉnh ngoài kỳ (chỉ xuất hiện khi có chi phí phát sinh) */}
@@ -3571,16 +3669,25 @@ export const MatchingActualsForm = ({
 
                         {/* Bước cuối: Quyết toán sau đối soát */}
                         <Grid size={additionalCostRows.length > 0 ? { xs: 12, sm: 6, lg: 3 } : { xs: 12, sm: 4, md: 4 }}>
-                            <Box
+                            <ButtonBase
+                                onClick={() => setSelectedCashflowDetail((current) => current === 'final' ? null : 'final')}
+                                aria-expanded={selectedCashflowDetail === 'final'}
+                                aria-controls="cashflow-detail-panel"
                                 sx={{
                                     p: 2,
+                                    width: '100%',
+                                    textAlign: 'left',
+                                    alignItems: 'stretch',
                                     borderRadius: '14px',
                                     bgcolor: '#eff6ff',
-                                    border: '1.5px solid #93c5fd',
+                                    border: selectedCashflowDetail === 'final' ? '2px solid #2563eb' : '1.5px solid #93c5fd',
+                                    boxShadow: selectedCashflowDetail === 'final' ? '0 0 0 3px rgba(37, 99, 235, 0.12)' : 'none',
                                     height: '100%',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     justifyContent: 'space-between',
+                                    transition: 'border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease',
+                                    '&:hover': { borderColor: '#2563eb', transform: 'translateY(-1px)' },
                                 }}
                             >
                                 <Box>
@@ -3600,26 +3707,114 @@ export const MatchingActualsForm = ({
                                     </Typography>
                                 </Box>
 
-                                {/* Structured Key-Value Details */}
-                                <Stack spacing={0.75} sx={{ pt: 1.5, borderTop: '1px solid #bfdbfe' }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#ffffff', px: 1.25, py: 0.6, borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                                        <Typography variant="caption" color="#1e40af" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
-                                            Giá vốn TT:
-                                        </Typography>
-                                        <Typography variant="caption" color="#1d4ed8" fontWeight={800} sx={{ fontSize: '0.8rem' }}>
-                                            {parsedUnitPrice > 0 ? formatSettlementMoney(parsedUnitPrice) : '—'} VNĐ/vé
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#ffffff', px: 1.25, py: 0.6, borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                                        <Typography variant="caption" color="#1e40af" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
-                                            SL thanh toán TT:
-                                        </Typography>
-                                        <Typography variant="caption" color="#1d4ed8" fontWeight={800} sx={{ fontSize: '0.8rem' }}>
-                                            {(parsedImportQty - parsedReturnQty).toLocaleString('vi-VN')} vé
-                                        </Typography>
-                                    </Box>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 1.25, borderTop: '1px solid #bfdbfe' }}>
+                                    <Typography variant="caption" color="#1d4ed8" fontWeight={700}>Xem bảng quyết toán</Typography>
+                                    <ExpandMoreOutlinedIcon sx={{ fontSize: 20, color: '#2563eb', transform: selectedCashflowDetail === 'final' ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }} />
                                 </Stack>
-                            </Box>
+                            </ButtonBase>
+                        </Grid>
+
+                        <Grid size={{ xs: 12 }}>
+                            <Collapse in={cashflowDetail != null} timeout="auto" unmountOnExit>
+                                {cashflowDetail && (
+                                    <Box
+                                        id="cashflow-detail-panel"
+                                        sx={{
+                                            mt: 0.25,
+                                            borderRadius: '14px',
+                                            border: `1px solid ${cashflowDetail.border}`,
+                                            bgcolor: '#ffffff',
+                                            overflow: 'hidden',
+                                        }}
+                                    >
+                                        <Stack
+                                            direction={{ xs: 'column', sm: 'row' }}
+                                            justifyContent="space-between"
+                                            alignItems={{ xs: 'flex-start', sm: 'center' }}
+                                            gap={1}
+                                            sx={{ px: { xs: 1.5, md: 2 }, py: 1.5, bgcolor: cashflowDetail.background }}
+                                        >
+                                            <Stack direction="row" spacing={1} alignItems="flex-start">
+                                                <InfoOutlinedIcon sx={{ fontSize: 19, color: cashflowDetail.color, mt: 0.15 }} />
+                                                <Box>
+                                                    <Typography variant="subtitle2" fontWeight={800} color={cashflowDetail.color}>
+                                                        {cashflowDetail.title}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="#64748b" sx={{ lineHeight: 1.5 }}>
+                                                        {cashflowDetail.description}
+                                                    </Typography>
+                                                </Box>
+                                            </Stack>
+                                            <Typography variant="caption" color="#64748b" fontWeight={600}>
+                                                Bấm lại thẻ đang chọn để thu gọn
+                                            </Typography>
+                                        </Stack>
+
+                                        <TableContainer sx={{ overflowX: 'auto' }}>
+                                            <Table size="small" sx={{ minWidth: 720 }}>
+                                                <TableHead>
+                                                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                                                        <TableCell sx={{ width: '27%', color: '#475569', fontWeight: 800, fontSize: '0.75rem' }}>
+                                                            Khoản tiền
+                                                        </TableCell>
+                                                        <TableCell sx={{ color: '#475569', fontWeight: 800, fontSize: '0.75rem' }}>
+                                                            Số liệu / Cách tính
+                                                        </TableCell>
+                                                        <TableCell align="right" sx={{ width: 180, color: '#475569', fontWeight: 800, fontSize: '0.75rem' }}>
+                                                            Tác động
+                                                        </TableCell>
+                                                    </TableRow>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {cashflowDetail.rows.map((row, index) => (
+                                                        <TableRow key={`${row.label}-${index}`}>
+                                                            <TableCell sx={{ py: 1.25, fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
+                                                                {row.label}
+                                                            </TableCell>
+                                                            <TableCell sx={{ py: 1.25, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+                                                                {row.formula}
+                                                            </TableCell>
+                                                            <TableCell
+                                                                align="right"
+                                                                sx={{
+                                                                    py: 1.25,
+                                                                    whiteSpace: 'nowrap',
+                                                                    fontSize: '0.8rem',
+                                                                    fontWeight: 800,
+                                                                    color: row.amount == null
+                                                                        ? '#94a3b8'
+                                                                        : row.amount > 0
+                                                                            ? '#be123c'
+                                                                            : row.amount < 0
+                                                                                ? '#15803d'
+                                                                                : '#475569',
+                                                                }}
+                                                            >
+                                                                {formatCashflowImpact(row.amount)}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                    <TableRow sx={{ bgcolor: cashflowDetail.background }}>
+                                                        <TableCell colSpan={2} sx={{ py: 1.4, borderBottom: 0 }}>
+                                                            <Typography variant="subtitle2" fontWeight={900} color={cashflowDetail.color}>
+                                                                {cashflowDetail.totalLabel}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell align="right" sx={{ py: 1.4, borderBottom: 0, whiteSpace: 'nowrap' }}>
+                                                            <Typography variant="subtitle2" fontWeight={900} color={cashflowDetail.color}>
+                                                                {formatCashflowImpact(
+                                                                    cashflowDetail.total,
+                                                                    cashflowDetail.showPositiveTotalSign
+                                                                )}
+                                                            </Typography>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                </TableBody>
+                                            </Table>
+                                        </TableContainer>
+                                    </Box>
+                                )}
+                            </Collapse>
                         </Grid>
 
                         {/* Thanh toán & Đối chiếu thực trả (Payment Reconciliation Card) */}
@@ -3859,7 +4054,7 @@ export const MatchingActualsForm = ({
                                 </Stack>
 
                                 <Typography variant="caption" color="#64748b" sx={{ mb: 1.5, display: 'block', fontSize: '0.75rem' }}>
-                                    Mỗi phiếu nhập cần biên lai + ảnh danh sách vé (tải lên server, giống biên lai NCC).
+                                    Mỗi phiếu nhập cần biên lai + ảnh danh sách vé.
                                 </Typography>
 
                                 {/* Batch toggle if more than 1 import batch */}

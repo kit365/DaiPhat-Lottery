@@ -31,6 +31,9 @@ public class AuthSeedInitializer implements ApplicationRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${daiphat.official-demo.seed.enabled:false}")
+    private boolean officialDemoEnabled;
+
     @Value("${daiphat.auth.seed.admin.username}")
     private String adminUsername;
 
@@ -95,7 +98,9 @@ public class AuthSeedInitializer implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         seedAccount(RoleConstants.ADMIN, adminUsername, adminPassword, adminEmail, adminFirstName, adminLastName);
-        seedAccount(RoleConstants.ROLE_MEMBER, memberUsername, memberPassword, memberEmail, memberFirstName, memberLastName);
+        if (!officialDemoEnabled) {
+            seedAccount(RoleConstants.ROLE_MEMBER, memberUsername, memberPassword, memberEmail, memberFirstName, memberLastName);
+        }
         seedAccount(
                 RoleConstants.ROLE_STREET_AGENT,
                 streetAgentUsername,
@@ -104,14 +109,16 @@ public class AuthSeedInitializer implements ApplicationRunner {
                 streetAgentFirstName,
                 streetAgentLastName
         );
-        seedAccount(
-                RoleConstants.ROLE_STAFF_OPERATOR,
-                operatorUsername,
-                operatorPassword,
-                operatorEmail,
-                operatorFirstName,
-                operatorLastName
-        );
+        if (!officialDemoEnabled) {
+            seedAccount(
+                    RoleConstants.ROLE_STAFF_OPERATOR,
+                    operatorUsername,
+                    operatorPassword,
+                    operatorEmail,
+                    operatorFirstName,
+                    operatorLastName
+            );
+        }
     }
 
     private void seedAccount(

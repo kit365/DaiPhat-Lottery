@@ -38,6 +38,7 @@ import {
 } from '../../hooks/useSupportTicket';
 import { supportTicketAdminApi } from '../../services/supportTicketService';
 import {
+    getTicketCategoryIcon,
     TicketRefType,
     TicketStatus,
     TICKET_REF_TYPE_LABELS,
@@ -285,8 +286,8 @@ export const SupportTicketList = () => {
     };
 
     const categoryMap = useMemo(() => {
-        const map = new Map<number, string>();
-        (categoriesData?.data || []).forEach((c) => map.set(c.id, c.name));
+        const map = new Map<number, { name: string; code: string }>();
+        (categoriesData?.data || []).forEach((c) => map.set(c.id, { name: c.name, code: c.code }));
         return map;
     }, [categoriesData]);
 
@@ -503,7 +504,9 @@ export const SupportTicketList = () => {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            tickets.map((ticket) => (
+                            tickets.map((ticket) => {
+                                const category = categoryMap.get(ticket.ticketCategoryId);
+                                return (
                                 <TableRow
                                     key={ticket.id}
                                     hover
@@ -519,9 +522,29 @@ export const SupportTicketList = () => {
                                         </Typography>
                                     </TableCell>
                                     <TableCell sx={BODY_CELL_SX}>
-                                        <Typography sx={{ fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
-                                            {categoryMap.get(ticket.ticketCategoryId) || '—'}
-                                        </Typography>
+                                        <Stack direction="row" spacing={1.25} alignItems="center">
+                                            <Box
+                                                sx={{
+                                                    width: 32,
+                                                    height: 32,
+                                                    borderRadius: '50%',
+                                                    display: 'grid',
+                                                    placeItems: 'center',
+                                                    flexShrink: 0,
+                                                    bgcolor: 'var(--palette-background-neutral)',
+                                                    color: 'var(--palette-text-secondary)',
+                                                }}
+                                            >
+                                                <Box
+                                                    component="i"
+                                                    className={`fa-solid ${getTicketCategoryIcon(category?.code)}`}
+                                                    sx={{ fontSize: 14 }}
+                                                />
+                                            </Box>
+                                            <Typography sx={{ fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
+                                                {category?.name || '—'}
+                                            </Typography>
+                                        </Stack>
                                     </TableCell>
                                     <TableCell sx={{ ...BODY_CELL_SX, maxWidth: 220 }}>
                                         <Typography
@@ -545,7 +568,7 @@ export const SupportTicketList = () => {
                                     <TableCell sx={BODY_CELL_SX}>
                                         <Typography sx={{ fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
                                             {ticket.refType
-                                                ? `${TICKET_REF_TYPE_LABELS[ticket.refType]}${ticket.refId ? ` · #${ticket.refId}` : ''}`
+                                                ? TICKET_REF_TYPE_LABELS[ticket.refType]
                                                 : '—'}
                                         </Typography>
                                     </TableCell>
@@ -595,7 +618,8 @@ export const SupportTicketList = () => {
                                         />
                                     </TableCell>
                                 </TableRow>
-                            ))
+                                );
+                            })
                         )}
                     </TableBody>
                 </Table>

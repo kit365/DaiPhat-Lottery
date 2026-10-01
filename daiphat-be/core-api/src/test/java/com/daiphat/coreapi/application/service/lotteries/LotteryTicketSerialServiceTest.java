@@ -394,8 +394,10 @@ class LotteryTicketSerialServiceTest {
     @Test
     @DisplayName("[DP-37] countAvailableSerials")
     void countAvailableSerials() {
-        lotteryTicketSerialService.countAvailableSerials(TICKET_ID);
-        verify(lotteryTicketSerialRepositoryPort).countSellableByTicketId(TICKET_ID);
+        when(lotteryTicketSerialRepositoryPort.findAllByTicketId(TICKET_ID)).thenReturn(List.of(serialModel));
+        when(ticketSalesCutoffPolicy.isClosed(serialModel)).thenReturn(false);
+
+        assertThat(lotteryTicketSerialService.countAvailableSerials(TICKET_ID)).isEqualTo(1);
     }
 
     @Test
@@ -410,13 +412,14 @@ class LotteryTicketSerialServiceTest {
     void expireActiveSerials() {
         when(lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(eq(TICKET_ID), anyList()))
                 .thenReturn(List.of(serialModel));
+        when(ticketSalesCutoffPolicy.isClosed(serialModel)).thenReturn(true);
         
         lotteryTicketSerialService.expireActiveSerials(TICKET_ID);
         
         assertThat(serialModel.getStatus()).isEqualTo(LotteryTicketSerialStatus.EXPIRED);
         verify(lotteryTicketSerialRepositoryPort).findByTicketIdAndStatuses(
                 TICKET_ID,
-                List.of(LotteryTicketSerialStatus.IN_STOCK, LotteryTicketSerialStatus.RESERVED));
+                List.of(LotteryTicketSerialStatus.IN_STOCK));
         verify(lotteryTicketSerialRepositoryPort).save(serialModel);
     }
 

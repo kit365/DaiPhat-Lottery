@@ -111,8 +111,13 @@ public class RefundRequestModel {
 
     /** Staff incident cancel: order already cancelled; wait for customer bank account. */
     public void initializeForStaffIncidentCancel() {
+        initializeForIncidentCancel(RefundRequestRole.STAFF);
+    }
+
+    /** Cancellation-created refund: wait for the customer to provide payout details. */
+    public void initializeForIncidentCancel(RefundRequestRole role) {
         this.status = RefundRequestStatus.WAITING_FOR_INFO;
-        this.requestRole = RefundRequestRole.STAFF;
+        this.requestRole = role != null ? role : RefundRequestRole.STAFF;
         this.bankAccountId = null;
         this.fundSource = RefundFundSource.COMPANY_FUND;
         this.reimburseStatus = ReimburseStatus.NONE;

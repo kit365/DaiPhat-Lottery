@@ -72,6 +72,7 @@ public record SupplierSettlementResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Integer settlementBufferMinutes,
+        LocalTime supplierReturnCutOffTime,
         LocalTime paymentCutOffTime,
         LocalDateTime reconciliationWindowStartAt,
         Boolean inReconciliationWindow

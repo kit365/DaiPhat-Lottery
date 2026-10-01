@@ -9,7 +9,8 @@ import lombok.RequiredArgsConstructor;
 public enum RefundRequestRole implements LabeledEnum {
     CUSTOMER("Khách hàng"),
     STAFF("Nhân viên"),
-    ADMIN("Quản trị viên");
+    ADMIN("Quản trị viên"),
+    SYSTEM("Hệ thống");
 
     private final String label;
 }

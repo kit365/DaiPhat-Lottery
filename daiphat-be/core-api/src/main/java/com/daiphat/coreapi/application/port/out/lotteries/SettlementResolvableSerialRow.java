@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 public record SettlementResolvableSerialRow(
         Long serialId,
         String serialNumber,
+        String numbers,
         LotteryTicketSerialStatus status,
         TicketCondition ticketCondition,
         String stationName,

@@ -11,7 +11,8 @@ import { ADMIN_BADGE_POLL_MS } from '../../../../hooks/adminBadgePoll';
 
 /**
  * Polls supplier settlement count for sidebar badge.
- * Counts records whose status is neither 'OPEN' nor 'COMPLETED' (e.g. 'RECEIPT_OVERDUE').
+ * Counts actionable records such as RECEIPT_OVERDUE / WAITING_FOR_PAYMENT.
+ * NOT_OPEN is a normal time-gated state, so it must not create an attention badge.
  */
 export const useSupplierSettlementAttentionCount = () => {
     const { user, token } = useAuthStore();
@@ -40,7 +41,11 @@ export const useSupplierSettlementAttentionCount = () => {
         const recordList = rawData.recordList || rawData.content || (Array.isArray(rawData) ? rawData : []);
         return recordList.filter((item: any) => {
             const status = String(item?.status || '').trim().toUpperCase();
-            return status && status !== 'OPEN' && status !== 'COMPLETED';
+            return status
+                && status !== 'NOT_OPEN'
+                && status !== 'OPEN'
+                && status !== 'COMPLETED'
+                && status !== 'CLOSED';
         }).length;
     }, [query.data?.data]);
 

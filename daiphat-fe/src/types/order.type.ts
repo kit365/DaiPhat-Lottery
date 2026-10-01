@@ -348,6 +348,7 @@ export interface OrderResponse {
     paymentStatus?: string;
     receiveType: OrderReceiveType;
     expectedPickupAt?: string;
+    preparationCutoffAt?: string | null;
     actualPickedUpAt?: string;
     cancelledAt?: string;
     cancelReason?: string;
@@ -355,6 +356,7 @@ export interface OrderResponse {
         | 'CUSTOMER_REQUEST'
         | 'ADMIN_FORCE_CANCEL'
         | 'SYSTEM_PAYMENT_TIMEOUT'
+        | 'SYSTEM_PREPARATION_TIMEOUT'
         | 'OUT_OF_STOCK_INCIDENT'
         | null;
     createdAt: string;

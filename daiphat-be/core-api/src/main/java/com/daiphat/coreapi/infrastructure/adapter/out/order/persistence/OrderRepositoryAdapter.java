@@ -125,6 +125,11 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     }
 
     @Override
+    public List<UUID> findOrderIdsByStatus(OrderStatus status) {
+        return orderRepository.findIdsByStatus(status);
+    }
+
+    @Override
     public void assignGuestOrdersToUserByEmail(UUID userId, String email) {
         if (userId == null || email == null || email.isBlank()) {
             return;

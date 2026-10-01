@@ -11,7 +11,6 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.shared.time.VietnamClock;
-import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
