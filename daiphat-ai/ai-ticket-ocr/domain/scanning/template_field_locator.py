@@ -39,7 +39,7 @@ _TEMPLATE_FIELD_ALIASES = {
 }
 
 _SUPPORTED_FIELDS = frozenset(
-    {"stationName", "numbers", "serialNumber", "drawDate", "ticketType", "batchCode"}
+    {"stationName", "numbers", "serialNumber", "serialSymbol", "drawDate", "ticketType", "batchCode"}
 )
 
 # A line belongs to a region when its centre falls inside the region grown

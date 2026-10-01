@@ -81,23 +81,13 @@ def reconcile_serial_and_batch_code(
     batch = (batch_code or "").strip() or None
 
     serial_ok = is_valid_serial_number(serial)
-    batch_ok = is_valid_batch_code(batch) or (
-        bool(batch) and bool(BATCH_CODE_PATTERN.match(batch)) and not is_valid_serial_number(batch)
-    )
+    batch_ok = is_valid_batch_code(batch)
 
     # Misplaced batch code in serialNumber (e.g. XSCMG997, 4E2, 26-T05K4).
     if serial and not serial_ok and is_valid_batch_code(serial):
         if not batch_ok:
             batch = serial
         serial = None
-        serial_ok = False
-        batch_ok = True
-
-    # Misplaced serial in batchCode when serialNumber is empty/invalid.
-    if batch and is_valid_serial_number(batch) and not serial_ok:
-        serial = batch
-        batch = None
-        serial_ok = True
 
     # Drop batch-shaped serial leftovers that aren't a valid batch either
     # (leave as-is so FormatValidator can surface the format error).

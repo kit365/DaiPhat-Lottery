@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from main import app
 from domain.enums.ticket_status import TicketStatus
+from dto.request.scan_metadata import FieldLayoutMetadata, ScanMetadata, StationTemplateMetadata
 from dto.response.scan_response import (
     BoundingBox,
     ExtractedTicketFields,
@@ -158,6 +159,35 @@ def test_scan_legacy_first_skips_groq_when_legacy_confident(monkeypatch):
     assert response.json()["data"]["recognitionEngineUsed"] == "legacy"
 
 
+def test_serial_symbol_template_uses_template_ocr_even_when_llm_first_is_configured(monkeypatch):
+    from routers.scan import _scan_image_sync
+
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_LEGACY_FIRST", False)
+    fake_legacy = FakeLegacyScanService()
+    fake_groq = FakeLlmScanService()
+    metadata = ScanMetadata(stationTemplates=[StationTemplateMetadata(
+        stationId=2,
+        templateId=28,
+        fieldLayouts=[FieldLayoutMetadata(
+            id=47, fieldName="serialSymbol", x=0.8, y=0.3, width=0.1, height=0.1
+        )],
+    )])
+
+    result = _scan_image_sync(
+        engine="groq",
+        image_bytes=b"fake-image-bytes",
+        scan_metadata=metadata,
+        legacy_service=fake_legacy,
+        groq_service=fake_groq,
+        gemini_service=FakeLlmScanService(),
+        grok_service=FakeLlmScanService(),
+    )
+
+    assert fake_legacy.called is True
+    assert fake_groq.called is False
+    assert result.recognitionEngineUsed == "legacy"
+
+
 def test_scan_legacy_first_boosts_with_groq_when_legacy_confidence_low(monkeypatch):
     monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
     monkeypatch.setattr("routers.scan.settings.TICKET_VISION_LEGACY_FIRST", True)
@@ -234,6 +264,61 @@ def test_merge_boost_keeps_legacy_numbers_when_llm_collage_mixes_tickets():
     assert ticket.extracted.drawDate == "2026-04-27"
     assert ticket.extracted.serialNumber == "A111111"  # filled from LLM gap
     assert ticket.extracted.batchCode == "4E2"
+
+
+@pytest.mark.parametrize(
+    "local_serial, used_layouts, expected",
+    [
+        ("123456U", {"serialSymbol": 47}, "123456U"),
+        ("188435S", {"serialNumber": 46}, "188435S"),
+        (None, {"serialNumber": 46, "serialSymbol": 47}, None),
+    ],
+)
+def test_merge_boost_respects_template_serial_priority(local_serial, used_layouts, expected):
+    from routers.scan import _merge_boost_with_legacy
+
+    extracted = ExtractedTicketFields(
+        stationName="Cần Thơ",
+        stationCode="CTH",
+        numbers="123456",
+        drawDate="2026-08-05",
+        serialNumber=local_serial,
+    )
+    legacy = ScanResponse(
+        scanId="legacy",
+        ticketCount=1,
+        tickets=[TicketScanResult(
+            ticketIndex=0,
+            bbox=BoundingBox(x=10, y=10, width=200, height=400, corners=[]),
+            status=TicketStatus.COMPLETE,
+            confidence=0.9,
+            extracted=extracted,
+            fieldConfidences={"stationName": 0.9, "numbers": 0.9, "drawDate": 0.9, "serialNumber": 0.9},
+            usedFieldLayouts=used_layouts,
+        )],
+    )
+    llm = ScanResponse(
+        scanId="llm",
+        ticketCount=1,
+        tickets=[TicketScanResult(
+            ticketIndex=0,
+            bbox=BoundingBox(x=12, y=12, width=200, height=400, corners=[]),
+            status=TicketStatus.INCOMPLETE,
+            confidence=0.5,
+            extracted=extracted.model_copy(update={"serialNumber": "987654Q"}),
+            fieldConfidences={"stationName": 0.9, "numbers": 0.9, "drawDate": 0.9, "serialNumber": 0.5},
+            validationErrors=[],
+        )],
+    )
+
+    ticket = _merge_boost_with_legacy(legacy, llm).tickets[0]
+    assert ticket.extracted.serialNumber == expected
+    assert ticket.usedFieldLayouts == used_layouts
+    if expected:
+        assert not ticket.validationErrors
+        assert ticket.status == TicketStatus.COMPLETE
+    else:
+        assert "serialNumber" in ticket.missingFields
 
 
 def test_scan_legacy_first_skips_groq_boost_when_api_key_missing(monkeypatch):

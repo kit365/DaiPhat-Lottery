@@ -24,7 +24,7 @@ from domain.scanning.yolo_llm_guidance import build_yolo_llm_guidance
 from domain.stations.default_aliases import DEFAULT_STATIONS
 from domain.stations.matcher import StationMatcher
 from domain.stations.models import StationRef
-from domain.validation.format_validator import FormatValidator
+from domain.validation.format_validator import FormatValidator, SERIAL_PATTERN
 from dto.request.scan_metadata import ScanMetadata, StationTemplateMetadata
 from dto.response.scan_response import BoundingBox, ScanResponse, TicketScanResult
 from infra.config import settings
@@ -58,7 +58,7 @@ _TEMPLATE_WHOLE_MAX_DIMENSION = 960
 _TEMPLATE_TRUST_CONFIDENCE = 0.80
 _TEMPLATE_FIELD_PAD_RATIO = 0.08
 # Template regions of these fields are read in field-crop mode first.
-_FIELD_CROP_READ_FIRST = frozenset({"serialNumber", "batchCode"})
+_FIELD_CROP_READ_FIRST = frozenset({"serialNumber", "serialSymbol", "batchCode"})
 # Desk border kept around a completed ticket sheet on every side of its crop,
 # so no paper edge is cut (share of the sheet's own width/height).
 _COMPLETE_TICKET_CROP_MARGIN = 0.03
@@ -306,6 +306,28 @@ def _has_expected_shape(field_name: str, value: str, expected_length: int | None
     if field_name == "batchCode":
         return is_preferred_batch_code(value)
     return True
+
+
+def _combine_serial_symbol(
+    numbers: str | None,
+    symbol: str | None,
+    expected_length: int | None = None,
+) -> str | None:
+    """Build the fallback serial only from the extracted ticket number and tag."""
+    if (
+        not numbers
+        or len(numbers) != (expected_length or 6)
+        or not numbers.isascii()
+        or not numbers.isdigit()
+        or not symbol
+        or not symbol.isascii()
+    ):
+        return None
+    letter = symbol.strip().upper()
+    if len(letter) != 1 or not letter.isalpha():
+        return None
+    combined = numbers + letter
+    return combined if SERIAL_PATTERN.fullmatch(combined) else None
 
 
 def _reading_score(
@@ -1002,6 +1024,7 @@ class TicketScanService:
         retarget_batch_box: bool,
         template_fields: frozenset[str] = frozenset(),
         design_match: _DesignMatch | None = None,
+        serial_symbol_reader: Callable[[ParsedTicket], None] | None = None,
     ) -> TicketScanResult:
         """Parse → numbers retry → validate → build the per-ticket response.
 
@@ -1071,6 +1094,11 @@ class TicketScanService:
             parsed = self._refine_low_confidence_fields(
                 crop, parsed, parser, expected_length
             )
+
+        # Only a template with a separately tagged letter can complete a
+        # numeric serial. Read that optional region after normal serial OCR.
+        if serial_symbol_reader is not None:
+            serial_symbol_reader(parsed)
 
         # Retarget overlay batch box toward bottom-left when we have a code
         # but the mid/logo heuristic was used (YOLO has no batch class).
@@ -1296,6 +1324,50 @@ class TicketScanService:
             if used_region.layout_id is not None:
                 used_layouts[field_name] = used_region.layout_id
 
+        def read_serial_symbol(parsed: ParsedTicket) -> None:
+            serial = parsed.extracted.serialNumber
+            numbers = parsed.extracted.numbers
+            symbol_regions = grouped.get("serialSymbol")
+            if (
+                not symbol_regions
+                or (grouped.get("serialNumber") and SERIAL_PATTERN.fullmatch(serial or ""))
+            ):
+                return
+            # A missing/invalid Serial tag cannot borrow a generic OCR value.
+            parsed.extracted.serialNumber = None
+            parsed.field_confidences["serialNumber"] = 0.0
+            if symbol_regions[0].layout_id is not None:
+                used_layouts["serialSymbol"] = symbol_regions[0].layout_id
+            if (
+                not numbers
+                or len(numbers) != (expected_length or 6)
+                or not numbers.isascii()
+                or not numbers.isdigit()
+            ):
+                return
+            lines, symbol_region, origin = self._read_template_field(
+                crop, placement, "serialSymbol", symbol_regions, in_region, parser, expected_length
+            )
+            symbol = parser.normalise_field("serialSymbol", lines, expected_length)
+            combined = _combine_serial_symbol(numbers, symbol, expected_length)
+            if combined is None:
+                return
+            parsed.extracted.serialNumber = combined
+            parsed.field_confidences["serialNumber"] = min(
+                parsed.field_confidences.get("numbers", 0.0),
+                max(line.confidence for line in lines),
+            )
+            quad = placement.upload_quad(symbol_region)
+            box = _quad_to_crop_box(quad, crop, cw, ch)
+            if box is not None:
+                crop_local_boxes["serialSymbol"] = box
+            source_field_boxes["serialSymbol"] = _quad_to_bounding_box(quad, scale)
+            if symbol_region.layout_id is not None:
+                used_layouts["serialSymbol"] = symbol_region.layout_id
+            (from_whole if origin == "whole" else from_crop).append(
+                f"serialSymbol#{symbol_region.priority}"
+            )
+
         logger.info(
             "Ticket #%s template OCR: station=%s id=%s templateId=%s placement=%s "
             "whole_lines=%s fields_from_whole=%s fields_from_crop=%s",
@@ -1320,6 +1392,7 @@ class TicketScanService:
             retarget_batch_box=False,
             template_fields=frozenset(grouped),
             design_match=design_match,
+            serial_symbol_reader=read_serial_symbol,
         )
         return result.model_copy(
             update={"usedFieldLayouts": used_layouts, "sourceFieldBoxes": source_field_boxes}

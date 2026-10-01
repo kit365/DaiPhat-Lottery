@@ -506,6 +506,11 @@ class TicketParser:
     ) -> str | None:
         """Validate/convert a single-field crop's text, or None to keep the
         whole-ticket result."""
+        if field_name == "serialSymbol":
+            # The optional template tag is a single separately printed letter.
+            # Do not guess from a larger word or a digit-like OCR result.
+            letters = [result.text.strip().upper() for result in results]
+            return next((letter for letter in letters if re.fullmatch(r"[A-Z]", letter)), None)
         if field_name == "drawDate":
             ranked = sorted(results, key=lambda r: -r.confidence)
             for result in ranked:

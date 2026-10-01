@@ -13,6 +13,7 @@ from domain.scanning.grok_ticket_scan_service import GrokTicketScanService
 from domain.scanning.groq_ticket_scan_service import GroqTicketScanService
 from domain.scanning.llm_ticket_scan_service import resolve_recognition_engine
 from domain.scanning.ticket_scan_service import TicketScanService
+from domain.scanning.status_resolver import resolve_status
 from domain.validation.format_validator import FormatValidator
 from dto.request.scan_metadata import ScanMetadata
 from dto.response.scan_response import (
@@ -20,7 +21,7 @@ from dto.response.scan_response import (
     ScanResponse,
     TicketScanResult,
 )
-from domain.validation.format_validator import is_valid_serial_number
+from domain.validation.format_validator import SERIAL_PATTERN, is_valid_serial_number
 from infra.config import settings
 from infra import llm_circuit, llm_quota
 from infra.logger import logger
@@ -133,12 +134,25 @@ def _merge_boost_with_legacy(legacy_result: ScanResponse, llm_result: ScanRespon
             legacy_ticket.extracted if legacy_ticket else None,
             llm_ticket.extracted,
         )
+        # The issuer template owns Serial when either serial tag was used.
+        # The LLM has no tag-level provenance, so it cannot replace that result.
+        template_serial_attempted = bool(
+            legacy_ticket
+            and {"serialNumber", "serialSymbol"} & set(legacy_ticket.usedFieldLayouts or {})
+        )
+        if template_serial_attempted:
+            local_serial = legacy_ticket.extracted.serialNumber if legacy_ticket.extracted else None
+            extracted.serialNumber = (
+                local_serial if SERIAL_PATTERN.fullmatch(local_serial or "") else None
+            )
         field_boxes = dict(llm_ticket.fieldBoxes or {})
         if legacy_ticket and legacy_ticket.fieldBoxes:
             for name, box in legacy_ticket.fieldBoxes.items():
                 field_boxes.setdefault(name, box)
 
         field_conf = dict(llm_ticket.fieldConfidences or {})
+        if template_serial_attempted:
+            field_conf["serialNumber"] = 0.0
         if legacy_ticket and legacy_ticket.fieldConfidences:
             for name, conf in legacy_ticket.fieldConfidences.items():
                 # Keep legacy confidence when we kept the legacy value.
@@ -146,6 +160,27 @@ def _merge_boost_with_legacy(legacy_result: ScanResponse, llm_result: ScanRespon
                 merged_val = getattr(extracted, name, None)
                 if legacy_val and merged_val and str(legacy_val) == str(merged_val):
                     field_conf[name] = max(float(field_conf.get(name, 0.0)), float(conf or 0.0))
+
+        used_layouts = dict(llm_ticket.usedFieldLayouts or {})
+        source_field_boxes = dict(llm_ticket.sourceFieldBoxes or {})
+        if legacy_ticket:
+            used_layouts.update(legacy_ticket.usedFieldLayouts or {})
+            source_field_boxes.update(legacy_ticket.sourceFieldBoxes or {})
+
+        status = llm_ticket.status
+        confidence = llm_ticket.confidence
+        missing_fields = llm_ticket.missingFields
+        validation_errors = llm_ticket.validationErrors
+        if template_serial_attempted:
+            validation = FormatValidator().validate(extracted)
+            status, confidence = resolve_status(
+                field_conf,
+                validation,
+                settings.TICKET_VISION_HIGH_CONFIDENCE_THRESHOLD,
+                settings.TICKET_VISION_LOW_CONFIDENCE_THRESHOLD,
+            )
+            missing_fields = validation.missing_fields
+            validation_errors = validation.errors
 
         cropped = llm_ticket.croppedImageBase64 or (
             legacy_ticket.croppedImageBase64 if legacy_ticket else None
@@ -161,6 +196,12 @@ def _merge_boost_with_legacy(legacy_result: ScanResponse, llm_result: ScanRespon
                     "extracted": extracted,
                     "fieldBoxes": field_boxes,
                     "fieldConfidences": field_conf,
+                    "usedFieldLayouts": used_layouts,
+                    "sourceFieldBoxes": source_field_boxes,
+                    "status": status,
+                    "confidence": confidence,
+                    "missingFields": missing_fields,
+                    "validationErrors": validation_errors,
                     "croppedImageBase64": cropped,
                     "bbox": legacy_ticket.bbox if legacy_ticket else llm_ticket.bbox,
                 }
@@ -258,6 +299,14 @@ def _should_fallback_to_legacy(engine: str) -> bool:
 
 def _legacy_first_enabled() -> bool:
     return bool(getattr(settings, "TICKET_VISION_LEGACY_FIRST", True))
+
+
+def _has_serial_symbol_template(scan_metadata: ScanMetadata) -> bool:
+    """The LLM crop path cannot independently bind a separate symbol tag."""
+    layouts = list(scan_metadata.fieldLayouts or [])
+    for template in scan_metadata.stationTemplates or []:
+        layouts.extend(template.fieldLayouts or [])
+    return any(layout.fieldName == "serialSymbol" for layout in layouts)
 
 
 def _legacy_skip_llm_min_confidence() -> float:
@@ -593,7 +642,9 @@ def _scan_image_sync(
                 "Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công."
             )
 
-    if engine in _LLM_ENGINES and _legacy_first_enabled():
+    if engine in _LLM_ENGINES and (
+        _legacy_first_enabled() or _has_serial_symbol_template(scan_metadata)
+    ):
         try:
             return _scan_legacy_first(
                 engine=engine,
