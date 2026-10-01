@@ -207,6 +207,7 @@ describe('collectOcrBatchOptions', () => {
                 supplierId: 7,
                 supplierName: 'NCC A',
                 status: 'DRAFT',
+                lines: [],
             },
         ]);
     });
@@ -370,8 +371,8 @@ describe('canConfirmReviewRow & evaluateOcrFieldUiStatus', () => {
             batchCode: '08D',
         });
         expect(reconcileOcrSerialAndBatchCode(null, 'A123456')).toEqual({
-            serialNumber: 'A123456',
-            batchCode: null,
+            serialNumber: '',
+            batchCode: 'A123456',
         });
     });
 

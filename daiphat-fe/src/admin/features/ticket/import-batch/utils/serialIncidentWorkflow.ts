@@ -13,13 +13,29 @@ export type SerialIncidentFields = {
     returnBatchLineId?: number | string | null;
 };
 
-export const normalizeSerialStatus = (status?: string | null): string =>
-    (status || '').toUpperCase().replace(/-/g, '_');
+export const normalizeSerialStatus = (status?: unknown): string => {
+    if (!status) return '';
+    if (typeof status === 'string') return status.toUpperCase().replace(/-/g, '_');
+    if (typeof status === 'object' && status !== null) {
+        const anyObj = status as Record<string, unknown>;
+        const val = anyObj.code || anyObj.status || anyObj.name || '';
+        return String(val).toUpperCase().replace(/-/g, '_');
+    }
+    return String(status).toUpperCase().replace(/-/g, '_');
+};
 
-export const normalizeTicketCondition = (condition?: string | null): string =>
-    (condition || '').toUpperCase().replace(/-/g, '_');
+export const normalizeTicketCondition = (condition?: unknown): string => {
+    if (!condition) return '';
+    if (typeof condition === 'string') return condition.toUpperCase().replace(/-/g, '_');
+    if (typeof condition === 'object' && condition !== null) {
+        const anyObj = condition as Record<string, unknown>;
+        const val = anyObj.code || anyObj.ticketCondition || anyObj.condition || anyObj.name || '';
+        return String(val).toUpperCase().replace(/-/g, '_');
+    }
+    return String(condition).toUpperCase().replace(/-/g, '_');
+};
 
-export const isFaultyTicketCondition = (condition?: string | null): boolean =>
+export const isFaultyTicketCondition = (condition?: unknown): boolean =>
     FAULTY_TICKET_CONDITIONS.has(normalizeTicketCondition(condition));
 
 export const getSerialIncidentGroup = (status?: string | null): SerialIncidentGroup => {

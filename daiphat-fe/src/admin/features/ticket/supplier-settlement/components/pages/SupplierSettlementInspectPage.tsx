@@ -28,6 +28,7 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
+import { useSearchParams } from 'next/navigation';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { useRouteParams } from '@/hooks/useRouteParams';
 import { AppToast } from '../../../../../../utils/toast.util';
@@ -98,6 +99,8 @@ const phaseStepIndex = (phase?: SupplierSettlementReconciliationPhase | null) =>
 export const SupplierSettlementInspectPage = () => {
     const router = useAdminRouter();
     const { id } = useRouteParams();
+    const searchParams = useSearchParams();
+    const requestedReview = searchParams.get('review') === '1';
     const { data: overview, isLoading, isError, refetch } = useSupplierSettlementOverview(id);
 
     const settlement = overview?.settlement;
@@ -206,7 +209,12 @@ export const SupplierSettlementInspectPage = () => {
             ? 'Chênh lệch giá nhập'
             : null,
     ].filter((item): item is string => Boolean(item));
-    const canCompleteDiscrepancyProcessing = hasPendingDiscrepancies && remainingDiscrepancies.length === 0;
+    // The completion action is available only after every discrepancy that was
+    // detected in the reconciliation has either been persisted as resolved or
+    // confirmed in the current (still local) draft. Keep this separate from
+    // `hasPendingDiscrepancies`: a settlement may have detected discrepancies
+    // that were already resolved on a previous request.
+    const allDiscrepanciesProcessed = remainingDiscrepancies.length === 0;
 
     useEffect(() => {
         if (settlement?.status === 'WAITING_FOR_PAYMENT' || settlement?.status === 'COMPLETED') {
@@ -249,6 +257,7 @@ export const SupplierSettlementInspectPage = () => {
         : [];
     const paid = settlement.status === 'COMPLETED';
     const waitingForPayment = settlement.status === 'WAITING_FOR_PAYMENT';
+    const isReadOnlyReview = requestedReview && (waitingForPayment || paid);
     const finalizedPaymentAmount = Math.abs(Number(
         settlement.finalSettlementValue
         ?? settlement.recalculatedTotalPaidAmount
@@ -303,7 +312,7 @@ export const SupplierSettlementInspectPage = () => {
                 />
             )}
 
-            <Paper
+                <Paper
                 elevation={0}
                 sx={{
                     p: 3,
@@ -312,7 +321,13 @@ export const SupplierSettlementInspectPage = () => {
                     bgcolor: '#ffffff',
                     boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
                 }}
-            >
+                >
+                {isReadOnlyReview && (
+                    <Alert severity="info" sx={{ mb: 2, borderRadius: '12px' }}>
+                        Đây là chế độ xem lại tiến hành đối soát. Kỳ đối soát đã chuyển sang{' '}
+                        {waitingForPayment ? 'Chờ thanh toán' : 'Đã thanh toán'} nên toàn bộ thông tin chỉ được xem, không thể chỉnh sửa hoặc xử lý lại.
+                    </Alert>
+                )}
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }} flexWrap="wrap">
                     <AdminStatusBadge
                         label={getReconciliationPhaseLabel(phase, settlement.reconciliationPhaseLabel)}
@@ -604,11 +619,7 @@ export const SupplierSettlementInspectPage = () => {
                     </Paper>
                 )}
 
-                {showPostMatchingContent && !waitingForPayment && !paid && (
-                    isCompletionStep
-                    || hasPendingDiscrepancies
-                    || hasUnitPriceDiscrepancy
-                ) && (
+                {showPostMatchingContent && !waitingForPayment && !paid && hasDiscrepancyMilestone && (
                     <Paper
                         variant="outlined"
                         sx={{ p: { xs: 2, md: 2.5 }, mb: 2.5, borderRadius: '16px', borderColor: '#bbf7d0', bgcolor: '#f0fdf4' }}
@@ -623,7 +634,7 @@ export const SupplierSettlementInspectPage = () => {
                                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
                                     <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} />
                                     <Typography variant="subtitle1" fontWeight={800} color="#166534">
-                                        Hoàn tất xử lý
+                                        Xử lý hoàn tất
                                     </Typography>
                                 </Stack>
                                 {remainingDiscrepancies.length > 0 ? (
@@ -641,7 +652,7 @@ export const SupplierSettlementInspectPage = () => {
                                     </Box>
                                 ) : (
                                     <Typography variant="body2" color="#15803d" sx={{ lineHeight: 1.55 }}>
-                                        Tất cả chênh lệch đã được xác nhận tạm. Bấm Xác nhận hoàn tất để lưu và chuyển kỳ đối soát sang Chờ thanh toán.
+                                        Tất cả chênh lệch đã được xác nhận. Bấm Xử lý hoàn tất để lưu và chuyển kỳ đối soát sang Chờ thanh toán.
                                     </Typography>
                                 )}
                             </Box>
@@ -671,7 +682,7 @@ export const SupplierSettlementInspectPage = () => {
                                     variant="contained"
                                     color="success"
                                     startIcon={finalizeProcessing.isPending ? <CircularProgress size={16} color="inherit" /> : <CheckCircleOutlinedIcon />}
-                                    disabled={(hasPendingDiscrepancies && !canCompleteDiscrepancyProcessing) || finalizeProcessing.isPending}
+                                    disabled={!allDiscrepanciesProcessed || finalizeProcessing.isPending}
                                     onClick={() => {
                                         finalizeProcessing.mutate(
                                             {
@@ -691,7 +702,7 @@ export const SupplierSettlementInspectPage = () => {
                                     }}
                                     sx={{ textTransform: 'none', fontWeight: 800, borderRadius: '10px', whiteSpace: 'nowrap' }}
                                 >
-                                    {finalizeProcessing.isPending ? 'Đang lưu...' : 'Xác nhận hoàn tất'}
+                                    {finalizeProcessing.isPending ? 'Đang lưu...' : 'Xử lý hoàn tất'}
                                 </Button>
                             </Stack>
                         </Stack>
@@ -725,7 +736,7 @@ export const SupplierSettlementInspectPage = () => {
                             >
                                 {downloadReport.isPending ? 'Đang tạo PDF...' : 'Tải báo cáo PDF'}
                             </Button>
-                            {waitingForPayment && (
+                            {waitingForPayment && !isReadOnlyReview && (
                                 <Button
                                     variant="contained"
                                     color="success"

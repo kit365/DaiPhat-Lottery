@@ -1340,7 +1340,7 @@ export const useOcrImportWizard = ({
             setDiscardingBatchId(batchId);
             try {
                 await cancelImportBatchDraft(batchId);
-                toast.success('Đã huỷ phiếu nhập nháp.');
+                toast.success('Đã xóa phiếu nhập lô.');
                 if (selectedImportBatchId === batchId) {
                     setSelectedImportBatchId(null);
                 }
@@ -1350,7 +1350,7 @@ export const useOcrImportWizard = ({
                     (error as { response?: { data?: { message?: string } }; message?: string })
                         ?.response?.data?.message ||
                     (error as { message?: string })?.message ||
-                    'Không huỷ được phiếu nháp.';
+                    'Không xóa được phiếu nhập lô.';
                 toast.error(message);
             } finally {
                 setDiscardingBatchId(null);

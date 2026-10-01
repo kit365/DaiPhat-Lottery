@@ -16,6 +16,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -88,6 +89,7 @@ import { ImportBatchFileSupplierDialog } from './ImportBatchFileSupplierDialog';
 import { ImportBatchFileMappingProfilePanel } from './ImportBatchFileMappingProfilePanel';
 import { ImportBatchFileAllocationSummary, buildFileAllocationRows } from './ImportBatchFileAllocationSummary';
 import { ImportBatchQuickAllocationModal } from './ImportBatchQuickAllocationModal';
+import { ImportBatchReceptionLineSummary } from './ImportBatchReceptionLineSummary';
 import {
     downloadImportBatchProgressCsv,
     type ImportBatchProgressStationPricing,
@@ -120,7 +122,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useStationsByDrawDate } from '../../../../station/hooks/useStation';
 import {
     useImportBatchTimePolicy,
-    useIncompleteImportBatches,
+    useDraftImportBatches,
 } from '../../hooks/useImportBatch';
 import { evaluateImportBatchIntake } from '../../hooks/useImportBatchIntakeGate';
 import {
@@ -128,6 +130,11 @@ import {
     buildImportIntakeClosedMessage,
 } from '../../utils/importBatchDrawDate';
 import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
+import {
+    canDeleteImportBatch,
+    canShowImportBatchDelete,
+    getImportBatchDeleteDisabledReason,
+} from '../../utils/importBatchDeletion';
 import {
     collectOcrBatchOptions,
     filterEligibleOcrBatches,
@@ -501,8 +508,8 @@ export const ImportBatchFileImportDialog = ({
     const [shortfallCheck, setShortfallCheck] = useState<ImportQuantityCheck | null>(null);
     const [allocationOpen, setAllocationOpen] = useState(false);
 
-    const { data: incompleteBatches = [], refetch: refetchIncompleteBatches, isLoading: loadingBatches } =
-        useIncompleteImportBatches(open);
+    const { data: draftBatches = [], refetch: refetchDraftBatches, isLoading: loadingBatches } =
+        useDraftImportBatches(open);
 
     /**
      * The same station can be flagged on several draw dates; the correction is
@@ -601,8 +608,8 @@ export const ImportBatchFileImportDialog = ({
     );
 
     const selectedDraftBatch = useMemo(
-        () => incompleteBatches.find((b) => b.id === selectedImportBatchId) ?? null,
-        [incompleteBatches, selectedImportBatchId]
+        () => draftBatches.find((b) => b.id === selectedImportBatchId) ?? null,
+        [draftBatches, selectedImportBatchId]
     );
 
     const selectedBatchDrawDate = useMemo(() => {
@@ -659,8 +666,8 @@ export const ImportBatchFileImportDialog = ({
         intakeTimePolicy?.returnBufferMinutes ?? DEFAULT_RETURN_BUFFER_MINUTES;
 
     const allBatchOptions = useMemo(
-        () => collectOcrBatchOptions(incompleteBatches),
-        [incompleteBatches]
+        () => collectOcrBatchOptions(draftBatches),
+        [draftBatches]
     );
 
     const eligibleBatchOptions = useMemo(
@@ -755,16 +762,16 @@ export const ImportBatchFileImportDialog = ({
         setDiscardingBatchId(batchId);
         try {
             await cancelImportBatchDraft(batchId);
-            toast.success('Đã hủy phiếu nhập nháp.');
+            toast.success('Đã xóa phiếu nhập lô.');
             if (selectedImportBatchId === batchId) {
                 handleSelectDraftBatch(null);
             }
-            await refetchIncompleteBatches();
+            await refetchDraftBatches();
         } catch (error: unknown) {
             const message =
                 (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message ||
                 (error as { message?: string })?.message ||
-                'Không hủy được phiếu nhập.';
+                'Không xóa được phiếu nhập lô.';
             toast.error(message);
         } finally {
             setDiscardingBatchId(null);
@@ -1471,23 +1478,33 @@ export const ImportBatchFileImportDialog = ({
                                                 }}
                                             />
                                         </Stack>
-                                        {eligibleBatchOptions.length > 0 && (
+                                        <Stack direction="row" spacing={1}>
                                             <Button
                                                 size="small"
-                                                startIcon={<AddCircleOutlineIcon />}
-                                                onClick={handleNavigateToCreateBatch}
-                                                sx={{
-                                                    textTransform: 'none',
-                                                    fontWeight: 700,
-                                                    fontSize: '0.775rem',
-                                                    color: '#2563eb',
-                                                    p: 0,
-                                                    '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
-                                                }}
+                                                variant="outlined"
+                                                startIcon={<RefreshOutlinedIcon />}
+                                                disabled={loadingBatches}
+                                                onClick={() => void refetchDraftBatches()}
+                                                sx={{ textTransform: 'none', fontWeight: 700 }}
                                             >
-                                                Khai báo thêm phiếu
+                                                Tải lại
                                             </Button>
-                                        )}
+                                            {eligibleBatchOptions.length > 0 && (
+                                                <Button
+                                                    size="small"
+                                                    startIcon={<AddCircleOutlineIcon />}
+                                                    onClick={handleNavigateToCreateBatch}
+                                                    sx={{
+                                                        textTransform: 'none',
+                                                        fontWeight: 700,
+                                                        fontSize: '0.775rem',
+                                                        color: '#2563eb',
+                                                    }}
+                                                >
+                                                    Khai báo thêm phiếu
+                                                </Button>
+                                            )}
+                                        </Stack>
                                     </Stack>
 
                                     {loadingBatches ? (
@@ -1695,11 +1712,16 @@ export const ImportBatchFileImportDialog = ({
                                                                         <EditOutlinedIcon sx={{ fontSize: '1.15rem' }} />
                                                                     </IconButton>
                                                                 </Tooltip>
-                                                                <Tooltip title="Hủy bỏ phiếu nhập này">
+                                                                {canShowImportBatchDelete(option) && (
+                                                                <Tooltip title={getImportBatchDeleteDisabledReason(option) || 'Xóa phiếu nhập này'}>
+                                                                    <span>
                                                                     <IconButton
                                                                         size="small"
                                                                         color="error"
-                                                                        disabled={discardingBatchId === option.id}
+                                                                        disabled={
+                                                                            discardingBatchId === option.id ||
+                                                                            !canDeleteImportBatch(option)
+                                                                        }
                                                                         onClick={(event) => {
                                                                             event.stopPropagation();
                                                                             setBatchToDiscard(option);
@@ -1716,9 +1738,17 @@ export const ImportBatchFileImportDialog = ({
                                                                             <DeleteOutlineIcon sx={{ fontSize: '1.15rem' }} />
                                                                         )}
                                                                     </IconButton>
+                                                                    </span>
                                                                 </Tooltip>
+                                                                )}
                                                             </Stack>
                                                         </Stack>
+                                                        <ImportBatchReceptionLineSummary
+                                                            batch={option}
+                                                            onChanged={async () => {
+                                                                await refetchDraftBatches();
+                                                            }}
+                                                        />
                                                     </Paper>
                                                 );
                                             })}
@@ -2296,7 +2326,7 @@ export const ImportBatchFileImportDialog = ({
                 batch={selectedDraftBatch}
                 fileStations={selectedGroup?.stations ?? []}
                 onBatchUpdated={async () => {
-                    await refetchIncompleteBatches();
+                    await refetchDraftBatches();
                 }}
             />
 
@@ -2481,12 +2511,12 @@ export const ImportBatchFileImportDialog = ({
                         <DeleteOutlineIcon sx={{ fontSize: 20 }} />
                     </Box>
                     <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.05rem' }}>
-                        Hủy phiếu nhập nháp
+                        Xóa phiếu nhập lô
                     </Typography>
                 </DialogTitle>
                 <DialogContent sx={{ px: 2.5, py: 1.5 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                        Bạn có chắc chắn muốn hủy phiếu nhập nháp{' '}
+                        Bạn có chắc chắn muốn xóa phiếu nhập lô{' '}
                         <Box component="span" fontWeight={700} color="text.primary">
                             {batchToDiscard ? formatImportBatchHeaderCode(batchToDiscard.batchCode, batchToDiscard.id) : ''}
                             {batchToDiscard?.drawDate ? ` - ${dayjs(batchToDiscard.drawDate).format('DD/MM/YYYY')}` : ''}
@@ -2522,7 +2552,7 @@ export const ImportBatchFileImportDialog = ({
                         }}
                         sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5 }}
                     >
-                        {discardingBatchId ? 'Đang hủy…' : 'Xác nhận hủy'}
+                        {discardingBatchId ? 'Đang xóa…' : 'Xác nhận xóa'}
                     </Button>
                 </DialogActions>
             </Dialog>

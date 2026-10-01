@@ -22,7 +22,11 @@ interface RenderCreatedAtCellProps {
 
 // Tên danh mục + Icon/Avatar
 export const RenderTitleCell = (params: GridRenderCellParams) => {
-    const { name, avatar, altImage, _id } = params.row;
+    const row = params?.row || {};
+    const name = row.name || '';
+    const avatar = row.avatar;
+    const altImage = row.altImage;
+    const id = row.id || row._id;
     const router = useAdminRouter();
 
     // avatar có thể là font-awesome class (vd: "fa-solid fa-star") hoặc URL ảnh
@@ -73,11 +77,11 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
             <ListItemText
                 primary={
                     <Link
-                        href={`/${prefixAdmin}/blog-category/edit/${_id}`}
+                        href={`/${prefixAdmin}/blog-category/edit/${id}`}
                         className="ticket-title"
                         onClick={(e) => {
                             e.preventDefault();
-                            router.push(`/${prefixAdmin}/blog-category/edit/${_id}`);
+                            if (id) router.push(`/${prefixAdmin}/blog-category/edit/${id}`);
                         }}
                         underline="hover"
                         sx={{
@@ -101,7 +105,7 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
             />
         </Box>
     );
-}
+};
 
 // Thời gian tạo
 export const RenderCreatedAtCell = ({ value }: RenderCreatedAtCellProps) => {
@@ -143,18 +147,17 @@ export const RenderCreatedAtCell = ({ value }: RenderCreatedAtCellProps) => {
             </Box>
         </Box>
     );
-}
-
+};
 
 // Status
 export const RenderStatusCell = (params: GridRenderCellParams) => {
-    const status = params.row.status;
+    const status = params?.row?.status;
 
     let label = "Hoạt động";
     let bg = "var(--palette-info-lighter)";
     let text = "var(--palette-info-dark)";
 
-    if (status && status.toUpperCase() === 'ACTIVE') {
+    if (status && String(status).toUpperCase() === 'ACTIVE') {
         label = "Hoạt động";
         bg = "var(--palette-info-lighter)";
         text = "var(--palette-info-dark)";
@@ -175,31 +178,35 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
             {label}
         </span>
     );
-}
+};
 
-// Actions
-export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRenderCellParams) => {
+// Actions component
+const BlogCategoryActions = ({ row, isTrash }: { row: any; isTrash?: boolean }) => {
     const router = useAdminRouter();
     const { mutate: deleteCategory } = useDeleteBlogCategory();
     const { can } = usePermissions();
     const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
     const canDelete = can(PERMISSIONS.ARTICLE.DELETE);
-    const _id = params.row.id || params.row.id;
+    const id = row?.id || row?._id;
 
     const handleEdit = () => {
-        router.push(`/${prefixAdmin}/blog-category/edit/${_id}`);
+        if (id) router.push(`/${prefixAdmin}/blog-category/edit/${id}`);
     };
 
     const handleDelete = () => {
+        if (!id) return;
         const message = "Bạn có chắc chắn muốn xóa danh mục này?";
         confirmDelete(message, () => {
-            deleteCategory(_id, {
+            deleteCategory(id, {
                 onSuccess: (res: any) => {
-                    if (res.success) {
+                    if (res?.success) {
                         toast.success("Xóa danh mục thành công");
                     } else {
-                        toast.error(res.message);
+                        toast.error(res?.message || "Xóa danh mục thất bại");
                     }
+                },
+                onError: (err: any) => {
+                    toast.error(err?.response?.data?.message || err?.message || "Xóa danh mục thất bại");
                 }
             });
         });
@@ -207,10 +214,12 @@ export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRende
 
     const items: AdminRowActionsMenuItem[] = [
         {
-            id: 'view',
+            id: 'detail',
             label: 'Chi tiết',
-            icon: 'view',
-            onClick: () => router.push(`/${prefixAdmin}/blog-category/detail/${_id}`),
+            icon: 'detail',
+            onClick: () => {
+                if (id) router.push(`/${prefixAdmin}/blog-category/detail/${id}`);
+            },
         },
     ];
 
@@ -234,6 +243,10 @@ export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRende
     }
 
     return <AdminRowActionsMenu items={items} />;
-}
+};
+
+export const BlogCategoryActionsCell = (isTrash: boolean) => (params: GridRenderCellParams) => {
+    return <BlogCategoryActions row={params?.row} isTrash={isTrash} />;
+};
 
 export const getRenderActionsCell = BlogCategoryActionsCell;

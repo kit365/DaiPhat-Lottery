@@ -45,6 +45,7 @@ export type OcrBatchOption = {
     supplierId?: number;
     supplierName?: string;
     status?: string;
+    lines: ImportBatchLine[];
 };
 
 export const collectOcrBatchOptions = (batches: ImportBatch[]): OcrBatchOption[] => {
@@ -64,6 +65,7 @@ export const collectOcrBatchOptions = (batches: ImportBatch[]): OcrBatchOption[]
             supplierId: batch.supplierId,
             supplierName: batch.supplierName,
             status: batch.status,
+            lines: batch.lines ?? [],
         });
     }
     return options;
@@ -216,8 +218,8 @@ export const isOcrBatchCodeShape = (value?: string | null): boolean => {
 };
 
 /**
- * Keep serialNumber vs batchCode from swapping: batch-shaped values that landed
- * in serialNumber are moved to batchCode (and vice versa when serial is empty).
+ * Move batch-shaped values out of serialNumber. A missing serial must never
+ * be filled from batchCode; the OCR template handles its own symbol fallback.
  */
 export const reconcileOcrSerialAndBatchCode = (
     serialNumber?: string | null,
@@ -234,11 +236,6 @@ export const reconcileOcrSerialAndBatchCode = (
             batch = serial;
         }
         serial = '';
-    }
-
-    if (batch && isOcrSerialNumberShape(batch) && !isOcrSerialNumberShape(serial)) {
-        serial = batch;
-        batch = null;
     }
 
     return { serialNumber: serial, batchCode: batch };

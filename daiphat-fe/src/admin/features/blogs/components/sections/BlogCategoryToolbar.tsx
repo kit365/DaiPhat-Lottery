@@ -12,7 +12,8 @@ interface BlogCategoryToolbarProps {
 }
 
 export const BlogCategoryToolbar = ({ search, onSearchChange, status, onStatusChange }: BlogCategoryToolbarProps) => {
-    const { data: statuses = [] } = useBlogCategoryStatuses();
+    const { data: rawStatuses } = useBlogCategoryStatuses();
+    const statuses = Array.isArray(rawStatuses) ? rawStatuses : [];
 
     return (
         <Toolbar style={{ padding: '16px', paddingRight: '8px', gap: 'calc(2 * var(--spacing))', display: 'flex', justifyContent: 'space-between', minHeight: 'auto' }}>

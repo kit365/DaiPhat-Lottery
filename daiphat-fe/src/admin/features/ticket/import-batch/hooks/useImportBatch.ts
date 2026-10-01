@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useMemo, useState } from 'react';
 import { QUERY_KEYS as TICKET_QUERY_KEYS } from '../../inventory/constants/queryKeys';
 import {
+    cancelImportBatchDraft,
     createImportBatch,
     deleteImportBatchLine,
     getActiveImportBatchDraft,
@@ -116,6 +117,7 @@ export const useCreateImportBatch = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_WITHOUT_LINES] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ELIGIBLE_STATIONS] });
         },
     });
 };
@@ -131,6 +133,7 @@ export const useUpdateImportBatch = (batchId?: string | number) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_WITHOUT_LINES] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL, batchId != null ? String(batchId) : undefined] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ELIGIBLE_STATIONS] });
         },
     });
 };
@@ -265,6 +268,24 @@ export const useDeleteImportBatchLine = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_WITHOUT_LINES] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ELIGIBLE_STATIONS] });
+            queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKETS] });
+        },
+    });
+};
+
+export const useCancelImportBatch = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (batchId: number | string) => cancelImportBatchDraft(batchId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_WITHOUT_LINES] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ELIGIBLE_STATIONS] });
             queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKETS] });
         },
     });

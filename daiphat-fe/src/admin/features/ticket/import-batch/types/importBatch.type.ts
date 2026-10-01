@@ -13,6 +13,8 @@ export type ImportBatchLineStatus = 'OPEN' | 'IMPORTING' | 'PAUSED' | 'IMPORTED'
 export interface ImportBatchLine {
     id: number;
     lotteryStationId: number;
+    lotteryStationName?: string;
+    stationName?: string;
     batchType: ImportBatchType;
     batchCode?: string;
     declareQuantity: number;
@@ -95,11 +97,6 @@ export interface CreateImportBatchPayload {
     invoiceEvidenceUrl?: string;
     ticketListImageUrls?: string[];
     note?: string;
-    /**
-     * When true, bypass the soft duplicate check for an unfinished batch.
-     * The backend will still enforce per-station hard conflicts.
-     */
-    forceCreate?: boolean;
     lines: CreateImportBatchLinePayload[];
 }
 
@@ -125,6 +122,8 @@ export interface ImportBatchBlockedStation {
 export interface ImportBatchEligibleStationsResult {
     eligible: ImportBatchEligibleStation[];
     blocked: ImportBatchBlockedStation[];
+    /** Existing unfinished batch for this draw date, if one owns the workflow. */
+    unfinishedBatch?: ImportBatch | null;
 }
 
 export interface ImportBatchClassificationPreview {
@@ -187,6 +186,7 @@ export interface ImportBatchLineEntrySerial {
 export interface ImportBatchLineEntryTicket {
     id: number;
     numbers: string;
+    priceSnapshot?: number | string | null;
     status?: string;
     serials: ImportBatchLineEntrySerial[];
 }

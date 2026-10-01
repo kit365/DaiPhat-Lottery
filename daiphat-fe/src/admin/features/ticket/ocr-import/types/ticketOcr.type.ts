@@ -277,6 +277,10 @@ export interface OcrReviewRow {
     croppedImageUrl?: string | null;
     selected: boolean;
     edited: boolean;
+    /** Distinguishes immutable persisted tickets from rows scanned in this session. */
+    source?: 'EXISTING' | 'OCR';
+    /** Existing imported rows are display-only and cannot be selected for confirmation. */
+    readOnly?: boolean;
     /** Fields explicitly corrected in this review session (persisted with the draft). */
     editedFields?: Partial<Record<'numbers' | 'serialNumber' | 'stationName' | 'drawDate' | 'ticketType' | 'batchCode', boolean>>;
     scannedAt?: string | null;

@@ -11,7 +11,7 @@ export const getBlogTags = async (params?: BlogTagQueryParams): Promise<ApiRespo
         params: {
             page: params?.page || 1,
             limit: params?.limit || 10,
-            keyword: params?.keyword || ''
+            search: (params as any)?.search || params?.keyword || ''
         }
     });
 
@@ -27,9 +27,6 @@ export const getBlogTags = async (params?: BlogTagQueryParams): Promise<ApiRespo
 
 /** Lấy tất cả tag không phân trang */
 export const getAllBlogTags = async (): Promise<ApiResponse<BlogTagResponse[]>> => {
-    // Backend API must support returning all without pagination, 
-    // maybe limit=1000 or a specific endpoint. 
-    // Here we pass limit=1000 for now.
     const response = await apiApp.get(BASE_URL, { params: { limit: 1000 } });
 
     if (response.data && response.data.data && response.data.data.recordList) {

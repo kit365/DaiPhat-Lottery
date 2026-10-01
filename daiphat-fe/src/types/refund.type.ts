@@ -389,19 +389,20 @@ export function maskBankAccountNo(accountNo: string): string {
 }
 
 /** Server-side refund amount for full-order cancel (matches BE line subtotal calculation) */
-export function calculateOrderRefundAmount(order: {
-    totalAmount: number;
-    orderDetails?: Array<{ price?: number; quantity?: number }>;
-}): number {
-    const details = order.orderDetails || [];
+export function calculateOrderRefundAmount(order?: {
+    totalAmount?: number | string | null;
+    orderDetails?: Array<{ price?: number | string; quantity?: number; lineSubtotal?: number | string }>;
+} | null): number {
+    if (!order) return 0;
+    const details = Array.isArray(order.orderDetails) ? order.orderDetails : [];
     if (details.length > 0) {
         return details.reduce((sum, detail) => {
-            const unitPrice = detail.price ?? 0;
-            const quantity = detail.quantity != null && detail.quantity > 0 ? detail.quantity : 1;
+            const unitPrice = Number(detail.price ?? detail.lineSubtotal ?? 0) || 0;
+            const quantity = detail.quantity != null && Number(detail.quantity) > 0 ? Number(detail.quantity) : 1;
             return sum + unitPrice * quantity;
         }, 0);
     }
-    return order.totalAmount ?? 0;
+    return Number(order.totalAmount) || 0;
 }
 
 /** Resolve refund amount from eligibility API or order fallback */

@@ -19,7 +19,9 @@ import {
 import dayjs from 'dayjs';
 import { useCallback, useState } from 'react';
 import { toast } from 'react-toastify';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
+import { confirmDelete } from '@/admin/utils/swal';
 import { useActiveSuppliers } from '../../../../supplier';
 import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
@@ -27,7 +29,7 @@ import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
 import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
 import type { ImportBatch, ImportBatchStatus } from '../../types/importBatch.type';
-import type { useImportBatchList } from '../../hooks/useImportBatch';
+import { useCancelImportBatch, type useImportBatchList } from '../../hooks/useImportBatch';
 import {
     getBatchTypeBadgeClass,
     getBatchTypeLabel,
@@ -47,6 +49,11 @@ import {
 } from '../../utils/importBatchCode';
 import { hasStartedImportBatchLineEntry } from '../../utils/importBatchEditDraft';
 import {
+    canDeleteImportBatch,
+    canShowImportBatchDelete,
+    getImportBatchDeleteDisabledReason,
+} from '../../utils/importBatchDeletion';
+import {
     batchHasPendingLines,
     findFirstIncompleteLine,
     importBatchMissingStations,
@@ -64,6 +71,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
     const { settings, setSettings } = useSettings();
     const { data: activeSuppliers = [] } = useActiveSuppliers();
     const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
+    const cancelBatchMutation = useCancelImportBatch();
     const {
         batches,
         pagination,
@@ -129,6 +137,21 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
         setImportTarget(null);
         listHook.refetch?.();
     }, [listHook]);
+
+    const handleDeleteBatch = useCallback((batch: ImportBatch) => {
+        confirmDelete(
+            'Bạn có chắc muốn xóa phiếu nhập lô này? Tất cả dòng nháp hoặc đã tạm dừng và dữ liệu vé chưa hoàn tất sẽ bị xóa.',
+            async () => {
+                try {
+                    await cancelBatchMutation.mutateAsync(batch.id);
+                    toast.success('Đã xóa phiếu nhập lô.');
+                    await listHook.refetch?.();
+                } catch (error: any) {
+                    toast.error(error?.response?.data?.message || error?.message || 'Không thể xóa phiếu nhập lô.');
+                }
+            }
+        );
+    }, [cancelBatchMutation, listHook]);
 
     if (error) {
         return (
@@ -328,6 +351,18 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                                     batchIntake.tooltipTitle ??
                                                                     'Không thể nhập vé lúc này.',
                                                                 onClick: () => handleAddTicket(batch),
+                                                            },
+                                                            {
+                                                                id: 'delete',
+                                                                label: 'Xóa',
+                                                                icon: <DeleteOutlineIcon fontSize="small" />,
+                                                                danger: true,
+                                                                hidden:
+                                                                    !isImportBatchEditable(batch) ||
+                                                                    !canShowImportBatchDelete(batch),
+                                                                disabled: !canDeleteImportBatch(batch),
+                                                                disabledTitle: getImportBatchDeleteDisabledReason(batch),
+                                                                onClick: () => handleDeleteBatch(batch),
                                                             },
                                                         ]}
                                                     />

@@ -90,7 +90,6 @@ const CANCEL_TYPE_OPTIONS: {
     value: StaffCancelType;
     title: string;
     description: string;
-    preparingOnly?: boolean;
 }[] = [
     {
         value: 'ADMIN_FORCE_CANCEL',
@@ -103,7 +102,6 @@ const CANCEL_TYPE_OPTIONS: {
         title: 'Báo lỗi vé và hủy đơn',
         description:
             'Dùng khi tất cả vé trong đơn bị hư hỏng hoặc thất lạc và không còn vé thay thế. Cần ghi nhận sự cố cho từng vé.',
-        preparingOnly: true,
     },
 ];
 
@@ -241,14 +239,18 @@ export function OrderCancelWithRefundPage() {
     const cancelMutation = useCancelOrderWithRefund();
 
     const tickets = useMemo(() => {
-        if (!order?.orderDetails) return [];
+        if (!order?.orderDetails || !Array.isArray(order.orderDetails)) return [];
         return (order.orderDetails as any[])
-            .map((d) => ({
-                ...resolveOrderDetailTicketDisplay(d),
-                lineSubtotal: Number(d.lineSubtotal ?? d.price ?? 10000),
-                raw: d,
-            }))
-            .filter((t) => t.id != null && t.isIncidentEligible);
+            .map((d, index) => {
+                const display = resolveOrderDetailTicketDisplay(d);
+                return {
+                    ...display,
+                    id: display.id ?? d.id ?? d.ticketId ?? (index + 1),
+                    lineSubtotal: Number(d.lineSubtotal ?? d.price ?? display.price ?? 10000),
+                    raw: d,
+                };
+            })
+            .filter((t) => t.id != null);
     }, [order]);
 
     const refundAmount = useMemo(
@@ -896,10 +898,6 @@ export function OrderCancelWithRefundPage() {
     }, [cancelType, cancelReason, cancelMutation.isPending, isAnyImageUploading, allIncidentsValid]);
 
     const handleSelectType = (type: StaffCancelType) => {
-        if (type === 'OUT_OF_STOCK_INCIDENT' && order?.status !== OrderStatus.PREPARING) {
-            toast.error('Hủy do sự cố kho chỉ áp dụng khi đơn đang ở trạng thái Đang chuẩn bị.');
-            return;
-        }
         setCancelType(type);
     };
 
@@ -991,9 +989,7 @@ export function OrderCancelWithRefundPage() {
         );
     }
 
-    const visibleTypeOptions = CANCEL_TYPE_OPTIONS.filter(
-        (opt) => !opt.preparingOnly || order.status === OrderStatus.PREPARING
-    );
+    const visibleTypeOptions = CANCEL_TYPE_OPTIONS;
 
     return (
         <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto', pb: 4 }}>

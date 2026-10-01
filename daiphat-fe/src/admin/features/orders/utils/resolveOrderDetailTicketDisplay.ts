@@ -4,9 +4,19 @@ import { isAlreadyFaultReportedSerial } from '@/admin/features/ticket/import-bat
 import type { IncidentTicketDisplay } from '../types/incidentTicket.type';
 
 export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisplay {
-    const rawId = detail?.id;
-    const id = rawId != null && Number.isFinite(Number(rawId)) ? Number(rawId) : null;
-    const status = detail?.status as string | undefined;
+    if (!detail) {
+        return {
+            id: null,
+            numbers: '—',
+            stationName: '—',
+            isIncidentEligible: false,
+            isAlreadyFaultReported: false,
+        };
+    }
+
+    const rawId = detail?.id ?? detail?.ticketId ?? detail?.lotteryTicketId;
+    const id = rawId != null ? (Number.isFinite(Number(rawId)) ? Number(rawId) : rawId) : null;
+    const status = (typeof detail?.status === 'string' ? detail.status : (detail?.status?.code || detail?.status?.name)) as string | undefined;
     const statusDisplayName = detail?.statusDisplayName as string | undefined;
     const ticket = detail?.lotteryTicket || detail?.ticket || {};
     const replacementSerial =
@@ -33,6 +43,7 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         effectiveSerial?.numbers ||
         detail?.serialNumber ||
         effectiveSerial?.serialNumber ||
+        detail?.lotteryTicket?.numbers ||
         '—';
     const serialNumber =
         detail?.serialNumber ||
@@ -85,14 +96,15 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         status: serialStatus,
         ticketCondition,
     });
-    const detailActive = status === OrderDetailStatus.ACTIVE || status === 'ACTIVE' || status === OrderDetailStatus.PROXY_HOLDING || status === 'PROXY_HOLDING';
+    const isTerminalStatus = status === OrderDetailStatus.CANCELLED || status === OrderDetailStatus.REFUNDED || status === 'CANCELLED' || status === 'REFUNDED';
+    const detailActive = !isTerminalStatus;
 
     return {
-        id,
-        numbers,
-        serialNumber,
-        stationName,
-        drawDate,
+        id: typeof id === 'number' ? id : (rawId != null ? Number(rawId) || null : null),
+        numbers: String(numbers || '—'),
+        serialNumber: serialNumber ? String(serialNumber) : undefined,
+        stationName: String(stationName || '—'),
+        drawDate: drawDate ? String(drawDate) : undefined,
         status,
         statusDisplayName,
         lotteryTicketId,
@@ -104,9 +116,9 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         isAlreadyFaultReported,
         isIncidentEligible: detailActive && !isAlreadyFaultReported,
         stationId,
-        hasReplacement: detail?.hasReplacement ?? detail?.lotteryTicket?.hasReplacement ?? false,
+        hasReplacement: Boolean(detail?.hasReplacement ?? detail?.lotteryTicket?.hasReplacement ?? false),
         ticketType,
-        price,
+        price: Number(price) || 10000,
         ticketImg,
     };
 }
