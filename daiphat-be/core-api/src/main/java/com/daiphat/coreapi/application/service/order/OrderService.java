@@ -866,10 +866,12 @@ public class OrderService implements OrderServicePort {
 
         if (order.getOrderType() == OrderType.DIRECT) {
             order.cancelDirectOrder(effectiveReason);
+            releaseCancelledOrderTickets(order);
             return;
         }
 
         order.cancelAfterPayment(effectiveReason);
+        releaseCancelledOrderTickets(order);
     }
 
     private void cancelPendingTransactions(OrderModel order, String reason) {
@@ -896,6 +898,32 @@ public class OrderService implements OrderServicePort {
 
             if (transaction.getStatus() == TransactionStatus.PENDING) {
                 transaction.markCancelled(reason);
+            }
+        }
+    }
+
+    private void releaseCancelledOrderTickets(OrderModel order) {
+        if (order.getOrderDetails() == null) {
+            return;
+        }
+        Set<Long> serialIds = new LinkedHashSet<>();
+        for (OrderDetailModel detail : order.getOrderDetails()) {
+            if (detail.getReplacedByTicketSerialId() != null) {
+                serialIds.add(detail.getReplacedByTicketSerialId());
+            } else {
+                if (detail.getAllocatedSerialIds() != null) {
+                    serialIds.addAll(detail.getAllocatedSerialIds());
+                }
+                if (detail.getLotteryTicketSerialId() != null) {
+                    serialIds.add(detail.getLotteryTicketSerialId());
+                }
+            }
+        }
+        for (Long serialId : serialIds) {
+            LotteryTicketSerialModel serial = lotteryTicketSerialServicePort.getByIdOrThrow(serialId);
+            if (serial.getStatus() == com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.RESERVED
+                    || serial.getStatus() == com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.SOLD) {
+                lotteryTicketServicePort.returnSoldTicketForOrder(serialId);
             }
         }
     }

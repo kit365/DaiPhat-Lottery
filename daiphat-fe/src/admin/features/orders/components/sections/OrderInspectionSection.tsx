@@ -2,12 +2,11 @@
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import React, { useEffect, useMemo, useState } from 'react';
-import { useOrderRefundsForInspection } from '../../hooks/useOrder';
+import { useOrderRefundsForInspection, useUpdateOrderStatus } from '../../hooks/useOrder';
 import { getTickets } from '../../../ticket/inventory/services/ticketService';
 import {
     getReplacementCandidates,
     handleOrderTicketIncidents,
-    updateOrderStatus,
     createPartialRefund,
 } from '../../services/orderService';
 import { toast } from 'react-toastify';
@@ -203,6 +202,7 @@ export function OrderInspectionSection({
     onMoveToReadyForPickup,
 }: OrderInspectionSectionProps) {
     const router = useAdminRouter();
+    const { mutateAsync: updateStatus } = useUpdateOrderStatus();
     const [replacementAvailability, setReplacementAvailability] = useState<Record<number, boolean>>({});
     const [availableReplacements, setAvailableReplacements] = useState<Record<number, any[]>>({});
     const [replacements, setReplacements] = useState<Record<number, TicketReplacementState>>({});
@@ -531,7 +531,7 @@ export function OrderInspectionSection({
                 refundReason: reason,
             });
 
-            await updateOrderStatus(orderId, 'PENDING_PICKUP');
+            await updateStatus({ id: orderId, status: 'PENDING_PICKUP' });
 
             toast.success('Đã tạo yêu cầu hoàn tiền và cập nhật đơn hàng thành công');
             setOpenRefundDialog(false);
@@ -564,7 +564,7 @@ export function OrderInspectionSection({
                         damagedEvidenceUrl: state.damagedEvidenceUrl
                     }));
                     await createPartialRefund(orderId, { incidents });
-                    await updateOrderStatus(orderId, 'PENDING_PICKUP');
+                    await updateStatus({ id: orderId, status: 'PENDING_PICKUP' });
                     toast.success('Đã đổi vé và chuyển sang chờ nhận vé thành công');
                     if (onCancel) onCancel();
                     if (onSuccess) onSuccess();

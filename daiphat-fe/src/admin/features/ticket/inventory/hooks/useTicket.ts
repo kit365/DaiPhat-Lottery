@@ -24,6 +24,9 @@ export const useTickets = (params?: any, options?: any, requestConfig?: TicketLi
     return useQuery({
         queryKey: [QUERY_KEYS.TICKETS, params],
         queryFn: () => getTickets(params, requestConfig),
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
+        refetchInterval: 15_000,
         ...options,
     });
 };
@@ -32,6 +35,9 @@ export const useTicketDetail = (id?: string | number) => {
     return useQuery({
         queryKey: [QUERY_KEYS.TICKET_DETAIL, id],
         queryFn: () => getTicketById(id!),
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
+        refetchInterval: 15_000,
         enabled: !!id,
         select: (res: ApiResponse<any>) => res.data,
     });

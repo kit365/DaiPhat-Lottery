@@ -2,7 +2,8 @@
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useRouteParams } from "@/hooks/useRouteParams";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
     Box,
     Card,
@@ -76,6 +77,11 @@ export const OrderDetailPage = () => {
     const order = orderRes?.data;
     const { mutate: updateStatus, isPending: isUpdatingStatus } = useUpdateOrderStatus();
     const [isInspectionStarted, setIsInspectionStarted] = useState(false);
+    const searchParams = useSearchParams();
+    const startInspection = searchParams?.get('inspection') === 'start';
+    useEffect(() => {
+        setIsInspectionStarted(startInspection && order?.status === OrderStatus.PREPARING);
+    }, [id, startInspection, order?.status]);
     const [handoverDialogOpen, setHandoverDialogOpen] = useState(false);
     const [legacyHandoverDialogOpen, setLegacyHandoverDialogOpen] = useState(false);
     const uploadEvidenceMutation = useUploadOrderHandoverEvidence();
@@ -284,9 +290,7 @@ export const OrderDetailPage = () => {
                         </Button>
                     )}
                     <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
-                        {[OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP].includes(
-                            order.status as OrderStatus
-                        ) && (
+                        {!isTerminalStatus && (
                             <Button
                                 variant="contained"
                                 color="warning"
