@@ -61,6 +61,9 @@ import java.util.Set;
 @Slf4j
 public class VendorTestTicketSeedInitializer implements ApplicationRunner {
 
+    @org.springframework.beans.factory.annotation.Value("${daiphat.official-demo.seed.enabled:false}")
+    private boolean officialDemoEnabled;
+
     private static final String SEED_MARKER = SharedSeedConstants.VENDOR_SEED_MARKER;
 
     private final LotteryStationRepository stationRepository;
@@ -100,6 +103,10 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        if (officialDemoEnabled) {
+            log.info("Skipping legacy vendor test tickets in official demo mode.");
+            return;
+        }
         LocalDate today = vietnamClock.today();
         transaction.executeWithoutResult(status -> {
             seed(today.minusDays(properties.getHistoricalDays()));
@@ -141,7 +148,7 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
         }
 
         LocalDateTime now = vietnamClock.now();
-        LotterySupplierEntity supplier = seedSupplierSupport.ensureMinhNgoc(now);
+        LotterySupplierEntity supplier = seedSupplierSupport.ensureMinhChinh(now);
 
         // Deterministic seq from draw date offset vs today so restarts stay stable.
         int dayOffset = (int) java.time.temporal.ChronoUnit.DAYS.between(vietnamClock.today(), drawDate);

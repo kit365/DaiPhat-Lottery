@@ -61,6 +61,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
 
+    @org.springframework.beans.factory.annotation.Value("${daiphat.official-demo.seed.enabled:false}")
+    private boolean officialDemoEnabled;
+
     private final LuckyPatternConfigRepository luckyPatternConfigRepository;
     private final LuckyPatternConfigServicePort luckyPatternConfigService;
     private final LotteryStationRepository stationRepository;
@@ -104,6 +107,10 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        if (officialDemoEnabled) {
+            log.info("Skipping legacy lucky-pattern test inventory in official demo mode.");
+            return;
+        }
         transaction.executeWithoutResult(status -> {
             seedPatterns();
             LocalDate today = vietnamClock.today();
@@ -158,7 +165,7 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
         }
 
         LocalDateTime now = vietnamClock.now();
-        LotterySupplierEntity supplier = seedSupplierSupport.ensureMinhNgoc(now);
+        LotterySupplierEntity supplier = seedSupplierSupport.ensureMinhChinh(now);
 
         int dayOffset = (int) java.time.temporal.ChronoUnit.DAYS.between(vietnamClock.today(), drawDate);
         int headerSeq = SeedDocumentCodes.LANE_IMPORT_LUCKY + dayOffset + 10;
