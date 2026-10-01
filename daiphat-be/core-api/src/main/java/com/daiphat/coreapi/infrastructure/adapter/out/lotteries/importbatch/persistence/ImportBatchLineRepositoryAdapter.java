@@ -26,7 +26,14 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
 
     @Override
     public ImportBatchLineModel save(ImportBatchLineModel model) {
-        var entity = importBatchLinePersistenceMapper.toEntity(model);
+        var entity = model.getId() == null
+                ? importBatchLinePersistenceMapper.toEntity(model)
+                : importBatchLineRepository.findById(model.getId())
+                        .map(existing -> {
+                            importBatchLinePersistenceMapper.updateEntityFromModel(model, existing);
+                            return existing;
+                        })
+                        .orElseGet(() -> importBatchLinePersistenceMapper.toEntity(model));
         if (model.getImportBatchId() != null) {
             ImportBatchEntity batch = importBatchRepository.getReferenceById(model.getImportBatchId());
             entity.setImportBatch(batch);
@@ -56,7 +63,10 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
             Long lotteryStationId
     ) {
         return importBatchLineRepository
-                .findByImportBatch_IdAndLotteryStation_IdAndDeletedAtIsNotNull(importBatchId, lotteryStationId)
+                .findFirstByImportBatch_IdAndLotteryStation_IdAndDeletedAtIsNotNullOrderByDeletedAtDescIdDesc(
+                        importBatchId,
+                        lotteryStationId
+                )
                 .map(importBatchLinePersistenceMapper::toDomain);
     }
 

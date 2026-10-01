@@ -676,7 +676,10 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             }
         }
 
-        SupplierSettlementResponse settlementResponse = supplierSettlementApplicationMapper.toResponse(settlement);
+        SupplierSettlementResponse settlementResponse = supplierSettlementApplicationMapper.toResponse(
+                settlement,
+                resolveActorDisplayName(settlement.getCompletedBy())
+        );
 
         List<ImportBatchResponse> importBatches = importBatchRepositoryPort.findBySupplierSettlementId(id).stream()
                 .map(batch -> importBatchApplicationMapper.toResponse(
@@ -722,7 +725,10 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         );
         if (settlement.getMatchingConfirmedAt() == null && settlement.getSystemTicketImportPrice() == null) {
             applyAfterCommissionMatchingBaseline(settlement, stationPricing);
-            settlementResponse = supplierSettlementApplicationMapper.toResponse(settlement);
+            settlementResponse = supplierSettlementApplicationMapper.toResponse(
+                    settlement,
+                    resolveActorDisplayName(settlement.getCompletedBy())
+            );
         }
 
         int imported = inventoryByStation.stream().mapToInt(SettlementStationInventoryResponse::importedQuantity).sum();

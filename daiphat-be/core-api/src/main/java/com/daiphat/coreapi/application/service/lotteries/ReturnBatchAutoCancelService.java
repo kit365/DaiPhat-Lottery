@@ -72,7 +72,8 @@ public class ReturnBatchAutoCancelService {
         if (!batch.getStatus().isOpenForInspection()) {
             return false;
         }
-        if (batch.getNote() != null && batch.getNote().startsWith("SEED-RETURN-")) {
+        if (batch.getNote() != null && batch.getNote().startsWith("SEED-RETURN-")
+                && !batch.getNote().startsWith("SEED-RETURN-OFFICIAL-")) {
             return false;
         }
         LocalTime cutOff = batch.getReturnCutOffTime();

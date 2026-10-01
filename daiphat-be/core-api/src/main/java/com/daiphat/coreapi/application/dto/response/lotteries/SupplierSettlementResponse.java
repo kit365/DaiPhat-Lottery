@@ -67,6 +67,7 @@ public record SupplierSettlementResponse(
         UUID matchingConfirmedBy,
         LocalDateTime completedAt,
         UUID completedBy,
+        String completedByDisplayName,
         Long transactionId,
         LocalDateTime paidAt,
         LocalDateTime createdAt,

@@ -20,6 +20,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineReposit
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
@@ -82,6 +83,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     private final ImportBatchConfigResolver importBatchConfigResolver;
     private final ReturnBatchAutoCancelService returnBatchAutoCancelService;
     private final ReturnBatchCodeGenerator returnBatchCodeGenerator;
+    private final UserRepositoryPort userRepositoryPort;
     private final Clock clock;
 
     @Override
@@ -824,7 +826,12 @@ public class ReturnBatchService implements ReturnBatchServicePort {
 
     private ReturnBatchResponse toListResponse(ReturnBatchModel model) {
         Integer remaining = countRemainingInspectable(model, null);
-        return returnBatchApplicationMapper.toResponse(model, null, remaining);
+        return returnBatchApplicationMapper.toResponse(
+                model,
+                null,
+                remaining,
+                resolveActorDisplayName(model.getReturnedBy())
+        );
     }
 
     private ReturnBatchResponse toDetailResponse(Long batchId) {
@@ -843,7 +850,29 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                     );
                 })
                 .toList();
-        return returnBatchApplicationMapper.toResponse(batch, lineResponses);
+        return returnBatchApplicationMapper.toResponse(
+                batch,
+                lineResponses,
+                null,
+                resolveActorDisplayName(batch.getReturnedBy())
+        );
+    }
+
+    private String resolveActorDisplayName(UUID actorId) {
+        if (actorId == null) {
+            return null;
+        }
+        return userRepositoryPort.findById(actorId)
+                .map(user -> {
+                    String fullName = user.getFullName();
+                    if (fullName != null && !fullName.isBlank() && !"User".equalsIgnoreCase(fullName)) {
+                        return fullName;
+                    }
+                    return user.getUsername() != null && !user.getUsername().isBlank()
+                            ? user.getUsername()
+                            : actorId.toString();
+                })
+                .orElse(actorId.toString());
     }
 
     private Integer countRemainingInspectable(ReturnBatchModel batch, Set<Long> stationIds) {

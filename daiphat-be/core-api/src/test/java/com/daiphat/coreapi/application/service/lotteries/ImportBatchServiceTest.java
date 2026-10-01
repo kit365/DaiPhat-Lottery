@@ -191,8 +191,8 @@ class ImportBatchServiceTest {
     }
 
     @Test
-    @DisplayName("create is soft-blocked when matching unfinished batch exists")
-    void create_matchingUnfinishedBatch_throwsWithExistingBatch() {
+    @DisplayName("create is blocked by any unfinished batch on the same draw date")
+    void create_unfinishedBatchForDrawDate_throwsWithExistingBatch() {
         fixedClock(LocalDateTime.of(2026, 7, 6, 10, 0));
         ImportBatchModel existing = ImportBatchModel.builder()
                 .id(99L)
@@ -211,9 +211,8 @@ class ImportBatchServiceTest {
                 .status(ImportBatchStatus.DRAFT)
                 .build();
 
-        when(importBatchRepositoryPort.findEditableBatchByImportedByAndDrawDateAndSupplierAndImportMode(
-                eq(OPERATOR_ID), eq(DRAW_DATE), eq(SUPPLIER_ID), eq(ImportBatchImportMode.IN_DAY)
-        )).thenReturn(Optional.of(existing));
+        when(importBatchRepositoryPort.findUnfinishedBatchByDrawDate(eq(DRAW_DATE), eq(null)))
+                .thenReturn(Optional.of(existing));
         when(importBatchApplicationMapper.toResponse(existing)).thenReturn(existingResponse);
 
         assertThatThrownBy(() -> importBatchService.create(buildRequest("https://cdn.example/invoice.jpg"), OPERATOR_ID))
@@ -221,14 +220,14 @@ class ImportBatchServiceTest {
                 .satisfies(ex -> {
                     DomainException domainException = (DomainException) ex;
                     assertThat(domainException.getErrorCode())
-                            .isEqualTo(ErrorCode.IMPORT_BATCH_DRAFT_ALREADY_EXISTS);
+                            .isEqualTo(ErrorCode.IMPORT_BATCH_UNFINISHED_EXISTS);
                     assertThat(domainException.getData()).isEqualTo(existingResponse);
                 });
     }
 
     @Test
-    @DisplayName("create with forceCreate bypasses unfinished duplicate soft-block")
-    void create_forceCreate_bypassesMatchingUnfinishedBatch() {
+    @DisplayName("create with forceCreate cannot bypass the date-level unfinished batch guard")
+    void create_forceCreate_cannotBypassUnfinishedBatchForDrawDate() {
         fixedClock(LocalDateTime.of(2026, 7, 6, 10, 0));
         ImportBatchModel existing = ImportBatchModel.builder()
                 .id(99L)
@@ -237,33 +236,10 @@ class ImportBatchServiceTest {
                 .importMode(ImportBatchImportMode.IN_DAY)
                 .status(ImportBatchStatus.DRAFT)
                 .build();
-        when(importBatchRepositoryPort.findEditableBatchByImportedByAndDrawDateAndSupplierAndImportMode(
-                eq(OPERATOR_ID), eq(DRAW_DATE), eq(SUPPLIER_ID), eq(ImportBatchImportMode.IN_DAY)
-        )).thenReturn(Optional.of(existing));
-
-        when(lotteryStationServicePort.getModelById(1L)).thenReturn(activeStation);
-        when(importBatchTypeResolver.resolve(1L, DRAW_DATE, activeStation, ImportBatchImportMode.IN_DAY))
-                .thenReturn(new ImportBatchTypeResolver.ClassificationResult(ImportBatchType.NEW, false, List.of()));
-
-        ImportBatchLineModel lineModel = ImportBatchLineModel.builder()
-                .lotteryStationId(1L)
-                .declareQuantity(10)
-                .importCost(BigDecimal.valueOf(10000))
-                .build();
-        when(importBatchApplicationMapper.toLineModel(any())).thenReturn(lineModel);
-
-        ImportBatchModel saved = ImportBatchModel.builder()
-                .id(10L)
-                .drawDate(DRAW_DATE)
-                .status(ImportBatchStatus.DRAFT)
-                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
-                .lines(new ArrayList<>(List.of(lineModel)))
-                .build();
-        lineModel.setBatchType(ImportBatchType.NEW);
-
-        when(importBatchRepositoryPort.save(any(ImportBatchModel.class))).thenReturn(saved);
-        when(importBatchApplicationMapper.toResponse(eq(saved), eq(false), any()))
-                .thenReturn(ImportBatchResponse.builder().id(10L).build());
+        when(importBatchRepositoryPort.findUnfinishedBatchByDrawDate(eq(DRAW_DATE), eq(null)))
+                .thenReturn(Optional.of(existing));
+        when(importBatchApplicationMapper.toResponse(existing))
+                .thenReturn(ImportBatchResponse.builder().id(99L).build());
 
         CreateImportBatchRequest request = CreateImportBatchRequest.builder()
                 .drawDate(DRAW_DATE)
@@ -275,10 +251,11 @@ class ImportBatchServiceTest {
                 .lines(List.of(buildLine(1L, 10)))
                 .build();
 
-        ImportBatchResponse response = importBatchService.create(request, OPERATOR_ID);
-
-        assertThat(response.id()).isEqualTo(10L);
-        verify(importBatchRepositoryPort).save(any(ImportBatchModel.class));
+        assertThatThrownBy(() -> importBatchService.create(request, OPERATOR_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_UNFINISHED_EXISTS);
+        verify(importBatchRepositoryPort, org.mockito.Mockito.never()).save(any(ImportBatchModel.class));
     }
 
     @Test
@@ -471,6 +448,54 @@ class ImportBatchServiceTest {
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.IMPORT_BATCH_ALL_STATIONS_DRAFT);
+    }
+
+    @Test
+    @DisplayName("cancelDraft rejects a batch containing an IMPORTED line")
+    void cancelDraft_importedLine_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 6, 10, 0));
+        ImportBatchLineModel line = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .status(ImportBatchLineStatus.IMPORTED)
+                .build();
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.PARTIALLY_IMPORTED)
+                .importedBy(OPERATOR_ID)
+                .lines(new ArrayList<>(List.of(line)))
+                .build();
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(line));
+
+        assertThatThrownBy(() -> importBatchService.cancelDraft(10L, OPERATOR_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_HAS_IMPORTED_LINE);
+    }
+
+    @Test
+    @DisplayName("cancelDraft rejects a batch containing an active IMPORTING line")
+    void cancelDraft_importingLine_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 6, 10, 0));
+        ImportBatchLineModel line = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .status(ImportBatchLineStatus.IMPORTING)
+                .build();
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .importedBy(OPERATOR_ID)
+                .lines(new ArrayList<>(List.of(line)))
+                .build();
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(line));
+
+        assertThatThrownBy(() -> importBatchService.cancelDraft(10L, OPERATOR_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_HAS_IMPORTING_LINE);
     }
 
     @Test

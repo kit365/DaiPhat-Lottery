@@ -40,8 +40,12 @@ logging:
     org.hibernate.SQL: INFO
 
 daiphat:
-  # Demo seed suite — same runners as local, gated by env (defaults off).
-  # Flip AUTH_SEED_*/LOTTERY_SEED_*/ORDER_SEED_*/VENDOR_TEST_SEED_* in .env.prod to mirror local.
+  # Official demo seed suite — mirrors local so its blog/catalog runner is
+  # registered in production too. Set OFFICIAL_DEMO_SEED_ENABLED=false to opt out.
+  official-demo:
+    seed:
+      enabled: ${OFFICIAL_DEMO_SEED_ENABLED:true}
+  # Other seed suites remain explicitly opt-in in production.
   auth:
     seed:
       enabled: ${AUTH_SEED_ENABLED:false}

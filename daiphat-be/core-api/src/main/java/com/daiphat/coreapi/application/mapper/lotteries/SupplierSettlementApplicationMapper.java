@@ -24,6 +24,13 @@ public class SupplierSettlementApplicationMapper {
     private final Clock clock;
 
     public SupplierSettlementResponse toResponse(SupplierSettlementModel model) {
+        return toResponse(model, null);
+    }
+
+    public SupplierSettlementResponse toResponse(
+            SupplierSettlementModel model,
+            String completedByDisplayName
+    ) {
         if (model == null) {
             return null;
         }
@@ -112,6 +119,7 @@ public class SupplierSettlementApplicationMapper {
                 .matchingConfirmedBy(model.getMatchingConfirmedBy())
                 .completedAt(model.getCompletedAt())
                 .completedBy(model.getCompletedBy())
+                .completedByDisplayName(completedByDisplayName)
                 .transactionId(model.getTransactionId())
                 .paidAt(model.getPaidAt())
                 .createdAt(model.getCreatedAt())

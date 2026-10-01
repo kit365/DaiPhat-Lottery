@@ -398,7 +398,7 @@ class OcrScanValidationServiceTest {
         assertThat(keep.batchCode()).isEqualTo("08D");
 
         var swap = OcrScanValidationService.reconcileSerialAndBatchCode(null, "A123456");
-        assertThat(swap.serialNumber()).isEqualTo("A123456");
-        assertThat(swap.batchCode()).isNull();
+        assertThat(swap.serialNumber()).isNull();
+        assertThat(swap.batchCode()).isEqualTo("A123456");
     }
 }

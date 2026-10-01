@@ -105,6 +105,12 @@ public class OcrFieldValidationRuleService {
     }
 
     private static void rejectTicketFrame(OcrTemplateFieldName fieldName) {
+        if (fieldName == OcrTemplateFieldName.serialSymbol) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Ký hiệu Serial chỉ dùng để bổ sung chữ cái cho Số serial; áp dụng quy tắc kiểm tra trên Số serial."
+            );
+        }
         if (fieldName != null && fieldName.isTicketFrame()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,

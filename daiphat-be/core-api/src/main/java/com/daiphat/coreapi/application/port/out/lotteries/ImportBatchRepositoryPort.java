@@ -33,6 +33,12 @@ public interface ImportBatchRepositoryPort {
             ImportBatchImportMode importMode
     );
 
+    /**
+     * Finds the one batch that still owns the import workflow for a draw date.
+     * A new batch must not be created until this batch is finished or cancelled.
+     */
+    Optional<ImportBatchModel> findUnfinishedBatchByDrawDate(LocalDate drawDate, Long excludeBatchId);
+
     Page<ImportBatchModel> findAll(
             Pageable pageable,
             Long lotteryStationId,

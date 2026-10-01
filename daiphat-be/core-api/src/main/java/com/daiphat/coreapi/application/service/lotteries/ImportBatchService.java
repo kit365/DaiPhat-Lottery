@@ -128,6 +128,7 @@ public class ImportBatchService implements ImportBatchServicePort {
             );
         }
         validateInDayCreateAllowed(request);
+        validateNoUnfinishedBatchForDrawDate(request.drawDate());
 
         if (!Boolean.TRUE.equals(request.forceCreate())) {
             importBatchRepositoryPort
@@ -658,12 +659,25 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         LocalDateTime now = LocalDateTime.now(clock);
         List<ImportBatchLineModel> lines = importBatchLineRepositoryPort.findByImportBatchId(batchId);
+        boolean hasImportedLine = lines.stream()
+                .filter(line -> line.getDeletedAt() == null)
+                .anyMatch(line -> line.getStatus() == ImportBatchLineStatus.IMPORTED);
+        if (hasImportedLine) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_HAS_IMPORTED_LINE);
+        }
+
+        boolean hasImportingLine = lines.stream()
+                .filter(line -> line.getDeletedAt() == null)
+                .anyMatch(line -> line.getStatus() == ImportBatchLineStatus.IMPORTING);
+        if (hasImportingLine) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_HAS_IMPORTING_LINE);
+        }
+
         for (ImportBatchLineModel line : lines) {
             if (line.getDeletedAt() != null) {
                 continue;
             }
             if (line.getStatus() == ImportBatchLineStatus.OPEN
-                    || line.getStatus() == ImportBatchLineStatus.IMPORTING
                     || line.getStatus() == ImportBatchLineStatus.PAUSED) {
                 lotteryTicketServicePort.purgeImportBatchLineTickets(line.getId());
             }
@@ -781,6 +795,10 @@ public class ImportBatchService implements ImportBatchServicePort {
         return ImportBatchEligibleStationsResponse.builder()
                 .eligible(eligible)
                 .blocked(blocked)
+                .unfinishedBatch(importBatchRepositoryPort
+                        .findUnfinishedBatchByDrawDate(drawDate, excludeBatchId)
+                        .map(importBatchApplicationMapper::toResponse)
+                        .orElse(null))
                 .build();
     }
 
@@ -995,6 +1013,21 @@ public class ImportBatchService implements ImportBatchServicePort {
         if (!anyEligible) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_ALL_STATIONS_DRAFT);
         }
+    }
+
+    /**
+     * The import workflow is date-scoped.  This deliberately runs before the
+     * legacy operator/supplier duplicate check and is never bypassed by
+     * forceCreate, which keeps direct API calls from creating parallel batches.
+     */
+    private void validateNoUnfinishedBatchForDrawDate(LocalDate drawDate) {
+        importBatchRepositoryPort.findUnfinishedBatchByDrawDate(drawDate, null)
+                .ifPresent(existing -> {
+                    throw new DomainException(
+                            ErrorCode.IMPORT_BATCH_UNFINISHED_EXISTS,
+                            importBatchApplicationMapper.toResponse(existing)
+                    );
+                });
     }
 
     private void ensureUniqueStations(List<CreateImportBatchLineRequest> lines) {
