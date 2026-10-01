@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.FinalizeSettlementProcessingRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CompleteSettlementReconciliationRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementOverviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMapper;
@@ -14,16 +16,21 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRep
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementAdjustmentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.StationCommissionSnapshot;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
+import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
 import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
 import com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy;
@@ -36,6 +43,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
@@ -48,9 +56,11 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -63,6 +73,8 @@ class SupplierSettlementServiceTest {
 
     @Mock
     private SupplierSettlementRepositoryPort supplierSettlementRepositoryPort;
+    @Mock
+    private TransactionRepositoryPort transactionRepositoryPort;
     @Mock
     private SupplierSettlementAdjustmentRepositoryPort supplierSettlementAdjustmentRepositoryPort;
     @Mock
@@ -113,6 +125,8 @@ class SupplierSettlementServiceTest {
         lenient().when(lotteryStationRepositoryPort.findByNextDrawDate(any())).thenReturn(List.of());
         lenient().when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of());
         lenient().when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
+        lenient().when(supplierPaymentCutOffCalculator.resolveOpeningStatus(any(), any(), any()))
+                .thenReturn(SupplierSettlementStatus.OPEN);
         lenient().when(discrepancyInventoryHelper.mergeUnbackedAdjustmentInventory(any(), any()))
                 .thenAnswer(invocation -> {
                     List<?> inventory = invocation.getArgument(1);
@@ -202,6 +216,123 @@ class SupplierSettlementServiceTest {
         assertThat(saved.getStatus()).isEqualTo(SupplierSettlementStatus.OPEN);
         assertThat(saved.getSystemTicketImportPrice()).isEqualByComparingTo("10000.000");
         assertThat(result.getId()).isEqualTo(11L);
+    }
+
+    @Test
+    @DisplayName("creates settlement as NOT_OPEN before the payment reconciliation window")
+    void findOrCreate_beforePaymentWindow_createsNotOpen() {
+        LocalDate drawDate = LocalDate.of(2026, 7, 31);
+        LocalTime paymentCutOff = LocalTime.of(17, 0);
+        LotterySupplierModel supplier = LotterySupplierModel.builder()
+                .id(7L)
+                .paymentTermDays(0)
+                .paymentCutOffTime(paymentCutOff)
+                .build();
+        when(supplierSettlementRepositoryPort.findBySupplierIdAndPeriodFrom(7L, drawDate))
+                .thenReturn(Optional.empty());
+        when(supplierSettlementCodeGenerator.generateCode(drawDate)).thenReturn("DS-20260731-0002");
+        when(supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                eq(drawDate), eq(paymentCutOff), any(LocalDateTime.class)
+        )).thenReturn(SupplierSettlementStatus.NOT_OPEN);
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SupplierSettlementModel result = supplierSettlementService.findOrCreateForImport(supplier, drawDate);
+
+        assertThat(result.getStatus()).isEqualTo(SupplierSettlementStatus.NOT_OPEN);
+    }
+
+    @Test
+    @DisplayName("re-evaluates an existing NOT_OPEN settlement when the payment window starts")
+    void findOrCreate_existingNotOpen_afterWindow_persistsOpen() {
+        LocalDate drawDate = LocalDate.of(2026, 7, 31);
+        LocalTime paymentCutOff = LocalTime.of(17, 0);
+        LotterySupplierModel supplier = LotterySupplierModel.builder()
+                .id(7L)
+                .paymentCutOffTime(paymentCutOff)
+                .build();
+        SupplierSettlementModel existing = SupplierSettlementModel.builder()
+                .id(99L)
+                .lotterySupplierId(7L)
+                .periodFrom(drawDate)
+                .status(SupplierSettlementStatus.NOT_OPEN)
+                .build();
+        when(supplierSettlementRepositoryPort.findBySupplierIdAndPeriodFrom(7L, drawDate))
+                .thenReturn(Optional.of(existing));
+        when(supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                eq(drawDate), eq(paymentCutOff), any(LocalDateTime.class)
+        )).thenReturn(SupplierSettlementStatus.OPEN);
+        when(supplierSettlementRepositoryPort.save(existing)).thenReturn(existing);
+
+        SupplierSettlementModel result = supplierSettlementService.findOrCreateForImport(supplier, drawDate);
+
+        assertThat(result.getStatus()).isEqualTo(SupplierSettlementStatus.OPEN);
+        verify(supplierSettlementRepositoryPort).save(existing);
+    }
+
+    @Test
+    @DisplayName("loading settlement detail persists NOT_OPEN to OPEN when its payment window starts")
+    void getById_afterPaymentWindow_persistsOpen() {
+        LocalDate drawDate = LocalDate.of(2026, 7, 31);
+        LocalTime paymentCutOff = LocalTime.of(17, 0);
+        SupplierSettlementModel existing = SupplierSettlementModel.builder()
+                .id(99L)
+                .lotterySupplierId(7L)
+                .periodFrom(drawDate)
+                .status(SupplierSettlementStatus.NOT_OPEN)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(99L)).thenReturn(Optional.of(existing));
+        when(lotterySupplierRepositoryPort.findById(7L)).thenReturn(Optional.of(
+                LotterySupplierModel.builder()
+                        .id(7L)
+                        .paymentCutOffTime(paymentCutOff)
+                        .build()
+        ));
+        when(supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                eq(drawDate), eq(paymentCutOff), any(LocalDateTime.class)
+        )).thenReturn(SupplierSettlementStatus.OPEN);
+        when(supplierSettlementRepositoryPort.save(existing)).thenReturn(existing);
+        when(supplierSettlementApplicationMapper.toResponse(existing)).thenReturn(
+                SupplierSettlementResponse.builder()
+                        .id(99L)
+                        .status(SupplierSettlementStatus.OPEN)
+                        .build()
+        );
+
+        SupplierSettlementResponse result = supplierSettlementService.getById(99L);
+
+        assertThat(result.status()).isEqualTo(SupplierSettlementStatus.OPEN);
+        verify(supplierSettlementRepositoryPort).save(existing);
+    }
+
+    @Test
+    @DisplayName("loading the list corrects a future OPEN settlement to NOT_OPEN")
+    void getAll_futureOpen_persistsNotOpen() {
+        LocalDate tomorrow = LocalDate.of(2026, 8, 1);
+        LocalTime paymentCutOff = LocalTime.of(18, 30);
+        SupplierSettlementModel existing = SupplierSettlementModel.builder()
+                .id(99L)
+                .lotterySupplierId(7L)
+                .periodFrom(tomorrow)
+                .status(SupplierSettlementStatus.OPEN)
+                .build();
+        when(supplierSettlementRepositoryPort.findByStatuses(any())).thenReturn(List.of(existing));
+        when(lotterySupplierRepositoryPort.findById(7L)).thenReturn(Optional.of(
+                LotterySupplierModel.builder().id(7L).paymentCutOffTime(paymentCutOff).build()
+        ));
+        when(supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                eq(tomorrow), eq(paymentCutOff), any(LocalDateTime.class)
+        )).thenReturn(SupplierSettlementStatus.NOT_OPEN);
+        when(supplierSettlementRepositoryPort.save(existing)).thenReturn(existing);
+        when(supplierSettlementRepositoryPort.findAll(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(existing)));
+        when(supplierSettlementApplicationMapper.toResponse(existing)).thenReturn(
+                SupplierSettlementResponse.builder().id(99L).status(SupplierSettlementStatus.NOT_OPEN).build()
+        );
+
+        supplierSettlementService.getAll(1, 10, null, null, null, null, null, "periodFrom", "DESC");
+
+        assertThat(existing.getStatus()).isEqualTo(SupplierSettlementStatus.NOT_OPEN);
+        verify(supplierSettlementRepositoryPort).save(existing);
     }
 
     @Test
@@ -581,5 +712,143 @@ class SupplierSettlementServiceTest {
         supplierSettlementService.recalculateAmounts(5L);
         assertThat(settlement.getSystemReturnQuantity()).isEqualTo(12);
         assertThat(settlement.getInitialEstimatedSettlementValue()).isEqualByComparingTo("792000.000");
+    }
+
+    @Test
+    @DisplayName("finalizeProcessing: retry is idempotent after settlement is waiting for payment")
+    void finalizeProcessing_whenAlreadyWaitingForPayment_returnsCurrentSnapshot() {
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(42L)
+                .status(SupplierSettlementStatus.WAITING_FOR_PAYMENT)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.RECALCULATED)
+                .build();
+        SupplierSettlementResponse response = SupplierSettlementResponse.builder()
+                .id(42L)
+                .status(SupplierSettlementStatus.WAITING_FOR_PAYMENT)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(42L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementApplicationMapper.toResponse(settlement)).thenReturn(response);
+
+        SupplierSettlementResponse result = supplierSettlementService.finalizeProcessing(
+                42L,
+                new FinalizeSettlementProcessingRequest(null, null, null, null),
+                UUID.randomUUID()
+        );
+
+        assertThat(result.status()).isEqualTo(SupplierSettlementStatus.WAITING_FOR_PAYMENT);
+        verify(supplierSettlementRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("completeReconciliation: transfer creates supplier transaction and completes settlement")
+    void completeReconciliation_transfer_createsTransactionAndCompletesSettlement() {
+        UUID actorId = UUID.randomUUID();
+        BigDecimal payable = new BigDecimal("2850000.000");
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(42L)
+                .supplierSettlementCode("DS-20260731-0042")
+                .lotterySupplierId(7L)
+                .periodFrom(LocalDate.of(2026, 7, 31))
+                .status(SupplierSettlementStatus.WAITING_FOR_PAYMENT)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.RECALCULATED)
+                .finalSettlementValue(payable)
+                .recalculatedTotalPaidAmount(payable)
+                .actualPaidAmount(payable)
+                .initialEstimatedSettlementValue(payable)
+                .paymentEvidenceUrls(List.of("https://cdn.example.com/payment.jpg"))
+                .build();
+        LotterySupplierModel supplier = LotterySupplierModel.builder()
+                .id(7L)
+                .paymentCutOffTime(LocalTime.of(9, 0))
+                .build();
+        SupplierSettlementResponse response = SupplierSettlementResponse.builder()
+                .id(42L)
+                .status(SupplierSettlementStatus.COMPLETED)
+                .transactionId(91L)
+                .build();
+
+        when(supplierSettlementRepositoryPort.findById(42L)).thenReturn(Optional.of(settlement));
+        when(lotterySupplierRepositoryPort.findById(7L)).thenReturn(Optional.of(supplier));
+        when(supplierPaymentCutOffCalculator.isReconciliationWindowOpen(any(), any(), any())).thenReturn(true);
+        when(supplierSettlementAdjustmentRepositoryPort.findBySettlementId(42L)).thenReturn(List.of());
+        when(transactionRepositoryPort.save(any())).thenAnswer(invocation -> {
+            TransactionModel transaction = invocation.getArgument(0);
+            transaction.setId(91L);
+            return transaction;
+        });
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(supplierSettlementApplicationMapper.toResponse(settlement)).thenReturn(response);
+
+        var result = supplierSettlementService.completeReconciliation(
+                42L,
+                new CompleteSettlementReconciliationRequest(null, TransactionType.ONLINE, null),
+                actorId
+        );
+
+        ArgumentCaptor<TransactionModel> transactionCaptor = ArgumentCaptor.forClass(TransactionModel.class);
+        verify(transactionRepositoryPort).save(transactionCaptor.capture());
+        TransactionModel transaction = transactionCaptor.getValue();
+        assertThat(result.completed()).isTrue();
+        assertThat(settlement.getStatus()).isEqualTo(SupplierSettlementStatus.COMPLETED);
+        assertThat(settlement.getTransactionId()).isEqualTo(91L);
+        assertThat(transaction.getType()).isEqualTo(TransactionType.ONLINE);
+        assertThat(transaction.getTransactionType()).isEqualTo(TransactionBusinessType.SUPPLIER_PAYMENT);
+        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.COMPLETED);
+        assertThat(transaction.getAmount()).isEqualByComparingTo(payable);
+        assertThat(transaction.getPaymentEvidenceUrl()).isEqualTo("https://cdn.example.com/payment.jpg");
+    }
+
+    @Test
+    @DisplayName("completeReconciliation: cash uses entered amount without requiring transfer receipt")
+    void completeReconciliation_cash_usesEnteredAmount() {
+        BigDecimal payable = new BigDecimal("2850000.000");
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(43L)
+                .supplierSettlementCode("DS-20260731-0043")
+                .lotterySupplierId(7L)
+                .periodFrom(LocalDate.of(2026, 7, 31))
+                .status(SupplierSettlementStatus.WAITING_FOR_PAYMENT)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.RECALCULATED)
+                .finalSettlementValue(payable)
+                .recalculatedTotalPaidAmount(payable)
+                .actualPaidAmount(payable)
+                .initialEstimatedSettlementValue(payable)
+                .build();
+        LotterySupplierModel supplier = LotterySupplierModel.builder()
+                .id(7L)
+                .paymentCutOffTime(LocalTime.of(9, 0))
+                .build();
+        SupplierSettlementResponse response = SupplierSettlementResponse.builder()
+                .id(43L)
+                .status(SupplierSettlementStatus.COMPLETED)
+                .transactionId(92L)
+                .build();
+
+        when(supplierSettlementRepositoryPort.findById(43L)).thenReturn(Optional.of(settlement));
+        when(lotterySupplierRepositoryPort.findById(7L)).thenReturn(Optional.of(supplier));
+        when(supplierPaymentCutOffCalculator.isReconciliationWindowOpen(any(), any(), any())).thenReturn(true);
+        when(supplierSettlementAdjustmentRepositoryPort.findBySettlementId(43L)).thenReturn(List.of());
+        when(transactionRepositoryPort.save(any())).thenAnswer(invocation -> {
+            TransactionModel transaction = invocation.getArgument(0);
+            transaction.setId(92L);
+            return transaction;
+        });
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(supplierSettlementApplicationMapper.toResponse(settlement)).thenReturn(response);
+
+        var result = supplierSettlementService.completeReconciliation(
+                43L,
+                new CompleteSettlementReconciliationRequest(null, TransactionType.OFFLINE, payable),
+                UUID.randomUUID()
+        );
+
+        ArgumentCaptor<TransactionModel> transactionCaptor = ArgumentCaptor.forClass(TransactionModel.class);
+        verify(transactionRepositoryPort).save(transactionCaptor.capture());
+        TransactionModel transaction = transactionCaptor.getValue();
+        assertThat(result.completed()).isTrue();
+        assertThat(settlement.getActualPaidAmount()).isEqualByComparingTo(payable);
+        assertThat(transaction.getType()).isEqualTo(TransactionType.OFFLINE);
+        assertThat(transaction.getAmount()).isEqualByComparingTo(payable);
+        assertThat(transaction.getPaymentEvidenceUrl()).isNull();
     }
 }

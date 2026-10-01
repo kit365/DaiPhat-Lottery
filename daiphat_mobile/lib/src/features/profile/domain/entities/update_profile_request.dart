@@ -17,12 +17,14 @@ class UpdateProfileRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      if (firstName != null) 'firstName': firstName,
-      if (lastName != null) 'lastName': lastName,
-      if (phone != null) 'phone': phone,
-      if (email != null) 'email': email,
-      if (dob != null) 'dob': dob,
-      if (gender != null) 'gender': gender,
+      if (firstName != null && firstName!.trim().isNotEmpty)
+        'firstName': firstName!.trim(),
+      if (lastName != null && lastName!.trim().isNotEmpty)
+        'lastName': lastName!.trim(),
+      if (phone != null && phone!.trim().isNotEmpty) 'phone': phone!.trim(),
+      if (dob != null && dob!.trim().isNotEmpty) 'dob': dob!.trim(),
+      if (gender != null && gender!.trim().isNotEmpty)
+        'gender': gender!.trim(),
     };
   }
 }

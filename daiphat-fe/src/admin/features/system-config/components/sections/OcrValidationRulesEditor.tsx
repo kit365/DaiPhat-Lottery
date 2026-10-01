@@ -15,6 +15,7 @@ import {
     Typography,
 } from '@mui/material';
 import { Button } from '../../../../components/ui/Button';
+import { confirmDelete } from '../../../../utils/swal';
 
 export type OcrTemplateFieldName =
     | 'stationName'
@@ -181,8 +182,9 @@ export const OcrValidationRulesEditor = ({
     };
 
     const handleDelete = (index: number) => {
-        if (!window.confirm('Xóa luật kiểm tra này?')) return;
-        commit(rules.filter((_, i) => i !== index));
+        confirmDelete('Bạn có chắc chắn muốn xóa luật kiểm tra này?', () => {
+            commit(rules.filter((_, i) => i !== index));
+        });
     };
 
     return (

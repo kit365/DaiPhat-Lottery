@@ -15,6 +15,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTi
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchLineEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SupplierSettlementEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchLineRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
@@ -22,12 +23,14 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Retur
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ReturnBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.SupplierSettlementRepository;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
+import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
 import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +48,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.time.temporal.ChronoUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -66,6 +70,9 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
     private static final String SYSTEM_ACTOR = "return-batch-seed";
     private static final String NOTE_PREFIX = SeedDocumentCodes.RETURN_NOTE_PREFIX;
 
+    @Value("${daiphat.official-demo.seed.enabled:false}")
+    private boolean officialDemoEnabled;
+
     private final ImportBatchRepository importBatchRepository;
     private final ImportBatchLineRepository importBatchLineRepository;
     private final ReturnBatchRepository returnBatchRepository;
@@ -74,6 +81,8 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
     private final SupplierSettlementRepository supplierSettlementRepository;
     private final SupplierSettlementCodeGenerator supplierSettlementCodeGenerator;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
+    private final SupplierPaymentCutOffCalculator supplierPaymentCutOffCalculator;
+    private final SeedAccountResolver seedAccountResolver;
     private final Clock clock;
 
     @Override
@@ -211,7 +220,8 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
             LocalDateTime now,
             int returnSequence
     ) {
-        SupplierSettlementEntity settlement = ensureSettlement(supplier, drawDate, now);
+        UserEntity executor = resolveOfficialExecutor(drawDate, now.toLocalDate());
+        SupplierSettlementEntity settlement = ensureSettlement(supplier, drawDate, now, executor);
 
         // Link source import batches so totalImportValue can be summed for this settlement.
         for (ImportBatchEntity importBatch : importBatches) {
@@ -225,7 +235,9 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
 
         Optional<ReturnBatchEntity> existingOpt = findSeedTargetReturnBatch(supplier.getId(), drawDate);
         String batchCode = SeedDocumentCodes.returnBatch(drawDate, returnSequence);
-        String note = SeedDocumentCodes.returnNote(supplier.getCode(), drawDate);
+        String note = officialDemoEnabled
+                ? NOTE_PREFIX + "OFFICIAL-" + supplier.getCode() + "-" + SeedDocumentCodes.dateToken(drawDate)
+                : SeedDocumentCodes.returnNote(supplier.getCode(), drawDate);
 
         ReturnBatchEntity batch;
         if (existingOpt.isPresent()) {
@@ -250,7 +262,7 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
             batch.setStatus(ReturnBatchStatus.PENDING_INSPECTION);
             batch.setDeliveryMode(null);
             batch.setReturnedAt(null);
-            batch.setReturnedBy(null);
+            batch.setReturnedBy(executor != null ? executor.getId() : null);
             batch.setConfirmedAt(null);
             batch.setUpdatedAt(now);
             batch.setLastModifiedBy(SYSTEM_ACTOR);
@@ -264,6 +276,7 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
                     .status(ReturnBatchStatus.PENDING_INSPECTION)
                     .totalQuantity(0)
                     .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
+                    .returnedBy(executor != null ? executor.getId() : null)
                     .createdAt(now)
                     .updatedAt(now)
                     .createdBy(SYSTEM_ACTOR)
@@ -333,7 +346,7 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
         batch.setStatus(ReturnBatchStatus.PENDING_INSPECTION);
         batch.setDeliveryMode(null);
         batch.setReturnedAt(null);
-        batch.setReturnedBy(null);
+        batch.setReturnedBy(executor != null ? executor.getId() : null);
         batch.setLines(savedLines);
         returnBatchRepository.save(batch);
 
@@ -400,10 +413,20 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
     private SupplierSettlementEntity ensureSettlement(
             LotterySupplierEntity supplier,
             LocalDate drawDate,
-            LocalDateTime now
+            LocalDateTime now,
+            UserEntity executor
     ) {
         return supplierSettlementRepository
                 .findByLotterySupplier_IdAndPeriodFromAndDeletedAtIsNull(supplier.getId(), drawDate)
+                .map(existing -> {
+                    if (officialDemoEnabled && executor != null && existing.getMatchingConfirmedBy() == null) {
+                        existing.setMatchingConfirmedBy(executor.getId());
+                        existing.setUpdatedAt(now);
+                        existing.setLastModifiedBy(SYSTEM_ACTOR);
+                        supplierSettlementRepository.save(existing);
+                    }
+                    return synchronizeOpeningStatus(existing, supplier, drawDate, now);
+                })
                 .orElseGet(() -> {
                     int termDays = supplier.getPaymentTermDays() != null ? supplier.getPaymentTermDays() : 0;
                     if (termDays < 0) {
@@ -420,7 +443,12 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
                                     .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                                     .totalPaidAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                                     .remainingAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
-                                    .status(SupplierSettlementStatus.OPEN)
+                                    .status(supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                                            drawDate,
+                                            supplier.getPaymentCutOffTime(),
+                                            now
+                                    ))
+                                    .matchingConfirmedBy(executor != null ? executor.getId() : null)
                                     .createdAt(now)
                                     .updatedAt(now)
                                     .createdBy(SYSTEM_ACTOR)
@@ -436,6 +464,41 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
                     );
                     return created;
                 });
+    }
+
+    private UserEntity resolveOfficialExecutor(LocalDate drawDate, LocalDate today) {
+        if (!officialDemoEnabled || drawDate == null) {
+            return null;
+        }
+        long index = ChronoUnit.DAYS.between(today.minusDays(1), drawDate);
+        if (index < 0 || index > 2) {
+            return seedAccountResolver.findOperator();
+        }
+        return seedAccountResolver.findOfficialDemoStaff((int) index);
+    }
+
+    private SupplierSettlementEntity synchronizeOpeningStatus(
+            SupplierSettlementEntity settlement,
+            LotterySupplierEntity supplier,
+            LocalDate drawDate,
+            LocalDateTime now
+    ) {
+        if (settlement.getStatus() != SupplierSettlementStatus.OPEN
+                && settlement.getStatus() != SupplierSettlementStatus.NOT_OPEN) {
+            return settlement;
+        }
+        SupplierSettlementStatus expected = supplierPaymentCutOffCalculator.resolveOpeningStatus(
+                drawDate,
+                supplier.getPaymentCutOffTime(),
+                now
+        );
+        if (settlement.getStatus() == expected) {
+            return settlement;
+        }
+        settlement.setStatus(expected);
+        settlement.setUpdatedAt(now);
+        settlement.setLastModifiedBy(SYSTEM_ACTOR);
+        return supplierSettlementRepository.save(settlement);
     }
 
     private record SupplierDrawKey(Long supplierId, LocalDate drawDate) {

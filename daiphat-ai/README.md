@@ -25,7 +25,7 @@ DaiPhat-Lottery-System/
 |--------|--------------|---------|------|
 | `ai-chatbot/` | AI Chatbot | NLP intent classification and fortune replies for the web chat widget | 8000 |
 | `ai-ticket-ocr/` | AI Ticket OCR | Camera ticket scan (DP-269): detection, OCR, parsing, validation | 8090 |
-| `ai-ekyc/` | AI eKYC | CCCD OCR and face matching for customer eKYC | 8000 (8091 locally) |
+| `ai-ekyc/` | AI CCCD OCR | Reads CCCD fields for current business flows; face/liveness endpoints remain available | 8000 (8091 locally) |
 
 ## Conventions
 
@@ -109,7 +109,7 @@ curl -X POST http://localhost:8090/v1/scan \
 See `ai-ticket-ocr/` for the full pipeline (detection → preprocessing →
 OCR → parsing → validation → status) and its test suite.
 
-### Run AI eKYC (port 8091 locally)
+### Run AI CCCD OCR (port 8091 locally)
 
 See [`ai-ekyc/README.md`](ai-ekyc/README.md). On Windows: `ai-ekyc\scripts\run.bat`.
 
@@ -152,7 +152,7 @@ Dozzle names are defined in `docker-compose.ai.yml`:
 |---------|-------|---------------------|--------------|-------------------|
 | AI Chatbot | `daiphat-ai-chatbot` | `daiphat-ai-chatbot-{blue,green,gateway}` | `http://ai-gateway:8000` after bootstrap | `ai-chatbot-ci.yml`, `ai-chatbot-deploy.yml` |
 | AI Ticket OCR | `daiphat-ai-ticket-ocr` | `daiphat-ai-ticket-ocr-{blue,green,gateway}` | `http://ticket-vision:8090` | `ai-ticket-ocr-ci.yml`, `ai-ticket-ocr-deploy.yml` |
-| AI eKYC | `daiphat-ai-ekyc` | `daiphat-ai-ekyc-{blue,green,gateway}` | `http://ekyc-vision:8000` | `ai-ekyc-ci.yml`, `ai-ekyc-deploy.yml` |
+| AI CCCD OCR | `daiphat-ai-ekyc` (legacy image repository) | `daiphat-ai-cccd-ocr-{blue,green,gateway}` | `http://ekyc-vision:8000` | `ai-ekyc-ci.yml`, `ai-ekyc-deploy.yml` (displayed as AI CCCD OCR) |
 
 The internal hostnames, `TICKET_VISION_*` / `KYC_AI_*` / `EKYC_VISION_*`
 variables and VPS slot state (`.ai-deploy/chatbot|ocr|ekyc`) keep their original

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState, Fragment } from 'react';
+import dayjs from 'dayjs';
 import {
     Alert,
     Box,
@@ -9,6 +10,7 @@ import {
     Checkbox,
     Chip,
     Dialog,
+    DialogActions,
     DialogContent,
     DialogTitle,
     Divider,
@@ -47,12 +49,15 @@ import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
 import FormatListBulletedOutlinedIcon from '@mui/icons-material/FormatListBulletedOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { uploadAdminImage } from '@/admin/shared/services/upload.service';
-import { useStationsByDrawDate } from '@/admin/features/station/hooks/useStation';
 import { AppToast } from '../../../../../../utils/toast.util';
 import type {
     SettlementAdjustmentReasonCode,
@@ -60,20 +65,36 @@ import type {
     SettlementResolvableSerial,
 } from '../../types/supplierSettlement.type';
 import { formatSettlementMoney } from '../../utils/settlementCashflow';
+import { getReturnBatchCutOffDisplay, isReturnBatchOverdue } from '../../utils/settlementLabels';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
+import {
+    MissingTicketSourceDialog,
+    type MissingTicketCandidate,
+} from './MissingTicketSourceDialog';
 
 interface ImportDiscrepancyPanelProps {
     serials: SettlementResolvableSerial[];
     inventoryByStation?: Array<{ lotteryStationId: number; lotteryStationName?: string | null; remainingQuantity?: number; importedQuantity?: number }>;
     importBatches?: SettlementOverviewImportBatch[];
+    supplierId: number;
     settlementReceiptUrl?: string | null;
     drawDate?: string | null;
+    returnCutOffContext?: {
+        drawDate?: string | null;
+        returnCutOffTime?: string | null;
+        returnCutOffAt?: string | null;
+        inspectionExpired?: boolean | null;
+    } | null;
+    reconciliationWindowStartAt?: string | null;
+    inReconciliationWindow?: boolean | null;
     loading?: boolean;
     submitting?: boolean;
     direction: 'POSITIVE' | 'NEGATIVE';
     difference?: number;
     onDirtyChange?: (isDirty: boolean) => void;
+    collapsed?: boolean;
+    onBackToEdit?: () => void;
     onResolve: (payload: {
         serialIds?: number[];
         ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | 'UNDER_IMPORTED' | null;
@@ -105,6 +126,12 @@ type TicketGroup = {
     serials: TicketSerialInput[]; 
 };
 
+type LostTicketEntry = {
+    id: string;
+    lotteryStationId: number | null;
+    quantity: number;
+};
+
 type MissingTicketCondition = 'UNDER_IMPORTED' | 'DAMAGED' | 'LOST';
 type AllocationStation = {
     lotteryStationId: number;
@@ -114,11 +141,6 @@ type AllocationStation = {
     extra?: boolean;
 };
 
-
-const parseSplitQty = (raw?: string): number => {
-    const n = Number(String(raw || '').replace(/\D/g, ''));
-    return Number.isFinite(n) && n > 0 ? n : 0;
-};
 
 const formatNumberWithDots = (val?: number | string | null): string => {
     if (val === '' || val === null || val === undefined) return '';
@@ -136,18 +158,27 @@ const isLikelyImageUrl = (url?: string | null): boolean => {
 const importBatchReceiptUrl = (batch: SettlementOverviewImportBatch) =>
     batch.invoiceEvidenceUrl || batch.receiptImageUrl || batch.evidenceUrl || '';
 
+const isValidTicketNumbers = (value: string) => /^\d{6}$/.test(value.trim());
+const isValidTicketSerial = (value: string) => /^(?:[A-Za-z]\d+|\d+[A-Za-z])$/.test(value.trim());
+
 export const ImportDiscrepancyPanel = ({
     serials,
     inventoryByStation = [],
     importBatches = [],
+    supplierId,
     settlementReceiptUrl,
     drawDate,
+    returnCutOffContext,
+    reconciliationWindowStartAt,
+    inReconciliationWindow,
     loading,
     submitting,
     direction,
     difference,
     onResolve,
     onDirtyChange,
+    collapsed = false,
+    onBackToEdit,
 }: ImportDiscrepancyPanelProps) => {
     // The difference is actual − system. A negative value means the system has
     // recorded more imported tickets than were actually received.
@@ -165,16 +196,12 @@ export const ImportDiscrepancyPanel = ({
     const [note, setNote] = useState('');
 
     // Missing placeholders: per-station qty split by condition
-    const [globalLostQty, setGlobalLostQty] = useState<string>('');
+    const [lostTickets, setLostTickets] = useState<LostTicketEntry[]>([]);
     const [ticketDetails, setTicketDetails] = useState<Record<number, TicketGroup[]>>({});
-    const [extraStations, setExtraStations] = useState<AllocationStation[]>([]);
-    const [stationToAdd, setStationToAdd] = useState<number | ''>('');
-    const [missingEvidenceUrl, setMissingEvidenceUrl] = useState('');
+    const [expandedStations, setExpandedStations] = useState<number[]>([]);
+    const [expandedRanges, setExpandedRanges] = useState<string[]>([]);
     const [uploadingEvidence, setUploadingEvidence] = useState(false);
-    const drawDateKey = drawDate ? String(drawDate).slice(0, 10) : undefined;
-    const { data: stationsByDrawDate } = useStationsByDrawDate(drawDateKey);
-    const stationsForDrawDate = Array.isArray(stationsByDrawDate) ? stationsByDrawDate : [];
-
+    const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
     const allocationStations = useMemo<AllocationStation[]>(() => {
         const seen = new Set<number>();
         const rows: AllocationStation[] = [];
@@ -182,32 +209,7 @@ export const ImportDiscrepancyPanel = ({
             seen.add(s.lotteryStationId);
             rows.push({ ...s, extra: false });
         });
-        extraStations.forEach((s) => {
-            if (seen.has(s.lotteryStationId)) return;
-            seen.add(s.lotteryStationId);
-            rows.push({ ...s, extra: true });
-        });
         return rows;
-    }, [inventoryByStation, extraStations]);
-
-    const addableStations = useMemo(
-        () =>
-            stationsForDrawDate.filter((station) => {
-                const id = Number(station.id ?? station._id);
-                return Number.isFinite(id) && !allocationStations.some((row) => row.lotteryStationId === id);
-            }),
-        [stationsForDrawDate, allocationStations]
-    );
-
-
-
-    useEffect(() => {
-        setExtraStations((prev) => {
-            const next = prev.filter(
-                (s) => !inventoryByStation.some((row) => row.lotteryStationId === s.lotteryStationId)
-            );
-            return next.length === prev.length ? prev : next;
-        });
     }, [inventoryByStation]);
 
     // Excess state
@@ -226,6 +228,35 @@ export const ImportDiscrepancyPanel = ({
     const [selectedStation, setSelectedStation] = useState<string>('ALL');
     const [receiptPreview, setReceiptPreview] = useState<{ url: string; title: string } | null>(null);
     const [receiptListOpen, setReceiptListOpen] = useState(false);
+    const [ticketImageToDelete, setTicketImageToDelete] = useState<{ stationId: number; groupIdx: number; serialIdx: number; serialNumber: string } | null>(null);
+    const [expandedImportedRanges, setExpandedImportedRanges] = useState<string[]>([]);
+    const [cutoffTick, setCutoffTick] = useState(0);
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setCutoffTick((value) => value + 1), 30_000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    const isReturnCutOffReached = useMemo(
+        () => isReturnBatchOverdue(returnCutOffContext, undefined, drawDate),
+        [returnCutOffContext, drawDate, cutoffTick]
+    );
+    const isPaymentWindowReached = useMemo(() => {
+        if (reconciliationWindowStartAt) {
+            const startAt = dayjs(reconciliationWindowStartAt);
+            return startAt.isValid() && !dayjs().isBefore(startAt);
+        }
+        return inReconciliationWindow === true;
+    }, [reconciliationWindowStartAt, inReconciliationWindow, cutoffTick]);
+    const isImportedTicketListUnlocked = isReturnCutOffReached && isPaymentWindowReached;
+    const importedTicketCutOffDisplay = useMemo(
+        () => getReturnBatchCutOffDisplay(returnCutOffContext, undefined, drawDate),
+        [returnCutOffContext, drawDate]
+    );
+    const isImportedTicketListLocked = !isImportedTicketListUnlocked;
+    const paymentWindowDisplay = reconciliationWindowStartAt
+        ? dayjs(reconciliationWindowStartAt).format('HH:mm DD/MM/YYYY')
+        : 'chưa xác định';
 
     const importReceiptItems = useMemo(
         () =>
@@ -312,6 +343,7 @@ export const ImportDiscrepancyPanel = ({
             const matchSearch =
                 !searchQuery.trim() ||
                 s.serialNumber.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+                (s.numbers && s.numbers.toLowerCase().includes(searchQuery.trim().toLowerCase())) ||
                 (s.stationName && s.stationName.toLowerCase().includes(searchQuery.trim().toLowerCase())) ||
                 (s.importBatchCode && s.importBatchCode.toLowerCase().includes(searchQuery.trim().toLowerCase()));
 
@@ -322,6 +354,31 @@ export const ImportDiscrepancyPanel = ({
             return matchSearch && matchStation;
         });
     }, [serialsInSelectedBatch, searchQuery, selectedStation]);
+
+    const groupedFilteredSerials = useMemo(() => {
+        const groups = new Map<string, { key: string; numbers: string; stationName: string; batchLabel: string; importCost: number; serials: SettlementResolvableSerial[] }>();
+        filteredSerials.forEach((serial) => {
+            const numbers = serial.numbers?.trim() || 'Chưa có dãy số';
+            const batchLabel = serial.importBatchCode
+                || (serial.importBatchId != null ? `Lô #${serial.importBatchId}` : '—');
+            const stationName = serial.stationName || 'Chưa phân đài';
+            const key = `${numbers}::${stationName}::${batchLabel}`;
+            const existing = groups.get(key);
+            if (existing) {
+                existing.serials.push(serial);
+                return;
+            }
+            groups.set(key, {
+                key,
+                numbers,
+                stationName,
+                batchLabel,
+                importCost: Number(serial.importCost || 0),
+                serials: [serial],
+            });
+        });
+        return Array.from(groups.values());
+    }, [filteredSerials]);
 
     const filteredIds = useMemo(() => filteredSerials.map((s) => s.serialId), [filteredSerials]);
 
@@ -378,13 +435,16 @@ export const ImportDiscrepancyPanel = ({
             }
         });
 
-        const globalLost = parseSplitQty(globalLostQty);
-        if (globalLost > 0) {
-            rows.push({ lotteryStationId: null, quantity: globalLost, ticketCondition: 'LOST' });
-        }
+        lostTickets.forEach((entry) => {
+            if (entry.quantity > 0) rows.push({
+                lotteryStationId: entry.lotteryStationId,
+                quantity: entry.quantity,
+                ticketCondition: 'LOST',
+            });
+        });
 
         return rows;
-    }, [allocationStations, ticketDetails, globalLostQty]);
+    }, [allocationStations, ticketDetails, lostTickets]);
 
     const missingQtyByCondition = useMemo(() => {
         const totals = { underImported: 0, damaged: 0, lost: 0 };
@@ -407,65 +467,99 @@ export const ImportDiscrepancyPanel = ({
 
     const missingQtyRemaining = totalDiff - missingQtyEntered;
     const isMissingQtyExact = totalDiff > 0 && missingQtyEntered === totalDiff;
-    const needsMissingEvidence = missingQtyByCondition.damaged > 0;
+    const hasInvalidTicketDetails = Object.values(ticketDetails).some((groups) => groups.some((group) =>
+        !isValidTicketNumbers(group.numbers)
+        || group.serials.some((serial) => !isValidTicketSerial(serial.serialNumber))
+    ));
     
     const isValidMissing = useMemo(() => {
         if (!isMissingQtyExact || missingPlaceholders.length === 0) return false;
-        if (needsMissingEvidence && !missingEvidenceUrl.trim()) return false;
-        
         for (const stationId of Object.keys(ticketDetails)) {
             const groups = ticketDetails[Number(stationId)];
             if (!groups) continue;
-            for (const group of groups) {
-                if (!group.numbers.trim()) return false;
+                for (const group of groups) {
+                if (!isValidTicketNumbers(group.numbers)) return false;
                 for (const serial of group.serials) {
-                    if (!serial.serialNumber.trim()) return false;
-                    if (!serial.evidenceUrl.trim()) return false;
+                    if (!isValidTicketSerial(serial.serialNumber)) return false;
+                    if (serial.condition === 'DAMAGED' && !serial.evidenceUrl.trim()) return false;
                 }
             }
         }
         return true;
-    }, [isMissingQtyExact, missingPlaceholders.length, needsMissingEvidence, missingEvidenceUrl, ticketDetails]);
+    }, [isMissingQtyExact, missingPlaceholders.length, ticketDetails]);
 
-    const handleMissingEvidenceUpload = async (file?: File | null) => {
-        if (!file) return;
-        try {
-            setUploadingEvidence(true);
-            const url = await uploadAdminImage(file);
-            setMissingEvidenceUrl(url);
-            AppToast.success('Đã tải ảnh minh chứng.');
-        } catch (err: any) {
-            AppToast.error(err?.message || 'Tải ảnh thất bại.');
-        } finally {
-            setUploadingEvidence(false);
-        }
-    };
-
-
-
-    const handleAddStation = () => {
-        const id = Number(stationToAdd);
-        if (!Number.isFinite(id) || id <= 0) return;
-        if (allocationStations.some((row) => row.lotteryStationId === id)) {
-            setStationToAdd('');
+    const handleLostTickets = ({ quantity, lotteryStationId }: { quantity: number; lotteryStationId: number | null }) => {
+        if (quantity <= 0 || quantity > missingQtyRemaining) {
+            AppToast.error(`Chỉ còn được bổ sung tối đa ${Math.max(0, missingQtyRemaining)} vé.`);
             return;
         }
-        const station = stationsForDrawDate.find((item) => Number(item.id ?? item._id) === id);
-        setExtraStations((prev) => [
-            ...prev,
-            {
-                lotteryStationId: id,
-                lotteryStationName: station?.name || `Đài #${id}`,
-                importedQuantity: 0,
-                remainingQuantity: 0,
-                extra: true,
-            },
+        setLostTickets((current) => [
+            ...current,
+            { id: `lost-${Date.now()}-${current.length}`, lotteryStationId, quantity },
         ]);
-        setStationToAdd('');
+        if (lotteryStationId != null) {
+            setExpandedStations((current) => current.includes(lotteryStationId) ? current : [...current, lotteryStationId]);
+        }
+        AppToast.success(`Đã thêm ${quantity} vé thất thoát vào chi tiết vé.`);
     };
 
-    const handleRemoveExtraStation = (stationId: number) => {
-        setExtraStations((prev) => prev.filter((s) => s.lotteryStationId !== stationId));
+    const handleSourceTickets = (tickets: MissingTicketCandidate[]) => {
+        if (tickets.length === 0) return;
+        const invalidTicket = tickets.find((ticket) => !isValidTicketNumbers(ticket.numbers) || !isValidTicketSerial(ticket.serialNumber));
+        if (invalidTicket) {
+            AppToast.error(`${invalidTicket.stationName}: dãy số phải đủ 6 chữ số; sê-ri phải gồm dãy số và đúng 1 chữ cái ở đầu hoặc cuối.`);
+            return;
+        }
+        const requestedByStation = new Map<number, number>();
+        tickets.forEach((ticket) => requestedByStation.set(
+            ticket.lotteryStationId,
+            (requestedByStation.get(ticket.lotteryStationId) || 0) + 1
+        ));
+        const validationErrors: string[] = [];
+        requestedByStation.forEach((requested, stationId) => {
+            const allocation = allocationStations.find((row) => row.lotteryStationId === stationId);
+            if (!allocation) {
+                validationErrors.push(`Nhà đài #${stationId} không có trong danh sách phân bổ.`);
+                return;
+            }
+            const current = (ticketDetails[stationId] || []).reduce((sum, group) => sum + group.serials.length, 0);
+            const limit = Math.max(0, Number(allocation.importedQuantity || 0));
+            if (current + requested > limit) {
+                validationErrors.push(`${allocation.lotteryStationName || `Đài #${stationId}`}: chỉ còn có thể bổ sung ${Math.max(0, limit - current)} vé.`);
+            }
+        });
+        if (tickets.length > missingQtyRemaining) {
+            validationErrors.push(`Chỉ còn được bổ sung ${Math.max(0, missingQtyRemaining)} vé cho phiên đối soát.`);
+        }
+        if (validationErrors.length > 0) {
+            AppToast.error(validationErrors.join(' '));
+            return;
+        }
+        setTicketDetails((prev) => {
+            const next: Record<number, TicketGroup[]> = JSON.parse(JSON.stringify(prev));
+            tickets.forEach((ticket) => {
+                const groups = next[ticket.lotteryStationId] || [];
+                const existingSerials = new Set(groups.flatMap((group) => group.serials.map((serial) => serial.serialNumber)));
+                if (existingSerials.has(ticket.serialNumber)) return;
+                let group = groups.find((item) => item.numbers === ticket.numbers);
+                if (!group) {
+                    group = { numbers: ticket.numbers, serials: [] };
+                    groups.push(group);
+                }
+                group.serials.push({
+                    serialNumber: ticket.serialNumber,
+                    evidenceUrl: ticket.evidenceUrl || '',
+                    condition: 'UNDER_IMPORTED',
+                });
+                next[ticket.lotteryStationId] = groups;
+            });
+            return next;
+        });
+        setExpandedStations((current) => Array.from(new Set([
+            ...current,
+            ...tickets.map((ticket) => ticket.lotteryStationId),
+        ])));
+        AppToast.success(`Đã đưa ${tickets.length} vé vào danh sách phân bổ.`);
     };
 
     const tabSx = {
@@ -490,11 +584,34 @@ export const ImportDiscrepancyPanel = ({
         },
     } as const;
 
+    if (collapsed) {
+        return (
+            <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: '12px', borderColor: '#bbf7d0', bgcolor: '#f0fdf4' }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between">
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                        <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} />
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight={800} color="#166534">
+                                Đã xác nhận tạm xử lý chênh lệch vé nhập
+                            </Typography>
+                            <Typography variant="caption" color="#15803d">
+                                Dữ liệu đang được giữ trên màn hình và chưa lưu lên hệ thống.
+                            </Typography>
+                        </Box>
+                    </Stack>
+                    <Button variant="outlined" startIcon={<ArrowBackOutlinedIcon />} onClick={onBackToEdit} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '9px' }}>
+                        Quay lại
+                    </Button>
+                </Stack>
+            </Paper>
+        );
+    }
+
     return (
         <Paper
             elevation={0}
             sx={{
-                p: { xs: 2.5, md: 3 },
+                p: { xs: 2, md: 2.5 },
                 borderRadius: '16px',
                 border: '1px solid #e2e8f0',
                 bgcolor: '#ffffff',
@@ -504,17 +621,17 @@ export const ImportDiscrepancyPanel = ({
             {/* Header */}
             <Stack
                 direction={{ xs: 'column', sm: 'row' }}
-                spacing={2}
+                spacing={1.5}
                 alignItems={{ xs: 'flex-start', sm: 'center' }}
                 justifyContent="space-between"
-                sx={{ mb: 2.5 }}
+                sx={{ mb: 2 }}
             >
-                <Stack direction="row" spacing={1.5} alignItems="center">
+                <Stack direction="row" spacing={1.25} alignItems="center">
                     <Box
                         sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: '12px',
+                            width: 38,
+                            height: 38,
+                            borderRadius: '10px',
                             bgcolor: isShortage ? '#fffbeb' : '#fef2f2',
                             color: isShortage ? '#d97706' : '#dc2626',
                             display: 'flex',
@@ -524,16 +641,16 @@ export const ImportDiscrepancyPanel = ({
                             border: `1px solid ${isShortage ? '#fde68a' : '#fecaca'}`,
                         }}
                     >
-                        <Inventory2OutlinedIcon sx={{ fontSize: '1.5rem' }} />
+                        <Inventory2OutlinedIcon sx={{ fontSize: '1.3rem' }} />
                     </Box>
                     <Box>
-                        <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ fontSize: '1.15rem', lineHeight: 1.3 }}>
+                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ lineHeight: 1.3 }}>
                             {isShortage ? 'Xử lý hệ thống ghi thừa vé nhập' : 'Xử lý hệ thống ghi thiếu vé nhập'}
                         </Typography>
-                        <Typography variant="body2" color="#64748b" sx={{ mt: 0.25 }}>
+                        <Typography variant="caption" color="#64748b" sx={{ mt: 0.25, display: 'block', maxWidth: 720 }}>
                             {isShortage
-                                ? 'Hệ thống đang ghi nhận nhiều hơn thực tế. Chọn trực tiếp các sê-ri thuộc lô nhập trong ngày để ghi tình trạng và lý do xử lý.'
-                                : 'Thực tế nhận nhiều hơn hệ thống ghi nhận. Phân bổ số vé cần bổ sung theo nhà đài để tạo các vé còn thiếu trong import batch.'}
+                                ? 'Chọn đúng số sê-ri hệ thống ghi thừa, sau đó ghi tình trạng và lý do xử lý.'
+                                : 'Phân bổ vé còn thiếu theo nhà đài; có thể lấy nhanh từ OCR, tệp hoặc nhập tay.'}
                         </Typography>
                     </Box>
                 </Stack>
@@ -599,7 +716,7 @@ export const ImportDiscrepancyPanel = ({
                 </Stack>
             </Stack>
 
-            <Divider sx={{ mb: 2.5, borderColor: '#f1f5f9' }} />
+            <Divider sx={{ mb: 2, borderColor: '#f1f5f9' }} />
 
             {/* Mode Switch Tabs (Segmented Control Pill Bar) */}
             {isShortage ? (
@@ -783,109 +900,101 @@ export const ImportDiscrepancyPanel = ({
             {/* Actual import is higher: add the tickets missing from the system by station. */}
             {!isShortage && mode === 'MISSING' && (
                 <Stack spacing={2} sx={{ mb: 1 }}>
-                    <Box
-                        sx={{
-                            p: 2,
-                            borderRadius: '12px',
-                            bgcolor: '#fef2f2',
-                            border: '1px solid #fee2e2',
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: 1.5,
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: '8px',
-                                bgcolor: '#fee2e2',
-                                color: '#dc2626',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                                mt: 0.25,
-                            }}
-                        >
-                            <InfoOutlinedIcon sx={{ fontSize: '1.2rem' }} />
-                        </Box>
-                        <Box>
-                            <Typography variant="subtitle2" fontWeight={800} color="#991b1b" sx={{ fontSize: '0.9rem' }}>
-                                Phân bổ số lượng vé ghi thiếu theo từng nhà đài và tình trạng
-                            </Typography>
-                            <Typography variant="caption" color="#b91c1c" sx={{ fontSize: '0.8rem', display: 'block', mt: 0.25, lineHeight: 1.5 }}>
-                                Nhập số lượng theo nhà đài, tách thành Nhập thiếu / Hư hỏng / Thất thoát sao cho tổng đúng{' '}
-                                <strong>{totalDiff.toLocaleString('vi-VN')} vé</strong>. Vé thất thoát chỉ cộng số lượng lô điều chỉnh, không tạo vé-ma.
-                            </Typography>
-                        </Box>
-                    </Box>
 
                     <Paper
                         elevation={0}
                         sx={{
-                            p: 2.5,
+                            p: { xs: 1.5, md: 2 },
                             borderRadius: '14px',
                             border: '1px solid #e2e8f0',
                             bgcolor: '#f8fafc',
                         }}
                     >
                         <Stack
-                            direction={{ xs: 'column', sm: 'row' }}
+                            direction={{ xs: 'column', md: 'row' }}
                             justifyContent="space-between"
-                            alignItems={{ xs: 'flex-start', sm: 'center' }}
+                            alignItems={{ xs: 'flex-start', md: 'center' }}
                             spacing={1}
                             sx={{ mb: 2 }}
                         >
                             <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                 Danh sách phân bổ theo nhà đài
                             </Typography>
-                            <AdminStatusBadge
-                                label={`Đã nhập ${missingQtyEntered.toLocaleString('vi-VN')} / ${totalDiff.toLocaleString('vi-VN')} vé${
-                                    missingQtyRemaining === 0
-                                        ? ' · Đã đủ'
-                                        : missingQtyRemaining > 0
-                                          ? ` · Còn thiếu ${missingQtyRemaining.toLocaleString('vi-VN')} vé`
-                                          : ` · Vượt quá ${Math.abs(missingQtyRemaining).toLocaleString('vi-VN')} vé`
-                                }`}
-                                modifier={
-                                    isMissingQtyExact
-                                        ? 'admin-status-badge--success'
-                                        : missingQtyEntered > totalDiff
-                                          ? 'admin-status-badge--inactive'
-                                          : 'admin-status-badge--pending'
-                                }
-                            />
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<AddCircleOutlineIcon />}
+                                    disabled={missingQtyRemaining <= 0 || !!submitting}
+                                    onClick={() => setSourceDialogOpen(true)}
+                                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '9px' }}
+                                >
+                                    Bổ sung vé thiếu
+                                </Button>
+                                <AdminStatusBadge
+                                    label={`Đã nhập ${missingQtyEntered.toLocaleString('vi-VN')} / ${totalDiff.toLocaleString('vi-VN')} vé${
+                                        missingQtyRemaining === 0
+                                            ? ' · Đã đủ'
+                                            : missingQtyRemaining > 0
+                                              ? ` · Còn thiếu ${missingQtyRemaining.toLocaleString('vi-VN')} vé`
+                                              : ` · Vượt quá ${Math.abs(missingQtyRemaining).toLocaleString('vi-VN')} vé`
+                                    }`}
+                                    modifier={
+                                        isMissingQtyExact
+                                            ? 'admin-status-badge--success'
+                                            : missingQtyEntered > totalDiff
+                                              ? 'admin-status-badge--inactive'
+                                              : 'admin-status-badge--pending'
+                                    }
+                                />
+                            </Stack>
                         </Stack>
 
                         {allocationStations.length === 0 ? (
                             <Alert severity="warning" sx={{ borderRadius: '10px', mb: 2 }}>
-                                Không có danh sách nhà đài / dòng nhập để phân bổ. Thêm đài thuộc ngày quay bên dưới nếu cần.
+                                Không có danh sách nhà đài / dòng nhập để phân bổ.
                             </Alert>
                         ) : (
                             <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'auto', borderColor: '#e2e8f0', mb: 2, bgcolor: '#ffffff' }}>
                                 <Table size="small">
                                     <TableHead>
                                         <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', fontSize: '0.75rem', whiteSpace: 'nowrap' } }}>
+                                            <TableCell sx={{ width: 44 }} />
                                             <TableCell>NHÀ ĐÀI</TableCell>
                                             <TableCell align="right">SL HỆ THỐNG</TableCell>
-                                            <TableCell align="right">TỒN KHO</TableCell>
-                                            <TableCell align="right">CHI TIẾT VÉ</TableCell>
+                                            <TableCell align="right">SL VÉ THIẾU</TableCell>
+                                            <TableCell align="right">SL VÉ THẤT THOÁT</TableCell>
                                             <TableCell align="right">TỔNG BỔ SUNG</TableCell>
-                                            <TableCell sx={{ width: 48 }} />
+                                            <TableCell align="right">THAO TÁC</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
                                         {allocationStations.map((s) => {
                                             const groups = ticketDetails[s.lotteryStationId] || [];
                                             const totalSerials = groups.reduce((acc, g) => acc + g.serials.length, 0);
-                                            const rowTotal = totalSerials;
+                                            const missingQuantity = totalSerials;
+                                            const stationLostEntries = lostTickets.filter((entry) => entry.lotteryStationId === s.lotteryStationId);
+                                            const lostQuantity = stationLostEntries.reduce((sum, entry) => sum + entry.quantity, 0);
+                                            const rowTotal = totalSerials + lostQuantity;
                                             const hasVal = rowTotal > 0;
                                             const canAddMore = missingQtyEntered < totalDiff;
+                                            const expanded = expandedStations.includes(s.lotteryStationId);
                                             
                                             return (
                                                 <React.Fragment key={s.lotteryStationId}>
                                                     <TableRow hover sx={{ bgcolor: hasVal ? '#fffbf5' : 'inherit' }}>
+                                                        <TableCell>
+                                                            <IconButton
+                                                                size="small"
+                                                                disabled={!hasVal}
+                                                                aria-label={expanded ? 'Thu gọn chi tiết vé' : 'Mở chi tiết vé'}
+                                                                onClick={() => setExpandedStations((current) => expanded
+                                                                    ? current.filter((id) => id !== s.lotteryStationId)
+                                                                    : [...current, s.lotteryStationId])}
+                                                            >
+                                                                {expanded ? <KeyboardArrowDownIcon /> : <KeyboardArrowRightIcon />}
+                                                            </IconButton>
+                                                        </TableCell>
                                                         <TableCell>
                                                             <Typography variant="body2" fontWeight={700} color="#0f172a">
                                                                 {s.lotteryStationName || `Đài #${s.lotteryStationId}`}
@@ -897,70 +1006,96 @@ export const ImportDiscrepancyPanel = ({
                                                             </Typography>
                                                         </TableCell>
                                                         <TableCell align="right">
-                                                            <Typography variant="body2" fontWeight={600} color="#64748b">
-                                                                {(s.remainingQuantity ?? 0).toLocaleString('vi-VN')}
+                                                            <Typography variant="body2" fontWeight={800} color={missingQuantity > 0 ? '#2563eb' : '#94a3b8'}>
+                                                                {missingQuantity.toLocaleString('vi-VN')}
                                                             </Typography>
                                                         </TableCell>
                                                         <TableCell align="right">
-                                                            <Button
-                                                                variant="outlined"
-                                                                size="small"
-                                                                disabled={!canAddMore}
-                                                                onClick={() => {
-                                                                    setTicketDetails(prev => {
-                                                                        const next = JSON.parse(JSON.stringify(prev));
-                                                                        if (!next[s.lotteryStationId]) next[s.lotteryStationId] = [];
-                                                                        next[s.lotteryStationId].push({ numbers: '', serials: [{ serialNumber: '', evidenceUrl: '', condition: 'UNDER_IMPORTED' }] });
-                                                                        return next;
-                                                                    });
-                                                                }}
-                                                                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-                                                            >
-                                                                + Thêm vé
-                                                            </Button>
+                                                            <Typography variant="body2" fontWeight={800} color={lostQuantity > 0 ? '#d97706' : '#94a3b8'}>
+                                                                {lostQuantity.toLocaleString('vi-VN')}
+                                                            </Typography>
                                                         </TableCell>
                                                         <TableCell align="right">
                                                             <Typography variant="body2" fontWeight={800} color={hasVal ? '#dc2626' : '#64748b'}>
                                                                 {rowTotal.toLocaleString('vi-VN')}
                                                             </Typography>
                                                         </TableCell>
-                                                        <TableCell>
-                                                            {s.extra ? (
-                                                                <IconButton
+                                                        <TableCell align="right">
+                                                            {!hasVal && (
+                                                                <Button
+                                                                    variant="outlined"
                                                                     size="small"
-                                                                    aria-label="Gỡ đài"
-                                                                    onClick={() => handleRemoveExtraStation(s.lotteryStationId)}
+                                                                    disabled={!canAddMore}
+                                                                    onClick={() => {
+                                                                        setTicketDetails((prev) => {
+                                                                            const next = JSON.parse(JSON.stringify(prev));
+                                                                            if (!next[s.lotteryStationId]) next[s.lotteryStationId] = [];
+                                                                            next[s.lotteryStationId].push({
+                                                                                numbers: '',
+                                                                                serials: [{ serialNumber: '', evidenceUrl: '', condition: 'UNDER_IMPORTED' }],
+                                                                            });
+                                                                            return next;
+                                                                        });
+                                                                        setExpandedStations((current) => current.includes(s.lotteryStationId)
+                                                                            ? current
+                                                                            : [...current, s.lotteryStationId]);
+                                                                        setExpandedRanges((current) => [...current, `${s.lotteryStationId}-${(ticketDetails[s.lotteryStationId] || []).length}`]);
+                                                                    }}
+                                                                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
                                                                 >
-                                                                    <CloseIcon fontSize="small" />
-                                                                </IconButton>
-                                                            ) : null}
+                                                                    Thêm
+                                                                </Button>
+                                                            )}
                                                         </TableCell>
                                                     </TableRow>
                                                     
-                                                    {groups.length > 0 && (
+                                                    {hasVal && expanded && (
                                                         <TableRow>
-                                                            <TableCell colSpan={6} sx={{ py: 2, px: 3, bgcolor: '#f8fafc' }}>
+                                                            <TableCell colSpan={7} sx={{ py: 2, px: 3, bgcolor: '#f8fafc' }}>
                                                                 <Box sx={{ p: 2, borderRadius: '12px', border: `1px solid #e2e8f0`, bgcolor: '#ffffff' }}>
                                                                     <Typography variant="subtitle2" sx={{ color: '#0f172a', mb: 2, fontWeight: 700 }}>
-                                                                        Chi tiết vé (Tổng {totalSerials} vé)
+                                                                        Chi tiết vé (Tổng {rowTotal} vé)
                                                                     </Typography>
+                                                                    <Box sx={{ display: 'grid', gridTemplateColumns: '44px 130px minmax(180px, 1fr) 110px 48px', gap: 1, px: 1.5, py: 1, mb: 1, borderRadius: '8px', bgcolor: '#f1f5f9', color: '#475569' }}>
+                                                                        <span />
+                                                                        <Typography variant="caption" fontWeight={800}>LOẠI VÉ</Typography>
+                                                                        <Typography variant="caption" fontWeight={800}>DÃY SỐ / NHÀ ĐÀI</Typography>
+                                                                        <Typography variant="caption" fontWeight={800} textAlign="right">SỐ LƯỢNG</Typography>
+                                                                        <span />
+                                                                    </Box>
                                                                     
                                                                     {groups.map((group, groupIdx) => (
                                                                         <Paper key={groupIdx} variant="outlined" sx={{ p: 2, mb: 2, borderRadius: '8px', borderColor: '#e2e8f0' }}>
                                                                             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+                                                                                <IconButton
+                                                                                    size="small"
+                                                                                    aria-label={expandedRanges.includes(`${s.lotteryStationId}-${groupIdx}`) ? 'Thu gọn sê-ri' : 'Mở danh sách sê-ri'}
+                                                                                    onClick={() => setExpandedRanges((current) => current.includes(`${s.lotteryStationId}-${groupIdx}`)
+                                                                                        ? current.filter((key) => key !== `${s.lotteryStationId}-${groupIdx}`)
+                                                                                        : [...current, `${s.lotteryStationId}-${groupIdx}`])}
+                                                                                >
+                                                                                    {expandedRanges.includes(`${s.lotteryStationId}-${groupIdx}`) ? <KeyboardArrowDownIcon /> : <KeyboardArrowRightIcon />}
+                                                                                </IconButton>
+                                                                                <Chip size="small" color="success" variant="outlined" label="Hiện có" sx={{ minWidth: 92, fontWeight: 800 }} />
                                                                                 <TextField
                                                                                     size="small"
                                                                                     label="Dãy số"
                                                                                     value={group.numbers}
+                                                                                    error={Boolean(group.numbers) && !isValidTicketNumbers(group.numbers)}
+                                                                                    helperText={Boolean(group.numbers) && !isValidTicketNumbers(group.numbers) ? 'Dãy số phải có đúng 6 chữ số.' : ' '}
                                                                                     onChange={(e) => {
                                                                                         setTicketDetails((prev) => {
                                                                                             const next = JSON.parse(JSON.stringify(prev));
-                                                                                            next[s.lotteryStationId][groupIdx].numbers = e.target.value;
+                                                                                            next[s.lotteryStationId][groupIdx].numbers = e.target.value.replace(/\D/g, '').slice(0, 6);
                                                                                             return next;
                                                                                         });
                                                                                     }}
+                                                                                    inputProps={{ inputMode: 'numeric', maxLength: 6 }}
                                                                                     sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                                                                                 />
+                                                                                <Typography variant="body2" fontWeight={800} sx={{ minWidth: 74, textAlign: 'right' }}>
+                                                                                    {group.serials.length} vé
+                                                                                </Typography>
                                                                                 <IconButton
                                                                                     color="error"
                                                                                     onClick={() => {
@@ -974,20 +1109,23 @@ export const ImportDiscrepancyPanel = ({
                                                                                     <CloseIcon />
                                                                                 </IconButton>
                                                                             </Stack>
-                                                                            
+                                                                            {expandedRanges.includes(`${s.lotteryStationId}-${groupIdx}`) && (<>
                                                                             {group.serials.map((serial, serialIdx) => (
                                                                                 <Stack key={serialIdx} direction="row" spacing={2} alignItems="center" sx={{ pl: { xs: 0, sm: 4 }, mb: 1.5 }}>
                                                                                     <TextField
                                                                                         size="small"
                                                                                         label="Sê-ri"
                                                                                         value={serial.serialNumber}
+                                                                                        error={Boolean(serial.serialNumber) && !isValidTicketSerial(serial.serialNumber)}
+                                                                                        helperText={Boolean(serial.serialNumber) && !isValidTicketSerial(serial.serialNumber) ? 'Một chữ cái ở đầu hoặc cuối, các ký tự còn lại là số.' : ' '}
                                                                                         onChange={(e) => {
                                                                                             setTicketDetails((prev) => {
                                                                                                 const next = JSON.parse(JSON.stringify(prev));
-                                                                                                next[s.lotteryStationId][groupIdx].serials[serialIdx].serialNumber = e.target.value;
+                                                                                                next[s.lotteryStationId][groupIdx].serials[serialIdx].serialNumber = e.target.value.replace(/[^A-Za-z0-9]/g, '');
                                                                                                 return next;
                                                                                             });
                                                                                         }}
+                                                                                        inputProps={{ inputMode: 'text' }}
                                                                                         sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                                                                                     />
                                                                                     <FormControl size="small" sx={{ flex: 1 }}>
@@ -1008,40 +1146,71 @@ export const ImportDiscrepancyPanel = ({
                                                                                             <MenuItem value="DAMAGED">Hư hỏng / rách</MenuItem>
                                                                                         </Select>
                                                                                     </FormControl>
-                                                                                    <Button
-                                                                                        variant={serial.evidenceUrl ? 'outlined' : 'contained'}
-                                                                                        color={serial.evidenceUrl ? 'success' : 'primary'}
-                                                                                        component="label"
-                                                                                        disabled={uploadingEvidence}
-                                                                                        sx={{ flex: 1, minHeight: 40, borderRadius: '8px', textTransform: 'none', boxShadow: 'none' }}
-                                                                                    >
-                                                                                        {serial.evidenceUrl ? 'Đã tải ảnh' : 'Tải ảnh minh chứng'}
-                                                                                        <input
-                                                                                            type="file"
-                                                                                            hidden
-                                                                                            accept="image/*"
-                                                                                            capture="environment"
-                                                                                            onChange={async (e) => {
-                                                                                                const file = e.target.files?.[0];
-                                                                                                if (!file) return;
-                                                                                                try {
-                                                                                                    setUploadingEvidence(true);
-                                                                                                    const url = await uploadAdminImage(file);
-                                                                                                    setTicketDetails((prev) => {
-                                                                                                        const next = JSON.parse(JSON.stringify(prev));
-                                                                                                        next[s.lotteryStationId][groupIdx].serials[serialIdx].evidenceUrl = url;
-                                                                                                        return next;
-                                                                                                    });
-                                                                                                    AppToast.success('Đã tải ảnh minh chứng.');
-                                                                                                } catch (err: any) {
-                                                                                                    AppToast.error(err?.message || 'Tải ảnh thất bại.');
-                                                                                                } finally {
-                                                                                                    setUploadingEvidence(false);
-                                                                                                    e.target.value = '';
-                                                                                                }
-                                                                                            }}
-                                                                                        />
-                                                                                    </Button>
+                                                                                    {serial.evidenceUrl ? (
+                                                                                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flex: 1 }}>
+                                                                                            <Button
+                                                                                                variant="outlined"
+                                                                                                color="success"
+                                                                                                startIcon={<VisibilityOutlinedIcon />}
+                                                                                                onClick={() => setReceiptPreview({
+                                                                                                    url: serial.evidenceUrl,
+                                                                                                    title: `Ảnh vé ${serial.serialNumber || 'chưa có sê-ri'}`,
+                                                                                                })}
+                                                                                                sx={{ flex: 1, minHeight: 40, borderRadius: '8px', textTransform: 'none' }}
+                                                                                            >
+                                                                                                Xem ảnh
+                                                                                            </Button>
+                                                                                            <Button
+                                                                                                variant="outlined"
+                                                                                                color="error"
+                                                                                                startIcon={<CloseIcon />}
+                                                                                                onClick={() => setTicketImageToDelete({
+                                                                                                    stationId: s.lotteryStationId,
+                                                                                                    groupIdx,
+                                                                                                    serialIdx,
+                                                                                                    serialNumber: serial.serialNumber,
+                                                                                                })}
+                                                                                                sx={{ minHeight: 40, borderRadius: '8px', textTransform: 'none' }}
+                                                                                            >
+                                                                                                Xóa ảnh
+                                                                                            </Button>
+                                                                                        </Stack>
+                                                                                    ) : (
+                                                                                        <Button
+                                                                                            variant="contained"
+                                                                                            color="primary"
+                                                                                            component="label"
+                                                                                            disabled={uploadingEvidence}
+                                                                                            sx={{ flex: 1, minHeight: 40, borderRadius: '8px', textTransform: 'none', boxShadow: 'none' }}
+                                                                                        >
+                                                                                            {serial.condition === 'DAMAGED' ? 'Tải ảnh minh chứng' : 'Ảnh (tùy chọn)'}
+                                                                                            <input
+                                                                                                type="file"
+                                                                                                hidden
+                                                                                                accept="image/*"
+                                                                                                capture="environment"
+                                                                                                onChange={async (e) => {
+                                                                                                    const file = e.target.files?.[0];
+                                                                                                    if (!file) return;
+                                                                                                    try {
+                                                                                                        setUploadingEvidence(true);
+                                                                                                        const url = await uploadAdminImage(file);
+                                                                                                        setTicketDetails((prev) => {
+                                                                                                            const next = JSON.parse(JSON.stringify(prev));
+                                                                                                            next[s.lotteryStationId][groupIdx].serials[serialIdx].evidenceUrl = url;
+                                                                                                            return next;
+                                                                                                        });
+                                                                                                        AppToast.success('Đã tải ảnh minh chứng.');
+                                                                                                    } catch (err: any) {
+                                                                                                        AppToast.error(err?.message || 'Tải ảnh thất bại.');
+                                                                                                    } finally {
+                                                                                                        setUploadingEvidence(false);
+                                                                                                        e.target.value = '';
+                                                                                                    }
+                                                                                                }}
+                                                                                            />
+                                                                                        </Button>
+                                                                                    )}
                                                                                     <IconButton
                                                                                         color="error"
                                                                                         disabled={group.serials.length <= 1}
@@ -1075,6 +1244,20 @@ export const ImportDiscrepancyPanel = ({
                                                                                     Thêm sê-ri
                                                                                 </Button>
                                                                             </Box>
+                                                                            </>)}
+                                                                        </Paper>
+                                                                    ))}
+                                                                    {stationLostEntries.map((entry) => (
+                                                                        <Paper key={entry.id} variant="outlined" sx={{ p: 1.5, mb: 1.5, borderRadius: '8px', borderColor: '#fde68a', bgcolor: '#fffbeb' }}>
+                                                                            <Box sx={{ display: 'grid', gridTemplateColumns: '44px 130px minmax(180px, 1fr) 110px 48px', gap: 1, alignItems: 'center' }}>
+                                                                                <span />
+                                                                                <Chip size="small" color="warning" variant="outlined" label="Thất thoát" sx={{ minWidth: 92, fontWeight: 800 }} />
+                                                                                <Typography variant="body2" fontWeight={700}>{s.lotteryStationName || `Đài #${s.lotteryStationId}`}</Typography>
+                                                                                <Typography variant="body2" fontWeight={800} textAlign="right">{entry.quantity} vé</Typography>
+                                                                                <IconButton color="error" size="small" aria-label="Xóa vé thất thoát" onClick={() => setLostTickets((current) => current.filter((item) => item.id !== entry.id))}>
+                                                                                    <CloseIcon fontSize="small" />
+                                                                                </IconButton>
+                                                                            </Box>
                                                                         </Paper>
                                                                     ))}
                                                                     
@@ -1105,17 +1288,18 @@ export const ImportDiscrepancyPanel = ({
                                     </TableBody>
                                     <TableFooter sx={{ bgcolor: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
                                         <TableRow>
+                                            <TableCell />
                                             <TableCell sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#334155' }}>
                                                 TỔNG CỘNG ({allocationStations.length} nhà đài)
                                             </TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155' }}>
                                                 {allocationStations.reduce((acc, s) => acc + (s.importedQuantity ?? 0), 0).toLocaleString('vi-VN')}
                                             </TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#64748b' }}>
-                                                {allocationStations.reduce((acc, s) => acc + (s.remainingQuantity ?? 0), 0).toLocaleString('vi-VN')}
-                                            </TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#2563eb' }}>
-                                                {missingQtyByCondition.underImported.toLocaleString('vi-VN')} thiếu, {missingQtyByCondition.damaged.toLocaleString('vi-VN')} hỏng
+                                                {(missingQtyByCondition.underImported + missingQtyByCondition.damaged).toLocaleString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#d97706' }}>
+                                                {missingQtyByCondition.lost.toLocaleString('vi-VN')}
                                             </TableCell>
                                             <TableCell
                                                 align="right"
@@ -1134,186 +1318,50 @@ export const ImportDiscrepancyPanel = ({
                             </Paper>
                         )}
 
-                        <Paper variant="outlined" sx={{ borderRadius: '12px', p: 2, mb: 2, borderColor: '#e2e8f0', bgcolor: '#ffffff' }}>
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems="center">
-                                <Box>
-                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                                        Vé thất thoát (Không xác định đài)
-                                    </Typography>
-                                    <Typography variant="caption" color="#64748b">
-                                        Ghi nhận số lượng vé bị thất thoát không thuộc đài cụ thể
-                                    </Typography>
+                        {lostTickets.some((entry) => entry.lotteryStationId == null) && (
+                            <Paper variant="outlined" sx={{ borderRadius: '12px', p: 2, mb: 2, borderColor: '#fde68a', bgcolor: '#fffbeb' }}>
+                                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.5 }}>Chi tiết vé — Chưa xác nhận nhà đài</Typography>
+                                <Box sx={{ display: 'grid', gridTemplateColumns: '130px minmax(180px, 1fr) 110px 48px', gap: 1, px: 1.5, py: 1, mb: 1, borderRadius: '8px', bgcolor: '#fef3c7', color: '#92400e' }}>
+                                    <Typography variant="caption" fontWeight={800}>LOẠI VÉ</Typography>
+                                    <Typography variant="caption" fontWeight={800}>NHÀ ĐÀI</Typography>
+                                    <Typography variant="caption" fontWeight={800} textAlign="right">SỐ LƯỢNG</Typography>
+                                    <span />
                                 </Box>
-                                <TextField
-                                    size="small"
-                                    value={globalLostQty}
-                                    onChange={(e) => {
-                                        const digits = e.target.value.replace(/\D/g, '');
-                                        const num = digits ? parseInt(digits, 10) : 0;
-                                        setGlobalLostQty(num > 0 ? String(num) : (digits === '' ? '' : '0'));
-                                    }}
-                                    placeholder="0"
-                                    error={missingQtyEntered > totalDiff}
-                                    helperText={missingQtyEntered > totalDiff ? 'Vượt quá số lượng cho phép' : ''}
-                                    slotProps={{
-                                        htmlInput: {
-                                            inputMode: 'numeric',
-                                            style: {
-                                                textAlign: 'right',
-                                                fontWeight: 800,
-                                                color: parseSplitQty(globalLostQty) > 0 ? '#dc2626' : '#0f172a',
-                                            },
-                                        },
-                                    }}
-                                    sx={{
-                                        width: 140,
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: '8px',
-                                            bgcolor: '#f8fafc',
-                                        },
-                                    }}
-                                />
-                            </Stack>
-                        </Paper>
+                                {lostTickets.filter((entry) => entry.lotteryStationId == null).map((entry) => (
+                                    <Box key={entry.id} sx={{ display: 'grid', gridTemplateColumns: '130px minmax(180px, 1fr) 110px 48px', gap: 1, alignItems: 'center', px: 1.5, py: 1 }}>
+                                        <Chip size="small" color="warning" variant="outlined" label="Thất thoát" sx={{ minWidth: 92, fontWeight: 800 }} />
+                                        <Typography variant="body2" fontWeight={700}>Chưa xác nhận nhà đài</Typography>
+                                        <Typography variant="body2" fontWeight={800} textAlign="right">{entry.quantity} vé</Typography>
+                                        <IconButton color="error" size="small" aria-label="Xóa vé thất thoát" onClick={() => setLostTickets((current) => current.filter((item) => item.id !== entry.id))}>
+                                            <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                    </Box>
+                                ))}
+                            </Paper>
+                        )}
 
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 2.5 }}>
-                            <FormControl size="small" sx={{ minWidth: 240, flex: 1 }}>
-                                <InputLabel>Thêm nhà đài thuộc ngày quay</InputLabel>
-                                <Select
-                                    label="Thêm nhà đài thuộc ngày quay"
-                                    value={stationToAdd}
-                                    onChange={(e) => setStationToAdd(e.target.value as number | '')}
-                                    disabled={addableStations.length === 0}
-                                    sx={{ borderRadius: '10px', bgcolor: '#ffffff' }}
-                                >
-                                    {addableStations.map((station) => {
-                                        const id = Number(station.id ?? station._id);
-                                        return (
-                                            <MenuItem key={id} value={id}>
-                                                {station.name || `Đài #${id}`}
-                                            </MenuItem>
-                                        );
-                                    })}
-                                </Select>
-                            </FormControl>
-                            <Button
-                                variant="outlined"
-                                startIcon={<AddCircleOutlineIcon />}
-                                disabled={!stationToAdd}
-                                onClick={handleAddStation}
-                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', whiteSpace: 'nowrap' }}
-                            >
-                                Thêm đài
-                            </Button>
-                        </Stack>
+                        {hasInvalidTicketDetails && (
+                            <Alert severity="error" sx={{ mb: 2, borderRadius: '10px' }}>
+                                Dãy số phải có đúng 6 chữ số. Sê-ri phải có đúng một chữ cái ở đầu hoặc cuối và các ký tự còn lại phải là số.
+                            </Alert>
+                        )}
 
-                        <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', mb: 1.5 }}>
-                            Lý do bổ sung
-                        </Typography>
-
-                        <Grid container spacing={2}>
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel>Lý do ghi nhận</InputLabel>
-                                    <Select
-                                        label="Lý do ghi nhận"
-                                        value={reasonCode}
-                                        onChange={(e) => setReasonCode(e.target.value as SettlementAdjustmentReasonCode)}
-                                        sx={{ borderRadius: '10px', bgcolor: '#ffffff' }}
-                                    >
-                                        <MenuItem value="INSUFFICIENT_IMPORT">Nhập thiếu</MenuItem>
-                                        <MenuItem value="OTHER">Lý do khác</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <TextField
-                                    label="Ghi chú / Diễn giải"
-                                    size="small"
-                                    fullWidth
-                                    value={note}
-                                    onChange={(e) => setNote(e.target.value)}
-                                    placeholder="Nhập ghi chú hoặc biên bản đối soát (nếu có)..."
-                                    sx={{
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: '10px',
-                                            bgcolor: '#ffffff',
-                                        },
-                                    }}
-                                />
-                            </Grid>
-
-                            {needsMissingEvidence && (
-                                <Grid size={{ xs: 12 }}>
-                                    <Paper
-                                        elevation={0}
-                                        sx={{
-                                            p: 2,
-                                            borderRadius: '12px',
-                                            border: '1px dashed #fca5a5',
-                                            bgcolor: '#fff1f2',
-                                        }}
-                                    >
-                                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                                            <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1 }}>
-                                                <PhotoCameraOutlinedIcon sx={{ color: '#be123c' }} />
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={800} color="#9f1239">
-                                                        Ảnh minh chứng hư hỏng / rách (*)
-                                                    </Typography>
-                                                    <Typography variant="caption" color="#be123c">
-                                                        Bắt buộc tải 1 ảnh biên bản / ảnh vé hỏng trước khi xác nhận.
-                                                    </Typography>
-                                                </Box>
-                                            </Stack>
-                                            <Button
-                                                component="label"
-                                                variant="outlined"
-                                                disabled={uploadingEvidence || !!submitting}
-                                                startIcon={<PhotoCameraOutlinedIcon />}
-                                                sx={{
-                                                    textTransform: 'none',
-                                                    fontWeight: 700,
-                                                    borderRadius: '10px',
-                                                    borderColor: '#fb7185',
-                                                    color: '#be123c',
-                                                    bgcolor: '#ffffff',
-                                                }}
-                                            >
-                                                {uploadingEvidence ? 'Đang tải...' : missingEvidenceUrl ? 'Đổi ảnh' : 'Chụp / tải ảnh'}
-                                                <input
-                                                    hidden
-                                                    type="file"
-                                                    accept="image/*"
-                                                    capture="environment"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        void handleMissingEvidenceUpload(file);
-                                                        e.target.value = '';
-                                                    }}
-                                                />
-                                            </Button>
-                                        </Stack>
-                                        {missingEvidenceUrl && (
-                                            <Box
-                                                component="img"
-                                                src={missingEvidenceUrl}
-                                                alt="Evidence"
-                                                sx={{
-                                                    mt: 1.5,
-                                                    maxHeight: 160,
-                                                    maxWidth: '100%',
-                                                    borderRadius: '10px',
-                                                    border: '1px solid #fecdd3',
-                                                    objectFit: 'cover',
-                                                }}
-                                            />
-                                        )}
-                                    </Paper>
-                                </Grid>
-                            )}
-                        </Grid>
+                        <TextField
+                            label="Ghi chú"
+                            size="small"
+                            fullWidth
+                            multiline
+                            minRows={2}
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            placeholder="Nhập ghi chú hoặc biên bản đối soát (nếu có)..."
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '10px',
+                                    bgcolor: '#ffffff',
+                                },
+                            }}
+                        />
                     </Paper>
 
                     <Paper
@@ -1352,7 +1400,9 @@ export const ImportDiscrepancyPanel = ({
                                         ? `Đã phân bổ đủ ${missingQtyEntered.toLocaleString('vi-VN')} vé (${missingQtyByCondition.underImported} nhập thiếu, ${missingQtyByCondition.damaged} hư hỏng, ${missingQtyByCondition.lost} thất thoát)`
                                         : !isMissingQtyExact
                                           ? `Cần phân bổ đúng ${totalDiff.toLocaleString('vi-VN')} vé (hiện đã nhập ${missingQtyEntered.toLocaleString('vi-VN')} vé)`
-                                          : 'Vui lòng đính kèm ảnh minh chứng cho vé hư hỏng / rách'}
+                                          : hasInvalidTicketDetails
+                                            ? 'Vui lòng kiểm tra lại dãy số và sê-ri'
+                                            : 'Vui lòng kiểm tra lại thông tin vé'}
                                 </Typography>
                                 <Typography variant="caption" color={isValidMissing ? '#166534' : '#64748b'}>
                                     Lô điều chỉnh ghi đủ số lượng. Vé-ma chỉ tạo cho nhập thiếu / hư hỏng; thất thoát chỉ cộng số lượng theo đài.
@@ -1370,7 +1420,6 @@ export const ImportDiscrepancyPanel = ({
                                     note: note || `Bổ sung ${missingQtyEntered} vé hệ thống ghi thiếu (nhập thiếu ${missingQtyByCondition.underImported}, hư hỏng ${missingQtyByCondition.damaged}, thất thoát ${missingQtyByCondition.lost})`,
                                     markResolved: true,
                                     missingPlaceholders,
-                                    damagedEvidenceUrl: needsMissingEvidence ? missingEvidenceUrl.trim() : undefined,
                                 })
                             }
                             sx={{
@@ -1387,7 +1436,7 @@ export const ImportDiscrepancyPanel = ({
                         >
                             {submitting
                                 ? 'Đang xử lý...'
-                                : `Xác nhận bổ sung ${missingQtyEntered.toLocaleString('vi-VN')} vé & Hoàn tất`}
+                                : `Xác nhận bổ sung ${missingQtyEntered.toLocaleString('vi-VN')} vé`}
                         </Button>
                     </Paper>
                 </Stack>
@@ -1523,7 +1572,7 @@ export const ImportDiscrepancyPanel = ({
                             '&:hover': { bgcolor: '#15803d' },
                         }}
                     >
-                        {submitting ? 'Đang lưu...' : `Xác nhận ${excessRows.length} vé hệ thống ghi thiếu & Hoàn tất`}
+                        {submitting ? 'Đang xác nhận...' : `Xác nhận ${excessRows.length} vé hệ thống ghi thiếu`}
                     </Button>
                 </Stack>
             )}
@@ -1532,23 +1581,13 @@ export const ImportDiscrepancyPanel = ({
             {mode === 'EXISTING' && (
                 <>
                     {isShortage && (
-                        <Alert
-                            icon={<InfoOutlinedIcon />}
-                            severity="info"
-                            sx={{ mb: 2, borderRadius: '12px', bgcolor: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}
-                        >
-                            Chọn đúng {totalDiff.toLocaleString('vi-VN')} vé trong các lô nhập của ngày đối soát, sau đó ghi nhận tình trạng và lý do.
-                        </Alert>
-                    )}
-
-                    {isShortage && (
                         <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ mb: 1.25 }}>
                             Danh sách vé được nhập trong ngày đối soát
                         </Typography>
                     )}
 
                     {/* Batch tabs */}
-                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}>
+                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1, display: isImportedTicketListLocked ? 'none' : undefined }}>
                         <Tabs
                             value={selectedBatchKey}
                             onChange={(_, val) => {
@@ -1604,7 +1643,7 @@ export const ImportDiscrepancyPanel = ({
                     </Box>
 
                     {/* Station sub-tabs */}
-                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, display: isImportedTicketListLocked ? 'none' : undefined }}>
                         <Tabs
                             value={selectedStation}
                             onChange={(_, val) => setSelectedStation(val)}
@@ -1662,7 +1701,7 @@ export const ImportDiscrepancyPanel = ({
                         spacing={2}
                         alignItems={{ xs: 'stretch', sm: 'center' }}
                         justifyContent="space-between"
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 2, display: isImportedTicketListLocked ? 'none' : undefined }}
                     >
                         <TextField
                             size="small"
@@ -1708,9 +1747,85 @@ export const ImportDiscrepancyPanel = ({
                         </Stack>
                     </Stack>
 
-                    {/* Serials Table */}
+                    {isImportedTicketListLocked ? (
+                        <Paper
+                            variant="outlined"
+                            sx={{ p: { xs: 3, md: 5 }, mb: 2.5, borderRadius: '12px', borderColor: '#fecaca', bgcolor: '#fff7f7', textAlign: 'center' }}
+                        >
+                            <LockOutlinedIcon sx={{ fontSize: 42, color: '#ef4444', mb: 1 }} />
+                            <Typography variant="h6" fontWeight={800} color="#7f1d1d" sx={{ mb: 0.75 }}>
+                                Danh sách vé nhập đang bị khóa
+                            </Typography>
+                            <Typography variant="body2" color="#991b1b" sx={{ maxWidth: 620, mx: 'auto' }}>
+                                Danh sách chỉ được mở khi đã qua giờ chốt trả vé ({importedTicketCutOffDisplay}) và
+                                đã đến cửa sổ đối soát NCC ({paymentWindowDisplay}).
+                                {!isReturnCutOffReached && ' Hiện chưa qua giờ chốt trả vé.'}
+                                {!isPaymentWindowReached && ' Hiện chưa đến cửa sổ đối soát.'}
+                            </Typography>
+                        </Paper>
+                    ) : (
+                        <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden', borderColor: '#e2e8f0', mb: 2.5 }}>
+                            <Box sx={{ maxHeight: 420, overflow: 'auto' }}>
+                                <Table size="small" stickyHeader>
+                                    <TableHead>
+                                        <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', fontSize: '0.8rem', py: 1.2 } }}>
+                                            {canActOnSerials && <TableCell padding="checkbox" />}
+                                            <TableCell>DÃY SỐ</TableCell>
+                                            <TableCell>NHÀ ĐÀI</TableCell>
+                                            <TableCell>LÔ NHẬP</TableCell>
+                                            <TableCell align="right">SỐ LƯỢNG</TableCell>
+                                            <TableCell align="right">GIÁ VỐN</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {groupedFilteredSerials.flatMap((group) => {
+                                            const ids = group.serials.map((item) => item.serialId);
+                                            const allSelected = canActOnSerials && ids.length > 0 && ids.every((id) => selected.includes(id));
+                                            const expanded = expandedImportedRanges.includes(group.key);
+                                            const rows: React.ReactNode[] = [
+                                                <TableRow key={`range-${group.key}`} hover sx={{ cursor: 'pointer', bgcolor: expanded ? '#eff6ff' : 'inherit' }} onClick={() => setExpandedImportedRanges((current) => expanded ? current.filter((key) => key !== group.key) : [...current, group.key])}>
+                                                    {canActOnSerials && <TableCell padding="checkbox" onClick={(event) => event.stopPropagation()}><Checkbox checked={allSelected} indeterminate={!allSelected && ids.some((id) => selected.includes(id))} onChange={() => setSelected((current) => allSelected ? current.filter((id) => !ids.includes(id)) : Array.from(new Set([...current, ...ids])))} size="small" /></TableCell>}
+                                                    <TableCell>
+                                                        <Stack direction="row" spacing={0.75} alignItems="center">
+                                                            {expanded ? <KeyboardArrowDownIcon fontSize="small" /> : <KeyboardArrowRightIcon fontSize="small" />}
+                                                            <Typography variant="body2" fontWeight={800} sx={{ fontFamily: 'monospace' }}>{group.numbers}</Typography>
+                                                        </Stack>
+                                                    </TableCell>
+                                                    <TableCell><Chip size="small" label={group.stationName} sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600, border: '1px solid #bfdbfe' }} /></TableCell>
+                                                    <TableCell><Typography variant="caption" fontWeight={700} color="#475569">{group.batchLabel}</Typography></TableCell>
+                                                    <TableCell align="right"><Typography variant="body2" fontWeight={800}>{group.serials.length}</Typography></TableCell>
+                                                    <TableCell align="right"><Typography variant="body2" fontWeight={700} color="#166534">{formatSettlementMoney(group.importCost)} VNĐ</Typography></TableCell>
+                                                </TableRow>,
+                                            ];
+                                            if (expanded) {
+                                                group.serials.forEach((item) => {
+                                                    const isRowSelected = selected.includes(item.serialId);
+                                                    rows.push(
+                                                        <TableRow key={`serial-${item.serialId}`} hover selected={canActOnSerials && isRowSelected}>
+                                                            {canActOnSerials && <TableCell padding="checkbox"><Checkbox checked={isRowSelected} onChange={() => toggle(item.serialId)} size="small" /></TableCell>}
+                                                            <TableCell sx={{ pl: canActOnSerials ? 5 : 3 }}><Typography variant="body2" fontWeight={700} sx={{ fontFamily: 'monospace' }}>{item.serialNumber}</Typography></TableCell>
+                                                            <TableCell><Typography variant="caption" color="#64748b">{item.stationName || group.stationName}</Typography></TableCell>
+                                                            <TableCell><Typography variant="caption" color="#64748b">{item.importBatchCode || group.batchLabel}</Typography></TableCell>
+                                                            <TableCell align="right"><Typography variant="caption" color="#64748b">1 vé</Typography></TableCell>
+                                                            <TableCell align="right"><Typography variant="caption" color="#166534">{formatSettlementMoney(Number(item.importCost || 0))} VNĐ</Typography></TableCell>
+                                                        </TableRow>
+                                                    );
+                                                });
+                                            }
+                                            return rows;
+                                        })}
+                                        {groupedFilteredSerials.length === 0 && (
+                                            <TableRow><TableCell colSpan={canActOnSerials ? 6 : 5} sx={{ py: 4, textAlign: 'center' }}><Typography variant="body2" color="#64748b" fontWeight={600}>{loading ? 'Đang tải danh sách vé trong lô...' : 'Không có dãy số phù hợp với bộ lọc hiện tại.'}</Typography></TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </Box>
+                        </Paper>
+                    )}
+
+                    {/* Legacy serial table retained for the adjustment workflow; the grouped list above is the visible view. */}
                     {loading ? (
-                        <Box sx={{ p: 4, textAlign: 'center' }}>
+                        <Box sx={{ display: 'none', p: 4, textAlign: 'center' }}>
                             <Typography variant="body2" color="#64748b">
                                 Đang tải danh sách vé trong lô...
                             </Typography>
@@ -1718,7 +1833,8 @@ export const ImportDiscrepancyPanel = ({
                     ) : (
                         <Paper
                             variant="outlined"
-                            sx={{
+                                sx={{
+                                display: 'none',
                                 borderRadius: '12px',
                                 overflow: 'hidden',
                                 borderColor: '#e2e8f0',
@@ -1748,61 +1864,25 @@ export const ImportDiscrepancyPanel = ({
                                     <TableBody>
                                         {filteredSerials.map((s) => {
                                             const isRowSelected = selected.includes(s.serialId);
-                                            const batchLabel =
-                                                s.importBatchCode
+                                            const batchLabel = s.importBatchCode
                                                 || batchTabs.find((b) => b.id === Number(s.importBatchId))?.label
                                                 || (s.importBatchId != null ? `Lô #${s.importBatchId}` : '—');
                                             return (
-                                                <TableRow
-                                                    key={s.serialId}
-                                                    hover
-                                                    selected={canActOnSerials && isRowSelected}
-                                                    onClick={canActOnSerials ? () => toggle(s.serialId) : undefined}
-                                                    sx={{
-                                                        cursor: canActOnSerials ? 'pointer' : 'default',
-                                                        '&.Mui-selected': { bgcolor: '#eff6ff !important' },
-                                                        '&:hover': { bgcolor: '#f8fafc' },
-                                                    }}
-                                                >
+                                                <TableRow key={s.serialId} hover selected={canActOnSerials && isRowSelected} onClick={canActOnSerials ? () => toggle(s.serialId) : undefined}>
                                                     {canActOnSerials && (
                                                         <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-                                                            <Checkbox
-                                                                checked={isRowSelected}
-                                                                onChange={() => toggle(s.serialId)}
-                                                                size="small"
-                                                                color="primary"
-                                                            />
+                                                            <Checkbox checked={isRowSelected} onChange={() => toggle(s.serialId)} size="small" color="primary" />
                                                         </TableCell>
                                                     )}
                                                     <TableCell>
-                                                        <Typography variant="body2" fontWeight={700} sx={{ fontFamily: 'monospace', color: '#0f172a' }}>
-                                                            {s.serialNumber}
-                                                        </Typography>
+                                                        <Typography variant="body2" fontWeight={700} sx={{ fontFamily: 'monospace', color: '#0f172a' }}>{s.serialNumber}</Typography>
                                                     </TableCell>
+                                                    <TableCell><Typography variant="caption" fontWeight={700} color="#475569">{batchLabel}</Typography></TableCell>
                                                     <TableCell>
-                                                        <Typography variant="caption" fontWeight={700} color="#475569">
-                                                            {batchLabel}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Chip
-                                                            size="small"
-                                                            icon={<LocationOnOutlinedIcon style={{ fontSize: '0.85rem' }} />}
-                                                            label={s.stationName || 'Chưa rõ'}
-                                                            sx={{
-                                                                bgcolor: '#eff6ff',
-                                                                color: '#1d4ed8',
-                                                                fontWeight: 600,
-                                                                fontSize: '0.75rem',
-                                                                border: '1px solid #bfdbfe',
-                                                            }}
-                                                        />
+                                                        <Chip size="small" icon={<LocationOnOutlinedIcon style={{ fontSize: '0.85rem' }} />} label={s.stationName || 'Chưa rõ'} sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600, fontSize: '0.75rem', border: '1px solid #bfdbfe' }} />
                                                     </TableCell>
                                                     <TableCell align="right">
-                                                        <Typography variant="body2" fontWeight={700} color="#166534">
-                                                            {formatSettlementMoney(Number(s.importCost || 0))}{' '}
-                                                            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>VNĐ</span>
-                                                        </Typography>
+                                                        <Typography variant="body2" fontWeight={700} color="#166534">{formatSettlementMoney(Number(s.importCost || 0))}{' '}<span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>VNĐ</span></Typography>
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -1827,7 +1907,7 @@ export const ImportDiscrepancyPanel = ({
                         </Paper>
                     )}
 
-                    {canActOnSerials && (
+                    {canActOnSerials && !isImportedTicketListLocked && (
                         <>
                     {/* Adjustment Form Box */}
                     <Paper
@@ -1950,7 +2030,7 @@ export const ImportDiscrepancyPanel = ({
                             fontSize: '0.85rem',
                         }}
                     >
-                        Chỉ có thể hoàn tất khi chọn đúng {totalDiff.toLocaleString('vi-VN')} vé hệ thống đã ghi thừa. Hệ thống sẽ cập nhật tình trạng và lưu lịch sử kiểm toán.
+                        Chỉ có thể xác nhận khi chọn đúng {totalDiff.toLocaleString('vi-VN')} vé hệ thống đã ghi thừa. Dữ liệu sẽ được giữ tạm cho đến bước Hoàn tất xử lý.
                     </Alert>
 
                     {/* Actions */}
@@ -2007,10 +2087,10 @@ export const ImportDiscrepancyPanel = ({
                             }}
                         >
                             {submitting
-                                ? 'Đang lưu...'
+                                ? 'Đang xác nhận...'
                                 : isShortage
                                   ? `Xác nhận xử lý (${selected.length}/${totalDiff} vé)`
-                                  : `Hoàn tất xử lý (${selected.length} vé)`}
+                                  : `Xác nhận xử lý (${selected.length} vé)`}
                         </Button>
                     </Stack>
                         </>
@@ -2044,6 +2124,57 @@ export const ImportDiscrepancyPanel = ({
                     )}
                 </DialogContent>
             </Dialog>
+            <Dialog
+                open={Boolean(ticketImageToDelete)}
+                onClose={() => setTicketImageToDelete(null)}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle sx={{ fontWeight: 800 }}>Xóa ảnh vé?</DialogTitle>
+                <DialogContent dividers>
+                    <Typography variant="body2" color="text.secondary">
+                        Ảnh đã tải lên cho sê-ri {ticketImageToDelete?.serialNumber || 'này'} sẽ bị xóa khỏi dòng vé. Bạn có chắc muốn tiếp tục không?
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, py: 2 }}>
+                    <Button onClick={() => setTicketImageToDelete(null)} sx={{ textTransform: 'none', fontWeight: 700 }}>
+                        Hủy
+                    </Button>
+                    <Button
+                        color="error"
+                        variant="contained"
+                        onClick={() => {
+                            const target = ticketImageToDelete;
+                            if (!target) return;
+                            setTicketDetails((prev) => {
+                                const next = JSON.parse(JSON.stringify(prev));
+                                const serial = next[target.stationId]?.[target.groupIdx]?.serials?.[target.serialIdx];
+                                if (serial) serial.evidenceUrl = '';
+                                return next;
+                            });
+                            setTicketImageToDelete(null);
+                        }}
+                        sx={{ textTransform: 'none', fontWeight: 800 }}
+                    >
+                        Xóa ảnh
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            <MissingTicketSourceDialog
+                open={sourceDialogOpen}
+                supplierId={supplierId}
+                drawDate={drawDate}
+                maxSelectable={Math.max(0, missingQtyRemaining)}
+                stationAllocations={allocationStations.map((station) => ({
+                    lotteryStationId: station.lotteryStationId,
+                    stationName: station.lotteryStationName || `Đài #${station.lotteryStationId}`,
+                    allocatedQuantity: Math.max(0, Number(station.importedQuantity || 0)),
+                    currentQuantity: (ticketDetails[station.lotteryStationId] || []).reduce((sum, group) => sum + group.serials.length, 0),
+                }))}
+                onClose={() => setSourceDialogOpen(false)}
+                onConfirm={handleSourceTickets}
+                onConfirmLost={handleLostTickets}
+            />
             <Dialog
                 open={receiptListOpen}
                 onClose={() => setReceiptListOpen(false)}

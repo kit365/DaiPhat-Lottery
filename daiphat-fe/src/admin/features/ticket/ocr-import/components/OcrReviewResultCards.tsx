@@ -43,6 +43,8 @@ import {
     evaluateOcrFieldUiStatus,
     formatConfidence,
     formatDenomination,
+    getOcrReviewFieldConfidence,
+    getOcrReviewIssueCounts,
     resolveFieldDisplayConfidence,
     toConfidenceRatio,
     toShortFieldHint,
@@ -272,6 +274,8 @@ type Props = {
     onSelect: (selection: OcrFieldSelection) => void;
     onToggle: (key: string, checked: boolean) => void;
     onUpdate: (key: string, patch: Partial<OcrReviewRow>) => void;
+    /** Show the bulk-selection checkbox in the STT header. */
+    showHeaderSelectAll?: boolean;
     /** When true, omit outer spacing wrapper (used inside per-image groups). */
     embedded?: boolean;
 };
@@ -304,6 +308,7 @@ export default function OcrReviewResultCards({
     onSelect,
     onToggle,
     onUpdate,
+    showHeaderSelectAll = true,
 }: Props) {
     const [zoomImage, setZoomImage] = useState<{ url: string; title: string; row: OcrReviewRow } | null>(null);
     const [selectedRowForErrorDetail, setSelectedRowForErrorDetail] = useState<{
@@ -311,6 +316,7 @@ export default function OcrReviewResultCards({
         index: number;
     } | null>(null);
     const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+    const [numberDrafts, setNumberDrafts] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (!selection?.rowKey) return;
@@ -404,13 +410,15 @@ export default function OcrReviewResultCards({
                         >
                             <TableCell align="center" sx={{ width: 52, minWidth: 52, px: 0.5 }}>
                                 <Stack direction="row" spacing={0.25} alignItems="center" justifyContent="center">
-                                    <Checkbox
-                                        size="small"
-                                        checked={isAllSelected}
-                                        indeterminate={rows.some((r) => r.selected) && !isAllSelected}
-                                        onChange={(e) => handleToggleAll(e.target.checked)}
-                                        sx={{ p: 0, color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
-                                    />
+                                    {showHeaderSelectAll && (
+                                        <Checkbox
+                                            size="small"
+                                            checked={isAllSelected}
+                                            indeterminate={rows.some((r) => r.selected) && !isAllSelected}
+                                            onChange={(e) => handleToggleAll(e.target.checked)}
+                                            sx={{ p: 0, color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
+                                        />
+                                    )}
                                     <span>STT</span>
                                 </Stack>
                             </TableCell>
@@ -459,40 +467,15 @@ export default function OcrReviewResultCards({
                             const priceStatus = evaluateOcrFieldUiStatus(row, 'ticketType', ctx);
 
                             const missingStation = row.stationId == null;
-                            const displayConfidence =
-                                row.adjustedConfidence != null ? row.adjustedConfidence : row.confidence;
+                            const fieldConfidence = getOcrReviewFieldConfidence(row);
+                            const confidenceRatio = fieldConfidence == null ? null : toConfidenceRatio(fieldConfidence);
+                            const confidenceIsHigh = confidenceRatio != null && confidenceRatio >= 0.85;
+                            const confidenceIsLow = confidenceRatio == null
+                                ? row.status === 'FAILED'
+                                : confidenceRatio < 0.6;
 
-                            const isError =
-                                row.status === 'FAILED' ||
-                                row.overallValidationStatus === 'INVALID' ||
-                                row.duplicate;
-
-                            // Calculate total errors / warnings for the row
-                            let errorCount = 0;
-                            let warningCount = 0;
-
-                            if (numbersStatus.status === 'invalid' || numbersStatus.status === 'unreadable') errorCount++;
-                            else if (numbersStatus.status === 'uncertain') warningCount++;
-
-                            if (serialStatus.status === 'invalid' || serialStatus.status === 'unreadable') errorCount++;
-                            else if (serialStatus.status === 'uncertain') warningCount++;
-
-                            if (missingStation || stationStatus.status === 'invalid' || stationStatus.status === 'unreadable') errorCount++;
-                            else if (stationStatus.status === 'uncertain') warningCount++;
-
-                            if (drawDateStatus.status === 'invalid' || drawDateStatus.status === 'unreadable') errorCount++;
-                            else if (drawDateStatus.status === 'uncertain') warningCount++;
-
-                            if (batchCodeStatus.status === 'invalid') errorCount++;
-                            else if (batchCodeStatus.status === 'uncertain') warningCount++;
-
-                            if (priceStatus.status === 'invalid') errorCount++;
-                            else if (priceStatus.status === 'uncertain') warningCount++;
-
-                            if (row.duplicate) errorCount++;
-                            if (row.status === 'FAILED') errorCount++;
-                            if (row.validationErrors && row.validationErrors.length > 0) errorCount += row.validationErrors.length;
-                            if (row.businessValidationErrors && row.businessValidationErrors.length > 0) errorCount += row.businessValidationErrors.length;
+                            const { errorCount, warningCount } = getOcrReviewIssueCounts(row, ctx);
+                            const isError = errorCount > 0;
 
                             const stationColor = getStationColor(row.stationId);
 
@@ -560,12 +543,36 @@ export default function OcrReviewResultCards({
                                             <Box
                                                 component="input"
                                                 type="text"
-                                                value={row.numbers}
+                                                value={numberDrafts[row.key] ?? row.numbers}
                                                 placeholder="Nhập dãy số…"
-                                                onFocus={() => onSelect({ rowKey: row.key, fieldName: 'numbers' })}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                                    onUpdate(row.key, { numbers: e.target.value })
-                                                }
+                                                onFocus={() => {
+                                                    onSelect({ rowKey: row.key, fieldName: 'numbers' });
+                                                    setNumberDrafts((previous) =>
+                                                        previous[row.key] == null
+                                                            ? { ...previous, [row.key]: row.numbers }
+                                                            : previous
+                                                    );
+                                                }}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                    const value = e.target.value;
+                                                    setNumberDrafts((previous) => ({ ...previous, [row.key]: value }));
+                                                }}
+                                                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.currentTarget.blur();
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    const nextValue = numberDrafts[row.key];
+                                                    if (nextValue != null && nextValue !== row.numbers) {
+                                                        onUpdate(row.key, { numbers: nextValue });
+                                                    }
+                                                    setNumberDrafts((previous) => {
+                                                        const next = { ...previous };
+                                                        delete next[row.key];
+                                                        return next;
+                                                    });
+                                                }}
                                                 sx={{
                                                     width: '100%',
                                                     height: 32,
@@ -670,7 +677,7 @@ export default function OcrReviewResultCards({
                                                 size="small"
                                                 fullWidth
                                                 displayEmpty
-                                                value={row.stationId ?? ''}
+                                                value={row.stationId != null && rowStations.some((station) => station.id === row.stationId) ? row.stationId : ''}
                                                 error={missingStation || stationStatus.status === 'invalid'}
                                                 onFocus={() => onSelect({ rowKey: row.key, fieldName: 'stationName' })}
                                                 onChange={(e) => {
@@ -684,7 +691,9 @@ export default function OcrReviewResultCards({
                                                 }}
                                                 renderValue={(val: any) => {
                                                     if (!val || String(val) === '') {
-                                                        return <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>-- Chọn đài --</span>;
+                                                        return <span style={{ color: row.stationId != null ? '#dc2626' : '#94a3b8', fontSize: '0.8rem' }}>
+                                                            {row.stationId != null ? `${row.stationName || `Đài #${row.stationId}`} (không có lịch)` : '-- Chọn đài --'}
+                                                        </span>;
                                                     }
                                                     const matched = rowStations.find((s) => s.id === Number(val));
                                                     return (
@@ -747,6 +756,11 @@ export default function OcrReviewResultCards({
                                                 <MenuItem value="">
                                                     <em style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>-- Chọn đài --</em>
                                                 </MenuItem>
+                                                {rowStations.length === 0 && (
+                                                    <MenuItem disabled value="no-scheduled-stations">
+                                                        Đang tải lịch quay hoặc chưa có đài phù hợp
+                                                    </MenuItem>
+                                                )}
                                                 {rowStations.map((station) => {
                                                     const color = getStationColor(station.id);
                                                     return (
@@ -1015,7 +1029,7 @@ export default function OcrReviewResultCards({
                                                             Chi tiết nhận diện:
                                                         </Typography>
                                                         <Typography variant="caption" sx={{ display: 'block' }}>
-                                                            • Độ chính xác: {formatConfidence(displayConfidence)}
+                                                            • Độ chính xác trung bình các trường OCR: {fieldConfidence == null ? '—' : formatConfidence(fieldConfidence)}
                                                         </Typography>
                                                         {row.duplicate && (
                                                             <Typography variant="caption" color="#fca5a5" sx={{ display: 'block' }}>
@@ -1044,47 +1058,32 @@ export default function OcrReviewResultCards({
                                                     <Chip
                                                         size="small"
                                                         icon={
-                                                            row.status === 'COMPLETE' || row.overallValidationStatus === 'VALID' ? (
+                                                            confidenceIsHigh ? (
                                                                 <CheckCircleOutlineIcon sx={{ fontSize: '12px !important' }} />
-                                                            ) : row.duplicate || row.status === 'FAILED' ? (
+                                                            ) : confidenceIsLow ? (
                                                                 <ErrorOutlineOutlinedIcon sx={{ fontSize: '12px !important' }} />
                                                             ) : (
                                                                 <WarningAmberOutlinedIcon sx={{ fontSize: '12px !important' }} />
                                                             )
                                                         }
-                                                        label={
-                                                            row.duplicate
-                                                                ? 'Trùng'
-                                                                : row.status === 'FAILED'
-                                                                  ? 'Lỗi đọc'
-                                                                  : row.edited
-                                                                    ? 'Đã sửa'
-                                                                    : `${formatConfidence(displayConfidence)}`
-                                                        }
+                                                        label={fieldConfidence == null
+                                                            ? (row.status === 'FAILED' ? 'Lỗi đọc' : '—')
+                                                            : formatConfidence(fieldConfidence)}
                                                         sx={{
                                                             fontWeight: 800,
                                                             fontSize: '0.7rem',
                                                             height: 22,
                                                             borderRadius: '5px',
-                                                            bgcolor:
-                                                                row.duplicate || row.status === 'FAILED'
-                                                                    ? '#fee2e2'
-                                                                    : row.status === 'COMPLETE' || row.overallValidationStatus === 'VALID'
-                                                                      ? '#dcfce7'
-                                                                      : '#fef3c7',
-                                                            color:
-                                                                row.duplicate || row.status === 'FAILED'
-                                                                    ? '#b91c1c'
-                                                                    : row.status === 'COMPLETE' || row.overallValidationStatus === 'VALID'
-                                                                      ? '#15803d'
-                                                                      : '#b45309',
+                                                            bgcolor: confidenceIsHigh
+                                                                ? '#dcfce7' : confidenceIsLow
+                                                                  ? '#fee2e2' : '#fef3c7',
+                                                            color: confidenceIsHigh
+                                                                ? '#15803d' : confidenceIsLow
+                                                                  ? '#b91c1c' : '#b45309',
                                                             border: '1px solid',
-                                                            borderColor:
-                                                                row.duplicate || row.status === 'FAILED'
-                                                                    ? '#fecaca'
-                                                                    : row.status === 'COMPLETE' || row.overallValidationStatus === 'VALID'
-                                                                      ? '#bbf7d0'
-                                                                      : '#fde68a',
+                                                            borderColor: confidenceIsHigh
+                                                                ? '#bbf7d0' : confidenceIsLow
+                                                                  ? '#fecaca' : '#fde68a',
                                                         }}
                                                     />
                                                 </Box>
@@ -1333,7 +1332,8 @@ export default function OcrReviewResultCards({
 
             {/* Modal Pop-up Chi tiết kiểm tra & độ chính xác từng fields của vé */}
             {selectedRowForErrorDetail && (() => {
-                const { row, index } = selectedRowForErrorDetail;
+                const { index } = selectedRowForErrorDetail;
+                const row = rows.find((item) => item.key === selectedRowForErrorDetail.row.key) ?? selectedRowForErrorDetail.row;
                 const ctx = validationContextForRow?.(row);
                 const numbersStatus = evaluateOcrFieldUiStatus(row, 'numbers', ctx);
                 const serialStatus = evaluateOcrFieldUiStatus(row, 'serialNumber', ctx);
@@ -1343,8 +1343,7 @@ export default function OcrReviewResultCards({
                 const priceStatus = evaluateOcrFieldUiStatus(row, 'ticketType', ctx);
                 const croppedUrl = resolveCroppedImageUrl(row);
                 const missingStation = row.stationId == null;
-                const displayConfidence =
-                    row.adjustedConfidence != null ? row.adjustedConfidence : row.confidence;
+                const fieldConfidence = getOcrReviewFieldConfidence(row);
 
                 const fieldsDetail = [
                     {
@@ -1413,8 +1412,7 @@ export default function OcrReviewResultCards({
                     },
                 ];
 
-                const totalErrors = fieldsDetail.filter(f => f.status === 'invalid' || f.status === 'unreadable').length + (row.duplicate ? 1 : 0) + (row.status === 'FAILED' ? 1 : 0) + (row.validationErrors?.length ?? 0) + (row.businessValidationErrors?.length ?? 0);
-                const totalWarnings = fieldsDetail.filter(f => f.status === 'uncertain').length;
+                const { errorCount: totalErrors, warningCount: totalWarnings } = getOcrReviewIssueCounts(row, ctx);
 
                 return (
                     <Dialog
@@ -1621,7 +1619,7 @@ export default function OcrReviewResultCards({
                                             <Chip
                                                 size="small"
                                                 icon={<AutoAwesomeOutlinedIcon sx={{ fontSize: '13px !important' }} />}
-                                                label={`Độ tin cậy tổng thể OCR: ${formatConfidence(displayConfidence)}`}
+                                                label={`Độ chính xác trung bình các trường OCR: ${fieldConfidence == null ? '—' : formatConfidence(fieldConfidence)}`}
                                                 sx={{
                                                     fontSize: '0.7rem',
                                                     height: 22,
@@ -1683,21 +1681,21 @@ export default function OcrReviewResultCards({
                                         sx={{
                                             p: 1.5,
                                             borderRadius: '10px',
-                                            bgcolor: '#fef2f2',
-                                            border: '1px solid #fecaca',
+                                            bgcolor: totalErrors > 0 ? '#fef2f2' : '#fffbeb',
+                                            border: `1px solid ${totalErrors > 0 ? '#fecaca' : '#fde68a'}`,
                                         }}
                                     >
-                                        <Typography variant="subtitle2" fontWeight={800} color="#dc2626" sx={{ display: 'block', mb: 0.5 }}>
-                                            Cảnh báo nhận diện từ hệ thống:
+                                        <Typography variant="subtitle2" fontWeight={800} color={totalErrors > 0 ? '#dc2626' : '#b45309'} sx={{ display: 'block', mb: 0.5 }}>
+                                            {totalErrors > 0 ? 'Cảnh báo nhận diện từ hệ thống:' : 'Lưu ý từ kết quả OCR trước khi chỉnh sửa:'}
                                         </Typography>
                                         <Stack spacing={0.5}>
                                             {row.businessValidationErrors?.map((err, i) => (
-                                                <Typography key={`b-${i}`} variant="caption" color="#b91c1c" sx={{ display: 'block', lineHeight: 1.35 }}>
+                                                <Typography key={`b-${i}`} variant="caption" color={totalErrors > 0 ? '#b91c1c' : '#92400e'} sx={{ display: 'block', lineHeight: 1.35 }}>
                                                     • {formatVietnameseErrorMessage(err)}
                                                 </Typography>
                                             ))}
                                             {row.validationErrors?.map((err, i) => (
-                                                <Typography key={i} variant="caption" color="#b91c1c" sx={{ display: 'block', lineHeight: 1.35 }}>
+                                                <Typography key={i} variant="caption" color={totalErrors > 0 ? '#b91c1c' : '#92400e'} sx={{ display: 'block', lineHeight: 1.35 }}>
                                                     • {formatVietnameseErrorMessage(err)}
                                                 </Typography>
                                             ))}

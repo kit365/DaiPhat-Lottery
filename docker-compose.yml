@@ -80,6 +80,10 @@ services:
       GROK_API_KEY: ${GROK_API_KEY:-}
       GROK_VISION_MODEL: ${GROK_VISION_MODEL:-grok-vision-beta}
       GROK_READ_TIMEOUT_SECONDS: ${GROK_READ_TIMEOUT_SECONDS:-60}
+      TICKET_VISION_PADDLE_ENABLE_MKLDNN: "false"
+      TICKET_VISION_PADDLE_CPU_THREADS: "${LOCAL_TICKET_VISION_CPU_THREADS:-2}"
+      TICKET_VISION_TORCH_NUM_THREADS: "${LOCAL_TICKET_VISION_CPU_THREADS:-2}"
+      TICKET_VISION_TORCH_ENABLE_MKLDNN: "false"
       OMP_NUM_THREADS: "${LOCAL_TICKET_VISION_CPU_THREADS:-2}"
       OPENBLAS_NUM_THREADS: "${LOCAL_TICKET_VISION_CPU_THREADS:-2}"
       MKL_NUM_THREADS: "${LOCAL_TICKET_VISION_CPU_THREADS:-2}"
@@ -110,6 +114,7 @@ services:
     cpus: ${LOCAL_TICKET_VISION_CPUS:-2}
 
   ai-ekyc:
+    container_name: daiphat-ai-cccd-ocr
     build:
       context: ./daiphat-ai/ai-ekyc
       dockerfile: Dockerfile

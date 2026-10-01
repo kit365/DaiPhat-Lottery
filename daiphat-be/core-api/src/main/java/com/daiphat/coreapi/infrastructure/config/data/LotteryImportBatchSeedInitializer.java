@@ -140,12 +140,15 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     @Value("${daiphat.lottery.seed.tickets-per-batch-past:36}")
     private int ticketsPerBatchPast;
 
-    @Value("${daiphat.lottery.seed.serials-per-ticket:4}")
+    @Value("${daiphat.lottery.seed.serials-per-ticket:15}")
     private int serialsPerTicket;
 
     /** How many calendar days before today to seed (scheduled stations only). Cap 30. */
     @Value("${daiphat.lottery.seed.past-days:30}")
     private int pastDays;
+
+    @Value("${daiphat.official-demo.seed.enabled:false}")
+    private boolean officialDemoEnabled;
 
     @Override
     @Transactional
@@ -163,7 +166,6 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
         seedSupplierSupport.retireDemoSuppliers(now);
         LotterySupplierEntity supplier = seedSupplierSupport.ensureMinhChinh(now);
-        seedSupplierSupport.ensureMinhNgoc(now);
         List<BatchPlan> plans = buildBatchPlans(today, now);
         if (plans.isEmpty()) {
             log.warn("Skip import-batch seed: no batch plans for current schedule.");
@@ -177,6 +179,12 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
         for (int planIndex = 0; planIndex < plans.size(); planIndex++) {
             BatchPlan plan = plans.get(planIndex);
+            UserEntity planOperator = officialDemoEnabled
+                    ? seedAccountResolver.findOfficialDemoStaff(planIndex)
+                    : operator;
+            if (planOperator == null) {
+                throw new IllegalStateException("Missing official-demo staff for " + plan.drawDate());
+            }
             List<LotteryStationEntity> stations = findIssuersForDrawDate(plan.drawDate());
             if (stations.isEmpty()) {
                 log.info(
@@ -189,7 +197,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
             int headerSeq = SeedDocumentCodes.LANE_IMPORT_MAIN + planIndex;
             ImportBatchEntity batch = importBatchRepository.save(
-                    createBatch(supplier, operator, plan, stations.size(), now, headerSeq)
+                    createBatch(supplier, planOperator, plan, stations.size(), now, headerSeq)
             );
 
             List<ImportBatchLineEntity> lines = new ArrayList<>();
@@ -213,7 +221,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                 int createdSerials = seedTicketsForLine(
                         line,
                         station,
-                        operator,
+                        planOperator,
                         plan,
                         now,
                         lineTickets,
@@ -263,6 +271,25 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
     private List<BatchPlan> buildBatchPlans(LocalDate today, LocalDateTime now) {
         List<BatchPlan> plans = new ArrayList<>();
+        if (officialDemoEnabled) {
+            for (LocalDate drawDate : List.of(today.minusDays(1), today, today.plusDays(1))) {
+                // The live create API opens today's and tomorrow's intake at 08:00.
+                // A restart before then cannot legitimately have imported either date.
+                if (!drawDate.isBefore(today) && now.toLocalTime().isBefore(LocalTime.of(8, 0))) {
+                    continue;
+                }
+                plans.add(new BatchPlan(
+                        drawDate,
+                        ImportBatchType.NEW,
+                        ImportBatchImportMode.IN_DAY,
+                        "SEED-NEW-" + drawDate,
+                        resolveImportedAt(drawDate, today, now),
+                        50,
+                        drawDate.isBefore(today)
+                ));
+            }
+            return plans;
+        }
         int historyDays = Math.max(0, Math.min(pastDays, 30));
         int pastBudget = Math.max(SEED_TICKET_SCENARIOS.size(), ticketsPerBatchPast);
         int liveBudget = Math.max(MIN_TICKETS_PER_BATCH, ticketsPerBatch);
@@ -307,6 +334,10 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
      * when importing tomorrow's tickets. Never in the future.
      */
     private LocalDateTime resolveImportedAt(LocalDate drawDate, LocalDate today, LocalDateTime now) {
+        if (officialDemoEnabled) {
+            LocalDate importDate = drawDate.isAfter(today) ? today : drawDate;
+            return importDate.atTime(8, 0);
+        }
         LocalDateTime candidate = drawDate.isAfter(today)
                 ? LocalDateTime.of(today, LocalTime.of(8, 40))
                 : LocalDateTime.of(drawDate, LocalTime.of(8, 15));
@@ -317,7 +348,8 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     }
 
     private int[] distributeTickets(int stationCount, int ticketBudget) {
-        int target = Math.min(MAX_TICKETS_PER_BATCH, Math.max(SEED_TICKET_SCENARIOS.size(), ticketBudget));
+        int target = officialDemoEnabled ? 50
+                : Math.min(MAX_TICKETS_PER_BATCH, Math.max(SEED_TICKET_SCENARIOS.size(), ticketBudget));
         int[] counts = new int[stationCount];
         int base = target / stationCount;
         int remainder = target % stationCount;
@@ -328,8 +360,9 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
         for (int count : counts) {
             total += count;
         }
-        if (total > MAX_TICKETS_PER_BATCH) {
-            int overflow = total - MAX_TICKETS_PER_BATCH;
+        int maxTickets = officialDemoEnabled ? 50 : MAX_TICKETS_PER_BATCH;
+        if (total > maxTickets) {
+            int overflow = total - maxTickets;
             for (int i = counts.length - 1; i >= 0 && overflow > 0; i--) {
                 int reducible = counts[i] - SEED_TICKET_SCENARIOS.size();
                 int cut = Math.min(reducible, overflow);
@@ -346,6 +379,23 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                 .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN")) {
             if (batch.getId() != null) {
                 seedBatchesById.put(batch.getId(), batch);
+            }
+        }
+        if (officialDemoEnabled) {
+            // Retire the older vendor QA inventory as well. Its note prefix is
+            // reserved by VendorTestTicketSeedInitializer, so user imports are
+            // not selected by this cleanup.
+            for (ImportBatchEntity batch : importBatchRepository
+                    .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "VENDOR")) {
+                if (batch.getId() != null) {
+                    seedBatchesById.putIfAbsent(batch.getId(), batch);
+                }
+            }
+            for (ImportBatchEntity batch : importBatchRepository
+                    .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "LUCKY")) {
+                if (batch.getId() != null) {
+                    seedBatchesById.putIfAbsent(batch.getId(), batch);
+                }
             }
         }
         // Legacy mã phiếu before SeedDocumentCodes unification.
@@ -479,7 +529,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                 .totalImportedQuantity(0)
                 .totalImportedCostValue(BigDecimal.ZERO)
                 .submittedAt(importedAt)
-                .completedAt(importedAt.plusMinutes(30))
+                .completedAt(officialDemoEnabled ? eventTime(importedAt, now, 30) : importedAt.plusMinutes(30))
                 .note(SeedDocumentCodes.importNote("MAIN-" + plan.batchType().name(), plan.drawDate()))
                 .createdAt(importedAt)
                 .updatedAt(now)
@@ -514,7 +564,8 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                 .importCost(DEFAULT_IMPORT_COST)
                 .totalCostValue(BigDecimal.ZERO)
                 .status(ImportBatchLineStatus.IMPORTED)
-                .importedAt(plan.importedAt().plusMinutes(15))
+                .importedAt(officialDemoEnabled ? eventTime(plan.importedAt(), now, 15)
+                        : plan.importedAt().plusMinutes(15))
                 .createdAt(plan.importedAt())
                 .updatedAt(now)
                 .createdBy(SYSTEM_ACTOR)
@@ -531,12 +582,14 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             int ticketCount,
             Map<String, Integer> numberCursorByStationDate
     ) {
-        int serialCount = Math.max(serialsPerTicket, 1);
+        int serialCount = officialDemoEnabled ? 10 : Math.max(serialsPerTicket, 1);
         boolean pastDraw = isPastDraw(station, plan.drawDate(), now);
         boolean futureDraw = plan.drawDate().isAfter(now.toLocalDate());
-        List<SeedTicketScenario> scenarioCycle = plan.pastWindow()
-                ? PAST_SELLABLE_SCENARIOS
-                : (futureDraw ? FUTURE_SELLABLE_SCENARIOS : SEED_TICKET_SCENARIOS);
+        List<SeedTicketScenario> scenarioCycle = officialDemoEnabled
+                ? List.of(SeedTicketScenario.IN_STOCK_GOOD)
+                : (plan.pastWindow()
+                        ? PAST_SELLABLE_SCENARIOS
+                        : (futureDraw ? FUTURE_SELLABLE_SCENARIOS : SEED_TICKET_SCENARIOS));
         BigDecimal price = station.getPrice() != null ? station.getPrice() : DEFAULT_IMPORT_COST;
         String cursorKey = station.getId() + "|" + plan.drawDate();
         int createdSerials = 0;
@@ -572,7 +625,8 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                             .priceSnapshot(price)
                             .status(ticketStatus)
                             .active(true)
-                            .createdAt(plan.importedAt().plusMinutes(20))
+                            .createdAt(officialDemoEnabled ? eventTime(plan.importedAt(), now, 20)
+                                    : plan.importedAt().plusMinutes(20))
                             .updatedAt(now)
                             .createdBy(SYSTEM_ACTOR)
                             .lastModifiedBy(SYSTEM_ACTOR)
@@ -581,14 +635,17 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
             for (int serialIndex = 0; serialIndex < serialSpecs.size(); serialIndex++) {
                 SerialSeedSpec spec = serialSpecs.get(serialIndex);
-                String serialNumber = ticketSeedKey + "-" + String.format("%02d", serialIndex + 1);
+                String serialNumber = officialDemoEnabled
+                        ? numbers + (char) ('A' + serialIndex)
+                        : ticketSeedKey + "-" + String.format("%02d", serialIndex + 1);
                 serialBuffer.add(buildSeedSerial(
                         ticket,
                         line,
                         operator,
                         serialNumber,
                         spec,
-                        plan.importedAt().plusMinutes(20),
+                        officialDemoEnabled ? eventTime(plan.importedAt(), now, 20)
+                                : plan.importedAt().plusMinutes(20),
                         now
                 ));
                 createdSerials++;
@@ -624,7 +681,8 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                 .importedAt(importedAt)
                 .verified(true)
                 .verifiedBy(operator)
-                .verifiedAt(importedAt.plusMinutes(5))
+                .verifiedAt(officialDemoEnabled ? (importedAt.isAfter(now) ? now : importedAt)
+                        : importedAt.plusMinutes(5))
                 .createdAt(importedAt)
                 .updatedAt(now)
                 .createdBy(SYSTEM_ACTOR)
@@ -639,6 +697,11 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             serialBuilder.reservationExpiresAt(now.plusMinutes(20));
         }
         return serialBuilder.build();
+    }
+
+    private static LocalDateTime eventTime(LocalDateTime openedAt, LocalDateTime now, long minutesAfterOpen) {
+        LocalDateTime scheduled = openedAt.plusMinutes(minutesAfterOpen);
+        return scheduled.isAfter(now) ? now : scheduled;
     }
 
     private boolean isPastDraw(LotteryStationEntity station, LocalDate drawDate, LocalDateTime now) {

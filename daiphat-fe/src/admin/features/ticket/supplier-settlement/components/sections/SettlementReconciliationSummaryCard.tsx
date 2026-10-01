@@ -73,6 +73,11 @@ interface SettlementReconciliationSummaryCardProps {
     onEditMatching?: () => void;
     canRematch?: boolean;
     mode?: 'full' | 'discrepancy_summary' | 'completion_min';
+    draftResolution?: {
+        import?: boolean;
+        return?: boolean;
+        unitPrice?: boolean;
+    };
 }
 
 const ledgerRowSx = {
@@ -298,6 +303,7 @@ export const SettlementReconciliationSummaryCard = ({
     onEditMatching,
     canRematch,
     mode = 'full',
+    draftResolution,
 }: SettlementReconciliationSummaryCardProps) => {
     const systemImportQty = resolveLiveSystemImportQuantity(settlement, importBatches, inventoryByStation);
     const storedSystemImportVal = Number(settlement.systemImportValue ?? 0);
@@ -451,19 +457,26 @@ export const SettlementReconciliationSummaryCard = ({
         const returnItem = discrepancyItems.find((item) => item.type === 'RETURN_QUANTITY');
         const unitPriceItem = discrepancyItems.find((item) => item.type === 'IMPORT_UNIT_PRICE');
         const types = settlement.discrepancyTypes || [];
+        const noDiscrepancies = fullyMatched && discrepancyItems.length === 0;
         const hadImport =
-            Boolean(importItem)
-            || Boolean(settlement.importDiscrepancyResolved)
-            || importAdjustments.length > 0
-            || types.includes('IMPORT_QUANTITY');
+            !noDiscrepancies && (
+                Boolean(importItem)
+                || Boolean(settlement.importDiscrepancyResolved)
+                || importAdjustments.length > 0
+                || types.includes('IMPORT_QUANTITY')
+            );
         const hadReturn =
-            Boolean(returnItem)
-            || Boolean(settlement.returnDiscrepancyResolved)
-            || returnAdjustments.length > 0
-            || types.includes('RETURN_QUANTITY');
+            !noDiscrepancies && (
+                Boolean(returnItem)
+                || Boolean(settlement.returnDiscrepancyResolved)
+                || returnAdjustments.length > 0
+                || types.includes('RETURN_QUANTITY')
+            );
         const hadUnitPrice =
-            Boolean(unitPriceItem)
-            || types.includes('IMPORT_UNIT_PRICE');
+            !noDiscrepancies && (
+                Boolean(unitPriceItem)
+                || types.includes('IMPORT_UNIT_PRICE')
+            );
         const importDetail = describeResolutionDetail(
             importAdjustments,
             importItem?.direction === 'POSITIVE'
@@ -497,10 +510,10 @@ export const SettlementReconciliationSummaryCard = ({
                 key: 'import',
                 title: 'Nhập vé',
                 skipped: !hadImport,
-                resolved: Boolean(settlement.importDiscrepancyResolved) || !hadImport,
+                resolved: Boolean(settlement.importDiscrepancyResolved || draftResolution?.import) || !hadImport,
                 detail: !hadImport
                     ? 'Không lệch số lượng nhập.'
-                    : Boolean(settlement.importDiscrepancyResolved)
+                    : Boolean(settlement.importDiscrepancyResolved || draftResolution?.import)
                       ? importDetail
                       : 'Chưa xử lý xong chênh lệch nhập.',
             },
@@ -508,10 +521,10 @@ export const SettlementReconciliationSummaryCard = ({
                 key: 'return',
                 title: 'Trả vé',
                 skipped: !hadReturn,
-                resolved: Boolean(settlement.returnDiscrepancyResolved) || !hadReturn,
+                resolved: Boolean(settlement.returnDiscrepancyResolved || draftResolution?.return) || !hadReturn,
                 detail: !hadReturn
                     ? 'Không lệch số lượng trả.'
-                    : Boolean(settlement.returnDiscrepancyResolved)
+                    : Boolean(settlement.returnDiscrepancyResolved || draftResolution?.return)
                       ? returnDetail
                       : 'Chưa xử lý xong chênh lệch trả.',
             },
@@ -519,10 +532,12 @@ export const SettlementReconciliationSummaryCard = ({
                 key: 'price',
                 title: 'Giá nhập',
                 skipped: !hadUnitPrice,
-                resolved: Boolean(settlement.unitPriceDiscrepancyResolved) || !hadUnitPrice,
+                resolved: Boolean(settlement.unitPriceDiscrepancyResolved || draftResolution?.unitPrice) || !hadUnitPrice,
                 detail: !hadUnitPrice
                     ? 'Giá nhập và hoa hồng không đổi.'
-                    : unitPriceItem
+                    : draftResolution?.unitPrice
+                      ? 'Đã ghi nhận tạm điều chỉnh giá nhập.'
+                      : unitPriceItem
                       ? getDiscrepancyItemLabel(unitPriceItem)
                       : 'Đã ghi nhận điều chỉnh giá nhập.',
             },
@@ -829,7 +844,7 @@ export const SettlementReconciliationSummaryCard = ({
                                     label={row.skipped ? 'Không lệch' : row.resolved ? 'Đã xử lý' : 'Chưa xử lý'}
                                     modifier={
                                         row.skipped
-                                            ? 'admin-status-badge--draft'
+                                            ? 'admin-status-badge--active'
                                             : row.resolved
                                               ? 'admin-status-badge--success'
                                               : 'admin-status-badge--pending'
@@ -964,9 +979,6 @@ export const SettlementReconciliationSummaryCard = ({
                                 <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                     Bảng tổng hợp dòng tiền thanh toán
                                 </Typography>
-                                <Typography variant="caption" color="#64748b">
-                                    (Vé nhập − vé trả) × giá sau hoa hồng + chi phí phát sinh
-                                </Typography>
                             </Box>
                         </Stack>
                     </Box>
@@ -1099,12 +1111,12 @@ export const SettlementReconciliationSummaryCard = ({
         <Paper
             variant="outlined"
             sx={{
-                p: { xs: 2.5, md: 3 },
+                p: { xs: 2, md: 2.5 },
                 borderRadius: '16px',
-                borderColor: '#e2e8f0',
-                bgcolor: '#fafafa',
+                borderColor: '#dbe4f0',
+                bgcolor: '#ffffff',
                 mb: 3,
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.03)',
+                boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)',
             }}
         >
             {/* Header Area */}
@@ -1113,7 +1125,11 @@ export const SettlementReconciliationSummaryCard = ({
                 alignItems={{ xs: 'flex-start', sm: 'center' }}
                 justifyContent="space-between"
                 spacing={1.5}
-                sx={{ mb: 2 }}
+                sx={{
+                    mb: 2,
+                    pb: 2,
+                    borderBottom: '1px solid #e2e8f0',
+                }}
             >
                 <Stack direction="row" spacing={1.2} alignItems="center">
                     <Box
@@ -1131,15 +1147,9 @@ export const SettlementReconciliationSummaryCard = ({
                     >
                         <FactCheckOutlinedIcon sx={{ fontSize: '1.35rem' }} />
                     </Box>
-                    <Box>
-                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ fontSize: '1.05rem', lineHeight: 1.3 }}>
-                            Chênh lệch (NCC so với HT)
-                        </Typography>
-                        <Typography variant="caption" color="#64748b">
-                            {settlement.supplierName || 'NCC'} · {settlement.supplierSettlementCode || `#${settlement.id}`}
-                            {' — '}bảng kê đối chiếu số lượng và quy đổi giá vốn
-                        </Typography>
-                    </Box>
+                    <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ fontSize: '1.05rem', lineHeight: 1.3 }}>
+                        Chênh lệch (NCC so với HT)
+                    </Typography>
                 </Stack>
 
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -1180,7 +1190,7 @@ export const SettlementReconciliationSummaryCard = ({
                 <Box
                     sx={{
                         p: 1.5,
-                        mb: 2.5,
+                        mb: 2,
                         borderRadius: '12px',
                         bgcolor: '#fff7ed',
                         border: '1px solid #fed7aa',
@@ -1216,19 +1226,34 @@ export const SettlementReconciliationSummaryCard = ({
             )}
 
             {/* SECTION A: SỐ LIỆU ĐÃ ĐỐI CHIẾU */}
-            <Paper elevation={0} sx={{ p: 2.5, mb: 2.5, borderRadius: '16px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+            <Paper elevation={0} sx={{ p: { xs: 1.75, md: 2.25 }, mb: 2, borderRadius: '14px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
                 <Stack spacing={0.75} sx={{ mb: 2 }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
-                        <Typography variant="caption" fontWeight={800} color="#334155" sx={{ ...sectionTitleSx, mb: 0 }}>
-                            A. Đối chiếu nhập / trả với nhà cung cấp
-                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Box
+                                sx={{
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: '8px',
+                                    bgcolor: '#eff6ff',
+                                    color: '#1d4ed8',
+                                    display: 'grid',
+                                    placeItems: 'center',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 900,
+                                    flexShrink: 0,
+                                }}
+                            >
+                                A
+                            </Box>
+                            <Typography variant="caption" fontWeight={800} color="#334155" sx={{ ...sectionTitleSx, mb: 0 }}>
+                                Đối chiếu nhập / trả với nhà cung cấp
+                            </Typography>
+                        </Stack>
                         <Typography variant="caption" color="#64748b" sx={{ flexShrink: 0, fontWeight: 600 }}>
                             Đơn vị: VNĐ sau hoa hồng
                         </Typography>
                     </Stack>
-                    <Typography variant="caption" color="#64748b" sx={{ display: 'block', lineHeight: 1.5 }}>
-                        <strong>Hệ thống</strong>: Số lượng và giá trị vé hợp lệ đã ghi nhận trong phần mềm (không bao gồm vé sự cố / hủy). · <strong>Thực tế NCC</strong>: Số lượng và giá trị do đại lý khai báo đối soát với nhà cung cấp. · <strong>Chênh lệch (NCC so với HT)</strong>: Dương (+) là hệ thống ghi thiếu so với NCC, Âm (−) là hệ thống ghi thừa so với NCC.
-                    </Typography>
                 </Stack>
 
                 {voidedExplainsImportGap && (
@@ -1545,9 +1570,63 @@ export const SettlementReconciliationSummaryCard = ({
                 </Stack>
             </Paper>
 
-            <Box sx={{ mb: 2.5 }}>
+            <Paper
+                elevation={0}
+                sx={{
+                    p: { xs: 1.75, md: 2.25 },
+                    mb: 2.5,
+                    borderRadius: '14px',
+                    border: '1px solid #e2e8f0',
+                    bgcolor: '#ffffff',
+                }}
+            >
+                <Stack
+                    direction={{ xs: 'column', md: 'row' }}
+                    justifyContent="space-between"
+                    alignItems={{ xs: 'flex-start', md: 'center' }}
+                    spacing={1.25}
+                    sx={{ mb: 1.75 }}
+                >
+                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                        <Box
+                            sx={{
+                                width: 26,
+                                height: 26,
+                                borderRadius: '8px',
+                                bgcolor: '#ecfeff',
+                                color: '#0f766e',
+                                display: 'grid',
+                                placeItems: 'center',
+                                fontSize: '0.75rem',
+                                fontWeight: 900,
+                                flexShrink: 0,
+                            }}
+                        >
+                            B
+                        </Box>
+                        <Box>
+                            <Typography variant="caption" fontWeight={800} color="#334155" sx={{ ...sectionTitleSx, mb: 0.25 }}>
+                                Tồn kho, sự cố & đối soát trả vé
+                            </Typography>
+                        </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                        <AdminStatusBadge
+                            label={`${inventoryByStation.length} nhà đài · Tồn ${inventoryTotals.remaining.toLocaleString('vi-VN')} vé`}
+                            modifier="admin-status-badge--active"
+                        />
+                        <AdminStatusBadge
+                            label={`Sự cố ${incidentTotal.toLocaleString('vi-VN')} vé`}
+                            modifier={incidentTotal > 0 ? 'admin-status-badge--pending' : 'admin-status-badge--success'}
+                        />
+                        <AdminStatusBadge
+                            label={`Dự kiến trả ${inventoryTotals.remaining.toLocaleString('vi-VN')} vé`}
+                            modifier="admin-status-badge--draft"
+                        />
+                    </Stack>
+                </Stack>
                 <AllStationsTable inventoryByStation={inventoryByStation} />
-            </Box>
+            </Paper>
 
             {mode !== 'discrepancy_summary' && (
                 <>

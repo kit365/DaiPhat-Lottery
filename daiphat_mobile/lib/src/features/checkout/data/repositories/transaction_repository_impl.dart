@@ -26,4 +26,17 @@ class TransactionRepositoryImpl implements TransactionRepository {
   @override
   Future<OrderResponse> syncOnlinePayment(String orderId) =>
       _remoteDataSource.syncOnlinePayment(orderId);
+
+  @override
+  Future<OrderResponse> cancelPayment({
+    required String orderId,
+    int? transactionId,
+    required String gateway,
+    String? reason,
+  }) => _remoteDataSource.cancelPayment(
+        orderId: orderId,
+        transactionId: transactionId,
+        gateway: gateway,
+        reason: reason,
+      );
 }

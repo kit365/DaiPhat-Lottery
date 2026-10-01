@@ -39,7 +39,8 @@ public class SupplierSettlementPaymentReminderService {
 
     private static final List<SupplierSettlementStatus> OPEN_STATUSES = List.of(
             SupplierSettlementStatus.OPEN,
-            SupplierSettlementStatus.RECEIPT_OVERDUE
+            SupplierSettlementStatus.RECEIPT_OVERDUE,
+            SupplierSettlementStatus.WAITING_FOR_PAYMENT
     );
 
     private final SupplierSettlementRepositoryPort supplierSettlementRepositoryPort;

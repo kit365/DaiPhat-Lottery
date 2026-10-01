@@ -5,12 +5,14 @@ class LotteryResultsLookup {
     this.drawDate,
     this.stationName,
     this.stationId,
+    this.region,
     this.search,
   });
 
   final DateTime? drawDate;
   final String? stationName;
   final int? stationId;
+  final String? region;
   final String? search;
 }
 

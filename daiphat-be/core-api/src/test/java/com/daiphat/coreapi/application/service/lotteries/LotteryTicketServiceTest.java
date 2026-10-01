@@ -133,6 +133,9 @@ class LotteryTicketServiceTest {
     @Mock
     private LotteryTicketAggregateSyncService lotteryTicketAggregateSyncService;
 
+    @Mock
+    private TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
+
     private LotteryStationModel productModel;
     private CreateLotteryTicketRequest createRequest;
     private LotteryTicketModel mappedModel;
@@ -156,7 +159,8 @@ class LotteryTicketServiceTest {
                 storagePort,
                 orderRepositoryPort,
                 applicationEventPublisher,
-                lotteryTicketAggregateSyncService
+                lotteryTicketAggregateSyncService,
+                ticketSalesCutoffPolicy
         );
 
         productModel = LotteryStationModel.builder()
@@ -266,6 +270,7 @@ class LotteryTicketServiceTest {
         lenient().when(lotteryTicketSerialService.findFirstByTicketId(any())).thenReturn(Optional.empty());
         lenient().when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketSerialService.countSerialsByTicketIds(any())).thenReturn(Map.of());
+        lenient().when(lotteryTicketSerialService.countSellableByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketSerialService.countAvailableSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketApplicationMapper.toResponseDetail(any(), anyList(), nullable(String.class), nullable(String.class), anyInt()))
                 .thenReturn(mappedResponse);
@@ -373,7 +378,7 @@ class LotteryTicketServiceTest {
                 .thenReturn(new PageImpl<>(List.of(ticketB1, ticketB2), PageRequest.of(0, 5), 30));
         when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(anyList())).thenReturn(Map.of());
         when(lotteryTicketSerialService.findAllByTicketIds(any())).thenReturn(List.of());
-        when(lotteryTicketSerialService.countSerialsByTicketIds(anyList())).thenReturn(Map.of());
+        when(lotteryTicketSerialService.countSellableByTicketIds(anyList())).thenReturn(Map.of());
         when(lotteryTicketApplicationMapper.toResponse(any(), any(), any(), any(), anyInt())).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
@@ -1185,7 +1190,12 @@ class LotteryTicketServiceTest {
     void expireDueTickets_success() {
         productModel.setDrawTime(LocalTime.MIN); // force expire
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), anyList())).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countByStatuses(eq(TICKET_ID), eq(List.of(LotteryTicketSerialStatus.IN_STOCK))))
+                .thenReturn(1L, 0L);
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(
+                LotteryTicketSerialModel.builder().status(LotteryTicketSerialStatus.EXPIRED).build()));
         when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
 
         int count = lotteryTicketService.expireDueTickets();
@@ -1408,7 +1418,14 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), any()))
                 .thenReturn(List.of(notExpired, expiredWithProxySerials));
+        when(lotteryTicketSerialService.countByStatuses(eq(101L), eq(List.of(LotteryTicketSerialStatus.IN_STOCK))))
+                .thenReturn(1L, 1L);
+        when(lotteryTicketSerialService.countByStatuses(eq(102L), eq(List.of(LotteryTicketSerialStatus.IN_STOCK))))
+                .thenReturn(1L, 0L);
+        when(lotteryTicketRepositoryPort.findById(102L)).thenReturn(Optional.of(expiredWithProxySerials));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketSerialService.findAllByTicketId(102L)).thenReturn(List.of(
+                LotteryTicketSerialModel.builder().status(LotteryTicketSerialStatus.EXPIRED).build()));
         when(lotteryTicketRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         int count = lotteryTicketService.expireDueTickets();
@@ -1581,7 +1598,12 @@ class LotteryTicketServiceTest {
     void expireDueTickets_doesNotPublishLegacyHandoverEvent() {
         productModel.setDrawTime(LocalTime.MIN);
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), anyList())).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countByStatuses(eq(TICKET_ID), eq(List.of(LotteryTicketSerialStatus.IN_STOCK))))
+                .thenReturn(1L, 0L);
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(
+                LotteryTicketSerialModel.builder().status(LotteryTicketSerialStatus.EXPIRED).build()));
         when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
 
         int count = lotteryTicketService.expireDueTickets();

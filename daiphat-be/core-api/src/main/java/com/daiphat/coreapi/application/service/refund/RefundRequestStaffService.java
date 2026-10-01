@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.refund;
 import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.CompleteCounterRefundRequest;
+import com.daiphat.coreapi.application.dto.request.refund.CreateUserBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
@@ -12,6 +13,7 @@ import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundProcessingHistoryItem;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
+import com.daiphat.coreapi.application.dto.response.refund.UserBankAccountResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
@@ -20,8 +22,8 @@ import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestStaffServicePort;
+import com.daiphat.coreapi.application.port.in.refund.UserBankAccountServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
-import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
@@ -35,7 +37,6 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
-import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketIncidentReason;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundCounterPayoutMethod;
@@ -89,7 +90,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final RefundRequestRepositoryPort refundRequestRepositoryPort;
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
     private final OrderRepositoryPort orderRepositoryPort;
-    private final OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final RefundApplicationMapper refundApplicationMapper;
@@ -102,6 +102,8 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final ApplicationEventPublisher eventPublisher;
     private final com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort orderIncidentTicketServicePort;
     private final EkycVerificationService ekycVerificationService;
+    private final UserBankAccountServicePort userBankAccountServicePort;
+    private final OrderCancellationRefundService orderCancellationRefundService;
 
     @Override
     @Transactional(readOnly = true)
@@ -290,40 +292,13 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
         }
 
-        // Only bill details not already covered by a prior partial refund.
-        BigDecimal refundAmount = calculateUnlinkedRefundAmount(order);
-        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0
-                && !hasUnlinkedOrderDetails(order)) {
-            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
-        }
-        cancelOrderForStaffApproval(order, cancelReason, cancelType);
-        if (cancelType == OrderCancelType.ADMIN_FORCE_CANCEL) {
-            // Faulted OUT_OF_STOCK tickets stay marked damaged/lost — do not return to stock.
-            releaseSoldTickets(order);
-        }
-        orderRepositoryPort.save(order);
-
-        RefundRequestModel refundRequest = RefundRequestModel.builder()
-                .refundType(hasAnyLinkedOrderDetail(order) ? RefundType.ORDER_DETAIL : RefundType.FULL_ORDER)
-                .requestedBy(order.getUserId())
-                .requestRole(RefundRequestRole.STAFF)
-                .refundAmount(refundAmount)
-                .refundReason(cancelReason)
-                .createdBy(staffId.toString())
-                .build();
-        refundRequest.initializeForStaffIncidentCancel();
-
-        RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
-        int linked = refundRequestRepositoryPort.linkOrderDetailsByOrderId(orderId, savedRefund.getId());
-        if (linked <= 0) {
-            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
-        }
-        savedRefund.setOrderId(orderId);
-        savedRefund.setOrderDetailIds(
-                refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(savedRefund.getId()));
-
-        publishRefundStatusChanged(savedRefund);
-        publishOrderCancelled(order);
+        RefundRequestModel savedRefund = orderCancellationRefundService.cancelLockedOrder(
+                order,
+                cancelReason,
+                cancelType,
+                RefundRequestRole.STAFF,
+                staffId.toString(),
+                cancelType == OrderCancelType.ADMIN_FORCE_CANCEL);
 
         return toEnrichedResponse(savedRefund, null, order.getOrderCode());
     }
@@ -349,7 +324,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         List<OrderDetailModel> activeDetails = order.getOrderDetails() == null
                 ? List.of()
                 : order.getOrderDetails().stream()
-                        .filter(d -> d.getStatus() == OrderDetailStatus.HANDOVER_IN_PROGRESS)
+                        .filter(OrderDetailModel::isAwaitingHandover)
                         .toList();
         if (activeDetails.isEmpty()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Đơn hàng không còn vé hiệu lực để hủy.");
@@ -390,22 +365,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         orderIncidentTicketServicePort.handlePartialRefundIncidents(
                 orderId, staffId, List.copyOf(byDetailId.values()), null);
-    }
-
-    private void cancelOrderForStaffApproval(
-            OrderModel order,
-            String cancelReason,
-            OrderCancelType cancelType
-    ) {
-        if (order.getOrderType() == OrderType.DIRECT) {
-            order.cancelDirectOrderForRefund(cancelReason, cancelType);
-            return;
-        }
-        if (order.getStatus() == OrderStatus.PAID) {
-            order.cancelByCustomerRefund(cancelReason, cancelType);
-            return;
-        }
-        order.cancelAfterPaymentForRefund(cancelReason, cancelType);
     }
 
     @Override
@@ -452,7 +411,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     }
 
     /**
-     * Runs CCCD OCR eKYC (front + back, all nine fields) for a customer resolving a
+     * Reads CCCD front and back with OCR (all nine fields) for a customer resolving a
      * MANUAL_RESOLUTION refund at the counter. The outcome (including FAILED) is persisted,
      * so the DomainException raised for a failed OCR must not roll it back.
      */
@@ -501,7 +460,9 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         RefundCounterPayoutMethod payoutMethod = request.paymentMethod();
         String evidenceUrl = null;
+        Long payoutBankAccountId = null;
         if (payoutMethod == RefundCounterPayoutMethod.TRANSFER) {
+            payoutBankAccountId = resolveCounterPayoutBankAccount(refund, request.bankAccountId()).getId();
             if (request.transferEvidenceUrl() == null || request.transferEvidenceUrl().isBlank()) {
                 throw new DomainException(ErrorCode.INVALID_INPUT, "Ảnh biên lai chuyển khoản là bắt buộc.");
             }
@@ -510,7 +471,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         }
 
         UUID orderId = requireOrderId(refund);
-        refund.completeCounterResolution(payoutMethod);
+        refund.completeCounterResolution(payoutMethod, payoutBankAccountId);
         RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
 
         OrderModel order = orderRepositoryPort.findById(orderId)
@@ -535,6 +496,29 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 loadBankAccount(saved.getBankAccountId()),
                 order.getOrderCode(),
                 orderApplicationMapper.toTransactionResponse(savedPayout));
+    }
+
+    @Override
+    @Transactional
+    public UserBankAccountResponse createCustomerBankAccount(
+            Long id,
+            UUID staffId,
+            CreateUserBankAccountRequest request) {
+        log.info("Staff {} creating a customer bank account for refund {}", staffId, id);
+
+        RefundRequestModel refund = getRequestOrThrow(id);
+        refund.ensureAwaitingCounterResolution();
+        return userBankAccountServicePort.create(refund.getRequestedBy(), request);
+    }
+
+    private UserBankAccountModel resolveCounterPayoutBankAccount(RefundRequestModel refund, Long requestedBankAccountId) {
+        Long bankAccountId = requestedBankAccountId != null ? requestedBankAccountId : refund.getBankAccountId();
+        if (bankAccountId == null) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT, "Vui lòng chọn tài khoản ngân hàng nhận hoàn tiền.");
+        }
+        return userBankAccountRepositoryPort.findByIdAndUserId(bankAccountId, refund.getRequestedBy())
+                .orElseThrow(() -> new DomainException(ErrorCode.REFUND_REQUEST_BANK_ACCOUNT_MISMATCH));
     }
 
     private void applyCounterIdentityResult(
@@ -671,34 +655,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .orElse(null));
     }
 
-    private void releaseSoldTickets(OrderModel order) {
-        if (order.getOrderDetails() == null) {
-            return;
-        }
-        for (OrderDetailModel detail : order.getOrderDetails()) {
-            List<Long> serialIds = resolveAllocatedSerialIds(detail);
-            for (Long serialId : serialIds) {
-                lotteryTicketServicePort.returnSoldTicketForOrder(serialId);
-            }
-        }
-    }
-
-    private List<Long> resolveAllocatedSerialIds(OrderDetailModel detail) {
-        if (detail.getAllocatedSerialIds() != null && !detail.getAllocatedSerialIds().isEmpty()) {
-            return detail.getAllocatedSerialIds();
-        }
-        if (detail.getId() != null) {
-            List<Long> persistedSerialIds = orderDetailSerialRepositoryPort.findSerialIdsByOrderDetailId(detail.getId());
-            if (!persistedSerialIds.isEmpty()) {
-                return persistedSerialIds;
-            }
-        }
-        if (detail.getLotteryTicketSerialId() != null) {
-            return List.of(detail.getLotteryTicketSerialId());
-        }
-        return List.of();
-    }
-
     private void publishRefundStatusChanged(RefundRequestModel refund) {
         UUID orderId = refund.getOrderId();
         if (orderId == null && refund.getId() != null) {
@@ -720,18 +676,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .retryCount(refund.getRetryCount())
                 .refundType(refund.getRefundType())
                 .requestRole(refund.getRequestRole())
-                .build());
-    }
-
-    private void publishOrderCancelled(OrderModel order) {
-        if (order.getId() == null || order.getUserId() == null || order.getStatus() == null) {
-            return;
-        }
-        eventPublisher.publishEvent(OrderStatusChangedEvent.builder()
-                .orderId(order.getId())
-                .customerId(order.getUserId())
-                .orderCode(order.getOrderCode())
-                .status(order.getStatus())
                 .build());
     }
 
@@ -758,6 +702,11 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     || request.getRequestRole() == RefundRequestRole.ADMIN) {
                 history.add(new RefundProcessingHistoryItem(
                         "Nhân viên báo lỗi & hủy đơn",
+                        request.getRefundReason(),
+                        request.getCreatedAt()));
+            } else if (request.getRequestRole() == RefundRequestRole.SYSTEM) {
+                history.add(new RefundProcessingHistoryItem(
+                        "Hệ thống hủy đơn quá hạn chuẩn bị",
                         request.getRefundReason(),
                         request.getCreatedAt()));
             } else {
@@ -811,7 +760,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         if (request.getEkycVerifiedAt() != null) {
             history.add(new RefundProcessingHistoryItem(
-                    "Xác thực CCCD tại quầy",
+                    "Đọc thông tin CCCD bằng OCR tại quầy",
                     "Họ tên: " + (request.getEkycOcrName() != null ? request.getEkycOcrName() : "—")
                             + " — Số CCCD: " + (request.getEkycOcrIdNumber() != null ? request.getEkycOcrIdNumber() : "—"),
                     request.getEkycVerifiedAt()));

@@ -183,11 +183,18 @@ class OrderResponse {
   final String? expectedPickupAt;
   final String? actualPickedUpAt;
   final String? createdAt;
+  final String? cancelType;
+  final String? cancelReason;
+  final String? paymentComplaintEvidenceUrl;
+  final String? paymentComplaintSubmittedAt;
+  final String? paymentComplaintResolvedAt;
+  final String? paymentComplaintResolutionReason;
   final bool? refundEligible;
   final int? refundRemainingSeconds;
   final int? refundGraceMinutes;
   final String? refundPaymentSuccessAt;
   final String? refundDeadlineAt;
+  final String? updatedAt;
   final List<TransactionResponse>? transactions;
   final List<OrderDetailItem>? orderDetails;
 
@@ -203,14 +210,30 @@ class OrderResponse {
     this.expectedPickupAt,
     this.actualPickedUpAt,
     this.createdAt,
+    this.cancelType,
+    this.cancelReason,
+    this.paymentComplaintEvidenceUrl,
+    this.paymentComplaintSubmittedAt,
+    this.paymentComplaintResolvedAt,
+    this.paymentComplaintResolutionReason,
     this.refundEligible,
     this.refundRemainingSeconds,
     this.refundGraceMinutes,
     this.refundPaymentSuccessAt,
     this.refundDeadlineAt,
+    this.updatedAt,
     this.transactions,
     this.orderDetails,
   });
+
+  bool get isPaymentTimeoutCancellation =>
+      cancelType == 'SYSTEM_PAYMENT_TIMEOUT';
+
+  bool get canSubmitPaymentTimeoutComplaint =>
+      isPaymentTimeoutCancellation && status == 'CANCELLED';
+
+  bool get isPaymentComplaintPending =>
+      isPaymentTimeoutCancellation && status == 'PAYMENT_COMPLAINT_PENDING';
 
   factory OrderResponse.fromJson(Map<String, dynamic> json) {
     final id = json['id']?.toString().trim();
@@ -227,11 +250,22 @@ class OrderResponse {
       expectedPickupAt: json['expectedPickupAt']?.toString(),
       actualPickedUpAt: json['actualPickedUpAt']?.toString(),
       createdAt: json['createdAt']?.toString(),
+      cancelType: json['cancelType']?.toString(),
+      cancelReason: json['cancelReason']?.toString(),
+      paymentComplaintEvidenceUrl:
+          json['paymentComplaintEvidenceUrl']?.toString(),
+      paymentComplaintSubmittedAt:
+          json['paymentComplaintSubmittedAt']?.toString(),
+      paymentComplaintResolvedAt:
+          json['paymentComplaintResolvedAt']?.toString(),
+      paymentComplaintResolutionReason:
+          json['paymentComplaintResolutionReason']?.toString(),
       refundEligible: json['refundEligible'] as bool?,
       refundRemainingSeconds: json['refundRemainingSeconds'] as int?,
       refundGraceMinutes: json['refundGraceMinutes'] as int?,
       refundPaymentSuccessAt: json['refundPaymentSuccessAt']?.toString(),
       refundDeadlineAt: json['refundDeadlineAt']?.toString(),
+      updatedAt: json['updatedAt']?.toString(),
       transactions: (json['transactions'] as List<dynamic>?)
           ?.map((e) => TransactionResponse.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -273,6 +307,7 @@ class TransactionResponse {
   final String? paymentRef;
   final String status;
   final String type;
+  final String? paidAt;
 
   const TransactionResponse({
     required this.id,
@@ -283,6 +318,7 @@ class TransactionResponse {
     this.paymentRef,
     required this.status,
     required this.type,
+    this.paidAt,
   });
 
   factory TransactionResponse.fromJson(Map<String, dynamic> json) {
@@ -295,6 +331,7 @@ class TransactionResponse {
       paymentRef: json['paymentRef']?.toString(),
       status: json['status']?.toString() ?? '',
       type: json['type']?.toString() ?? '',
+      paidAt: json['paidAt']?.toString(),
     );
   }
 }

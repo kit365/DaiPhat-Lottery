@@ -40,7 +40,7 @@ class _CartViewState extends ConsumerState<CartView> {
     });
   }
 
-  void _openDetail(BuildContext context, CartItemData item) {
+  void _openDetail(BuildContext context, CartItemData item, int index) {
     final drawDate =
         DateTime.tryParse(item.drawDateIso ?? '') ?? DateTime.now();
     final station =
@@ -72,7 +72,14 @@ class _CartViewState extends ConsumerState<CartView> {
       isScrollControlled: true,
       useRootNavigator: true,
       backgroundColor: AppColors.transparent,
-      builder: (_) => TicketDetailModalSheet(ticket: listItem),
+      builder: (_) => TicketDetailModalSheet(
+        ticket: listItem,
+        initialQuantity: item.quantity,
+        isCartMode: true,
+        onQuantityChanged: (qty) {
+          ref.read(cartProvider.notifier).updateQuantityAtIndex(index, qty);
+        },
+      ),
     );
   }
 
@@ -131,6 +138,30 @@ class _CartViewState extends ConsumerState<CartView> {
         _checkoutSelectedIndexes.remove(index);
       } else {
         _checkoutSelectedIndexes.add(index);
+      }
+    });
+  }
+
+  void _toggleCheckoutSelectAll() {
+    final items = ref.read(cartProvider);
+    final validIndexes = <int>[];
+    for (var i = 0; i < items.length; i++) {
+      if (!_isPurchaseExpired(items[i])) {
+        validIndexes.add(i);
+      }
+    }
+    if (validIndexes.isEmpty) return;
+
+    final isAllValidSelected =
+        validIndexes.every(_checkoutSelectedIndexes.contains);
+
+    setState(() {
+      if (isAllValidSelected) {
+        _checkoutSelectedIndexes.clear();
+      } else {
+        _checkoutSelectedIndexes
+          ..clear()
+          ..addAll(validIndexes);
       }
     });
   }
@@ -225,6 +256,29 @@ class _CartViewState extends ConsumerState<CartView> {
     AppToast.show('Đã xóa $count sản phẩm khỏi giỏ hàng');
   }
 
+  Future<void> _confirmDeleteCheckoutSelected() async {
+    final count = _checkoutSelectedIndexes.length;
+    if (count == 0) return;
+
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Xóa sản phẩm',
+      message: 'Bạn có muốn bỏ $count sản phẩm đã chọn khỏi giỏ hàng không?',
+      confirmLabel: 'Xóa',
+      isDestructive: true,
+    );
+
+    if (!confirmed || !mounted) return;
+
+    final indexes = _checkoutSelectedIndexes.toList()..sort();
+    ref.read(cartProvider.notifier).removeAtIndexes(indexes);
+    setState(() {
+      _checkoutSelectedIndexes.clear();
+      _selectedIndexes.clear();
+    });
+    AppToast.show('Đã xóa $count sản phẩm khỏi giỏ hàng');
+  }
+
   Future<void> _confirmRemoveItem(CartItemData item, int index) async {
     final confirmed = await AppDialog.confirm(
       context,
@@ -283,6 +337,13 @@ class _CartViewState extends ConsumerState<CartView> {
         });
       });
     }
+
+    final validCheckoutIndexes = [
+      for (var i = 0; i < items.length; i++)
+        if (!_isPurchaseExpired(items[i])) i,
+    ];
+    final isAllCheckoutSelected = validCheckoutIndexes.isNotEmpty &&
+        validCheckoutIndexes.every(_checkoutSelectedIndexes.contains);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -348,7 +409,7 @@ class _CartViewState extends ConsumerState<CartView> {
                                     if (_isSelectionMode) {
                                       _toggleItemSelection(index);
                                     } else {
-                                      _openDetail(context, item);
+                                      _openDetail(context, item, index);
                                     }
                                   },
                                   onToggleSelect: () =>
@@ -403,6 +464,8 @@ class _CartViewState extends ConsumerState<CartView> {
                           subtotal: selectedSubtotal,
                           total: selectedSubtotal,
                           enabled: canCheckout,
+                          allSelected: isAllCheckoutSelected,
+                          onToggleSelectAll: _toggleCheckoutSelectAll,
                           disabledReason: selectedCheckoutItems.isEmpty
                               ? 'Chọn ít nhất một vé để thanh toán'
                               : hasSelectedExpiredItems
@@ -471,7 +534,18 @@ class _CartViewState extends ConsumerState<CartView> {
                     ? Icons.close_rounded
                     : Icons.delete_outline_rounded,
                 tooltip: _isSelectionMode ? 'Đóng chọn' : 'Xóa nhiều',
-                onTap: _toggleSelectionMode,
+                onTap: _isSelectionMode
+                    ? _toggleSelectionMode
+                    : () {
+                        if (_checkoutSelectedIndexes.length == 1) {
+                          final index = _checkoutSelectedIndexes.first;
+                          _confirmRemoveItem(items[index], index);
+                        } else if (_checkoutSelectedIndexes.length > 1) {
+                          _confirmDeleteCheckoutSelected();
+                        } else {
+                          _toggleSelectionMode();
+                        }
+                      },
               ),
             ),
         ],
@@ -837,6 +911,7 @@ class _CartTicketCard extends StatelessWidget {
                       maxStock: item.maxStock > 0 ? item.maxStock : 1,
                       enabled: !isSelectionMode,
                       onChanged: onQuantityChanged,
+                      onDelete: onDelete,
                     ),
                   ],
                 ],
@@ -855,12 +930,14 @@ class _CartQuantityStepper extends StatelessWidget {
     required this.maxStock,
     required this.enabled,
     required this.onChanged,
+    this.onDelete,
   });
 
   final int quantity;
   final int maxStock;
   final bool enabled;
   final ValueChanged<int> onChanged;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -892,11 +969,21 @@ class _CartQuantityStepper extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _CartStepBtn(
-                    icon: Icons.remove_rounded,
-                    iconColor: AppColors.contentNavy,
-                    disabled: !enabled || quantity <= 1,
-                    onTap: enabled && quantity > 1
-                        ? () => onChanged(quantity - 1)
+                    icon: quantity <= 1
+                        ? Icons.delete_outline_rounded
+                        : Icons.remove_rounded,
+                    iconColor: quantity <= 1
+                        ? AppColors.contentDestructive
+                        : AppColors.contentNavy,
+                    disabled: !enabled,
+                    onTap: enabled
+                        ? () {
+                            if (quantity > 1) {
+                              onChanged(quantity - 1);
+                            } else {
+                              onDelete?.call();
+                            }
+                          }
                         : null,
                   ),
                   Container(
@@ -1085,6 +1172,8 @@ class _CartBottomBar extends StatelessWidget {
     required this.total,
     required this.enabled,
     required this.onCheckout,
+    this.allSelected = false,
+    this.onToggleSelectAll,
     this.disabledReason,
   });
 
@@ -1094,6 +1183,8 @@ class _CartBottomBar extends StatelessWidget {
   final int total;
   final bool enabled;
   final VoidCallback onCheckout;
+  final bool allSelected;
+  final VoidCallback? onToggleSelectAll;
   final String? disabledReason;
 
   @override
@@ -1121,12 +1212,40 @@ class _CartBottomBar extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Đã chọn $selectedTicketCount/$totalTicketCount vé',
-                    style: AppTypography.subtitle2(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                  Semantics(
+                    button: true,
+                    label: allSelected
+                        ? 'Bỏ chọn tất cả vé'
+                        : 'Chọn tất cả vé',
+                    child: GestureDetector(
+                      onTap: onToggleSelectAll,
+                      behavior: HitTestBehavior.opaque,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ExcludeSemantics(
+                            child: _SelectionCheckbox(checked: allSelected),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Chọn tất cả',
+                            style: AppTypography.subtitle2(
+                              color: AppColors.ink,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '($selectedTicketCount/$totalTicketCount)',
+                            style: AppTypography.bodySmall(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   Text(

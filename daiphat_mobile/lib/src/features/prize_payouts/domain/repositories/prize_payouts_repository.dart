@@ -6,7 +6,7 @@ abstract interface class PrizePayoutsRepository {
     int? orderDetailId,
     int? serialId,
     required int bankAccountId,
-    required String recipientIdNumber,
+    String? recipientIdNumber,
     required String recipientIdImageUrl,
     required String recipientIdImageBackUrl,
   });

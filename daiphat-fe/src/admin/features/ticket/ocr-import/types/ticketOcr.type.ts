@@ -277,6 +277,8 @@ export interface OcrReviewRow {
     croppedImageUrl?: string | null;
     selected: boolean;
     edited: boolean;
+    /** Fields explicitly corrected in this review session (persisted with the draft). */
+    editedFields?: Partial<Record<'numbers' | 'serialNumber' | 'stationName' | 'drawDate' | 'ticketType' | 'batchCode', boolean>>;
     scannedAt?: string | null;
     durationMs?: number | null;
 }

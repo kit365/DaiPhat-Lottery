@@ -28,7 +28,9 @@ export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({
 
     const isStaffIncidentFlow =
         status === RefundRequestStatus.WAITING_FOR_INFO ||
-        ((requestRole === RefundRequestRole.STAFF || requestRole === RefundRequestRole.ADMIN) &&
+        ((requestRole === RefundRequestRole.STAFF ||
+            requestRole === RefundRequestRole.ADMIN ||
+            requestRole === RefundRequestRole.SYSTEM) &&
             (status === RefundRequestStatus.READY_TO_PAY ||
                 status === RefundRequestStatus.PAID ||
                 status === RefundRequestStatus.TRANSFERRED));

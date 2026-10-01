@@ -11,6 +11,7 @@ import {
     Card,
     CardContent,
     CardHeader,
+    Chip,
     Collapse,
     Divider,
     Grid,
@@ -25,6 +26,7 @@ import {
     TextField,
     ToggleButton,
     ToggleButtonGroup,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
@@ -58,7 +60,7 @@ import {
 } from '@/types/refund.type';
 import type { IncidentTicketDisplay } from '@/admin/features/orders/types/incidentTicket.type';
 import { resolveOrderDetailTicketDisplay } from '@/admin/features/orders/utils/resolveOrderDetailTicketDisplay';
-import { UploadFiles } from '@/admin/components/ui/UploadFiles';
+import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 
 type StaffCancelType = StaffCancelOrderWithRefundRequest['cancelType'];
 
@@ -70,8 +72,18 @@ type TicketIncidentState = {
 };
 
 const QUICK_INCIDENT_REASONS: Record<string, string[]> = {
-    DAMAGED: ['Bị rách nát', 'Mờ số / không đọc được mã', 'Bị ướt / phai màu'],
-    LOST: ['Không tìm thấy trong kho', 'Mất mát không rõ lý do'],
+    DAMAGED: [
+        'Vé bị rách / mất góc',
+        'Mờ số / không đọc được mã',
+        'Vé bị ướt / dính bẩn / phai màu',
+        'Lỗi in ấn / vé biến dạng',
+    ],
+    LOST: [
+        'Không tìm thấy vé trong tập lưu trữ',
+        'Thất lạc sau khi bàn giao ca trực',
+        'Thiếu vé từ khâu nhận bàn giao đại lý',
+        'Vé bị thất lạc chưa rõ nguyên nhân',
+    ],
 };
 
 const CANCEL_TYPE_OPTIONS: {
@@ -84,13 +96,13 @@ const CANCEL_TYPE_OPTIONS: {
         value: 'ADMIN_FORCE_CANCEL',
         title: 'Hủy hộ khách hàng',
         description:
-            'Khách yêu cầu hủy qua CSKH sau thời gian cho phép / nhân viên hủy đơn hộ khách. Hệ thống tạo yêu cầu hoàn tiền toàn bộ đơn.',
+            'Dùng khi khách yêu cầu nhân viên hủy đơn. Hệ thống sẽ tạo yêu cầu hoàn toàn bộ tiền đơn.',
     },
     {
         value: 'OUT_OF_STOCK_INCIDENT',
-        title: 'Sự cố kho — hủy toàn bộ đơn',
+        title: 'Báo lỗi vé và hủy đơn',
         description:
-            '100% vé trong đơn bị rách/thất lạc và không còn vé thay thế. Bắt buộc báo lỗi từng vé trước khi hủy và hoàn tiền.',
+            'Dùng khi tất cả vé trong đơn bị hư hỏng hoặc thất lạc và không còn vé thay thế. Cần ghi nhận sự cố cho từng vé.',
         preparingOnly: true,
     },
 ];
@@ -196,6 +208,8 @@ export function OrderCancelWithRefundPage() {
             }
         >;
     } | null>(null);
+
+    const [uploadingTicketIds, setUploadingTicketIds] = useState<Record<number, boolean>>({});
 
     useEffect(() => {
         try {
@@ -312,12 +326,17 @@ export function OrderCancelWithRefundPage() {
             delete next[ticketId];
             return next;
         });
+        setUploadingTicketIds((prev) => {
+            const next = { ...prev };
+            delete next[ticketId];
+            return next;
+        });
         if (expandedTicketId === ticketId) {
             setExpandedTicketId(null);
         }
     };
 
-    const renderIncidentForm = (ticket: IncidentTicketDisplay) => {
+        const renderIncidentForm = (ticket: IncidentTicketDisplay) => {
         const ticketId = ticket.id!;
         const state = incidents[ticketId];
         if (!state) return null;
@@ -328,65 +347,125 @@ export function OrderCancelWithRefundPage() {
                     <Collapse in={expandedTicketId === ticketId} timeout="auto" unmountOnExit>
                         <Box
                             sx={{
-                                p: { xs: 2.5, md: 3 },
-                                bgcolor: 'var(--palette-background-neutral)',
+                                p: { xs: 2, md: 2.5 },
+                                bgcolor: 'var(--palette-background-neutral, #f4f6f8)',
                                 borderRadius: '0 0 12px 12px',
                                 mb: 2,
                                 border: '1px solid var(--palette-divider)',
                                 borderTop: 'none',
                             }}
                         >
-                            <Stack spacing={3} sx={{ maxWidth: 960, mx: 'auto', width: '100%' }}>
-                                <Typography
-                                    variant="subtitle2"
+                            <Stack spacing={2.5} sx={{ width: '100%' }}>
+                                {/* Header: Ghi nhận sự cố vé số */}
+                                <Box
                                     sx={{
-                                        fontWeight: 700,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: { xs: 'flex-start', md: 'center' },
-                                        gap: 1,
-                                        flexWrap: 'wrap',
-                                        textAlign: { xs: 'left', md: 'center' },
+                                        p: 2,
+                                        bgcolor: 'background.paper',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        borderRadius: '12px',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                                     }}
                                 >
-                                    Xử lý sự cố cho vé:
-                                    <Box
-                                        component="span"
-                                        sx={{
-                                            color: 'primary.main',
-                                            bgcolor: 'primary.lighter',
-                                            px: 1,
-                                            py: 0.25,
-                                            borderRadius: 1,
-                                        }}
+                                    <Stack
+                                        direction={{ xs: 'column', md: 'row' }}
+                                        spacing={2}
+                                        alignItems={{ xs: 'flex-start', md: 'center' }}
+                                        justifyContent="space-between"
                                     >
-                                        {TICKET_NUMBERS_LABEL}{' '}
-                                        <AdminLuckyDisplay value={ticket.numbers} ticket component="span" />
-                                    </Box>
-                                    {ticket.serialNumber && (
-                                        <Box
-                                            component="span"
-                                            sx={{
-                                                color: 'text.secondary',
-                                                fontSize: '0.8em',
-                                                fontWeight: 500,
-                                                bgcolor: 'action.hover',
-                                                px: 1,
-                                                py: 0.25,
-                                                borderRadius: 1,
-                                            }}
-                                        >
-                                            SN: {ticket.serialNumber}
-                                        </Box>
-                                    )}
-                                </Typography>
+                                        <Stack direction="row" spacing={1.5} alignItems="center">
+                                            <Box
+                                                sx={{
+                                                    width: 40,
+                                                    height: 40,
+                                                    borderRadius: '10px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    bgcolor: 'var(--palette-warning-lighter, #fff7ed)',
+                                                    color: 'var(--palette-warning-dark, #c2410c)',
+                                                    border: '1px solid var(--palette-warning-light, #fed7aa)',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <Icon icon="solar:ticket-bold-duotone" width={22} />
+                                            </Box>
+                                            <Box>
+                                                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                                    <Typography
+                                                        variant="subtitle2"
+                                                        sx={{ fontWeight: 700, fontSize: '0.9375rem', color: 'text.primary' }}
+                                                    >
+                                                        Ghi nhận sự cố vé số
+                                                    </Typography>
+                                                    <AdminLuckyDisplay
+                                                        value={ticket.numbers}
+                                                        ticket
+                                                        component="span"
+                                                        fontSize="1rem"
+                                                        fontWeight={800}
+                                                    />
+                                                </Stack>
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                    sx={{ fontSize: '0.8125rem', mt: 0.25 }}
+                                                >
+                                                    Xác định tình trạng thực tế và cung cấp thông tin đối soát cho vé số này.
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
 
-                                <Box sx={{ width: '100%', maxWidth: 640, mx: 'auto' }}>
-                                    <Typography
-                                        variant="subtitle2"
-                                        sx={{ mb: 1, color: 'text.secondary' }}
-                                    >
-                                        Lý do báo lỗi (Faulted By)
+                                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                            {ticket.serialNumber && (
+                                                <Chip
+                                                    size="small"
+                                                    variant="outlined"
+                                                    label={`Sê-ri: ${ticket.serialNumber}`}
+                                                    sx={{
+                                                        height: 26,
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 600,
+                                                        fontFamily: 'monospace',
+                                                        bgcolor: 'var(--palette-background-neutral, #f4f6f8)',
+                                                    }}
+                                                />
+                                            )}
+                                            <Chip
+                                                size="small"
+                                                variant="outlined"
+                                                label={`Đài: ${ticket.stationName || '—'}`}
+                                                sx={{
+                                                    height: 26,
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600,
+                                                    bgcolor: 'var(--palette-background-neutral, #f4f6f8)',
+                                                }}
+                                            />
+                                            {ticket.drawDate && (
+                                                <Chip
+                                                    size="small"
+                                                    variant="outlined"
+                                                    label={`Xổ: ${dayjs(ticket.drawDate).format('DD/MM/YYYY')}`}
+                                                    sx={{
+                                                        height: 26,
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 600,
+                                                        bgcolor: 'var(--palette-background-neutral, #f4f6f8)',
+                                                    }}
+                                                />
+                                            )}
+                                        </Stack>
+                                    </Stack>
+                                </Box>
+
+                                {/* 1. Phân loại sự cố vé */}
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700, fontSize: '0.875rem' }}>
+                                        1. Phân loại sự cố vé <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.8125rem' }}>
+                                        Chọn đúng tình trạng thực tế của vé số trong kho.
                                     </Typography>
                                     <ToggleButtonGroup
                                         color="primary"
@@ -394,51 +473,268 @@ export function OrderCancelWithRefundPage() {
                                         exclusive
                                         onChange={(_, value) => {
                                             if (value !== null) {
-                                                updateIncident(ticketId, { faultedBy: value });
+                                                updateIncident(ticketId, {
+                                                    faultedBy: value,
+                                                    ...(value !== state.faultedBy ? { damagedReason: '' } : {}),
+                                                    ...(value === 'LOST'
+                                                        ? {
+                                                              damagedEvidenceUrl: '',
+                                                              damagedEvidenceFiles: [],
+                                                          }
+                                                        : {}),
+                                                });
                                             }
                                         }}
                                         sx={{
                                             width: '100%',
-                                            height: '40px',
+                                            display: 'flex',
+                                            flexDirection: { xs: 'column', sm: 'row' },
+                                            gap: 1.5,
+                                            bgcolor: 'transparent',
+                                            '& .MuiToggleButtonGroup-grouped': {
+                                                border: '1px solid var(--palette-divider) !important',
+                                                borderRadius: '10px !important',
+                                                mx: 0,
+                                            },
                                             '& .MuiToggleButton-root': {
                                                 flex: 1,
                                                 textTransform: 'none',
-                                                fontWeight: 600,
-                                                border: '1px solid var(--palette-divider)',
+                                                minHeight: 64,
+                                                py: 1.25,
+                                                px: 2,
+                                                color: 'text.secondary',
+                                                bgcolor: 'background.paper',
+                                                transition: 'all 0.15s ease-in-out',
+                                                '&:hover': {
+                                                    bgcolor: 'action.hover',
+                                                    borderColor: 'primary.light !important',
+                                                },
+                                                '&.Mui-selected': {
+                                                    color: 'error.dark',
+                                                    bgcolor: 'error.lighter',
+                                                    borderColor: 'error.light !important',
+                                                    boxShadow: '0 0 0 1px var(--palette-error-main, #ef4444)',
+                                                },
                                             },
                                         }}
                                     >
-                                        <ToggleButton value="DAMAGED">Vé rách / Hư hỏng</ToggleButton>
-                                        <ToggleButton value="LOST">Thất lạc</ToggleButton>
+                                        <ToggleButton value="DAMAGED">
+                                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%', textAlign: 'left', minWidth: 0 }}>
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        width: 36,
+                                                        height: 36,
+                                                        borderRadius: '8px',
+                                                        bgcolor: state.faultedBy === 'DAMAGED' ? 'error.light' : 'action.selected',
+                                                        color: state.faultedBy === 'DAMAGED' ? '#fff' : 'text.secondary',
+                                                        flexShrink: 0,
+                                                    }}
+                                                >
+                                                    <Icon icon="solar:ticket-bold-duotone" width={22} />
+                                                </Box>
+                                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.3 }}>
+                                                        Vé hư hỏng
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25, lineHeight: 1.35, wordBreak: 'break-word' }}>
+                                                        Vé bị rách, ướt, mờ số, mất góc hoặc không còn nguyên vẹn
+                                                    </Typography>
+                                                </Box>
+                                            </Stack>
+                                        </ToggleButton>
+                                        <ToggleButton value="LOST">
+                                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%', textAlign: 'left', minWidth: 0 }}>
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        width: 36,
+                                                        height: 36,
+                                                        borderRadius: '8px',
+                                                        bgcolor: state.faultedBy === 'LOST' ? 'error.light' : 'action.selected',
+                                                        color: state.faultedBy === 'LOST' ? '#fff' : 'text.secondary',
+                                                        flexShrink: 0,
+                                                    }}
+                                                >
+                                                    <Icon icon="solar:box-minimalistic-bold-duotone" width={22} />
+                                                </Box>
+                                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.3 }}>
+                                                        Vé thất lạc / Thiếu vé
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25, lineHeight: 1.35, wordBreak: 'break-word' }}>
+                                                        Không tìm thấy vé trong kho sau khi đã kiểm tra kỹ lưỡng
+                                                    </Typography>
+                                                </Box>
+                                            </Stack>
+                                        </ToggleButton>
                                     </ToggleButtonGroup>
                                 </Box>
 
-                                {state.faultedBy && (
-                                    <Grid container spacing={3} alignItems="stretch">
-                                        <Grid size={{ xs: 12, md: 6 }}>
-                                            <Stack spacing={2} sx={{ height: '100%' }}>
+                                {/* 2. Mô tả chi tiết sự cố & 3. Ảnh chụp minh chứng */}
+                                {state.faultedBy === 'LOST' && (
+                                    <Box
+                                        sx={{
+                                            width: '100%',
+                                            p: { xs: 2, md: 2.5 },
+                                            borderRadius: '12px',
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            bgcolor: 'background.paper',
+                                        }}
+                                    >
+                                        <Stack spacing={2}>
+                                            <Box>
+                                                <Typography
+                                                    variant="subtitle2"
+                                                    sx={{ mb: 0.5, fontWeight: 700, fontSize: '0.875rem' }}
+                                                >
+                                                    2. Mô tả chi tiết sự cố <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.8125rem' }}>
+                                                    Ghi rõ các khu vực đã kiểm tra (tủ vé, khay lưu trữ, biên bản giao nhận) và hoàn cảnh phát hiện thất lạc.
+                                                </Typography>
+                                                <TextField
+                                                    size="small"
+                                                    fullWidth
+                                                    multiline
+                                                    minRows={3}
+                                                    value={state.damagedReason}
+                                                    onChange={(e) =>
+                                                        updateIncident(ticketId, {
+                                                            damagedReason: e.target.value,
+                                                        })
+                                                    }
+                                                    placeholder="Ví dụ: Đã kiểm tra toàn bộ xấp vé lưu trữ và khu vực bàn giao ca trực nhưng không tìm thấy vé số này..."
+                                                    inputProps={{ 'aria-label': 'Mô tả sự cố của vé' }}
+                                                    sx={{
+                                                        '& .MuiOutlinedInput-root': {
+                                                            bgcolor: 'background.paper',
+                                                            fontSize: '0.875rem',
+                                                        },
+                                                    }}
+                                                />
+                                            </Box>
+
+                                            {QUICK_INCIDENT_REASONS.LOST && (
+                                                <Box>
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{
+                                                            color: 'text.secondary',
+                                                            display: 'block',
+                                                            mb: 1,
+                                                            fontWeight: 600,
+                                                        }}
+                                                    >
+                                                        Chọn nhanh lý do gợi ý:
+                                                    </Typography>
+                                                    <Box
+                                                        sx={{
+                                                            display: 'flex',
+                                                            flexWrap: 'wrap',
+                                                            gap: 1,
+                                                        }}
+                                                    >
+                                                        {QUICK_INCIDENT_REASONS.LOST.map((reason) => {
+                                                            const isSelected = state.damagedReason === reason;
+                                                            return (
+                                                                <Button
+                                                                    key={reason}
+                                                                    size="small"
+                                                                    onClick={() =>
+                                                                        updateIncident(ticketId, {
+                                                                            damagedReason: reason,
+                                                                        })
+                                                                    }
+                                                                    sx={{
+                                                                        px: 1.5,
+                                                                        py: 0.6,
+                                                                        bgcolor: isSelected ? 'error.lighter' : 'var(--palette-grey-100, #f8fafc)',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid',
+                                                                        borderColor: isSelected ? 'error.light' : 'divider',
+                                                                        color: isSelected ? 'error.dark' : 'text.primary',
+                                                                        textTransform: 'none',
+                                                                        fontSize: '0.75rem',
+                                                                        fontWeight: isSelected ? 700 : 500,
+                                                                        textAlign: 'left',
+                                                                        lineHeight: 1.35,
+                                                                        '&:hover': {
+                                                                            bgcolor: isSelected ? 'error.lighter' : 'action.hover',
+                                                                            borderColor: isSelected ? 'error.main' : 'text.disabled',
+                                                                        },
+                                                                    }}
+                                                                >
+                                                                    {reason}
+                                                                </Button>
+                                                            );
+                                                        })}
+                                                    </Box>
+                                                </Box>
+                                            )}
+                                        </Stack>
+                                    </Box>
+                                )}
+
+                                {state.faultedBy === 'DAMAGED' && (
+                                    <Stack
+                                        direction={{ xs: 'column', md: 'row' }}
+                                        spacing={2}
+                                        sx={{ width: '100%', alignItems: 'stretch' }}
+                                    >
+                                        {/* Cột 1: Mô tả sự cố */}
+                                        <Box
+                                            sx={{
+                                                flex: { xs: '1 1 auto', md: '1 1 55%' },
+                                                p: { xs: 2, md: 2.5 },
+                                                borderRadius: '12px',
+                                                border: '1px solid',
+                                                borderColor: 'divider',
+                                                bgcolor: 'background.paper',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'space-between',
+                                            }}
+                                        >
+                                            <Stack spacing={2}>
                                                 <Box>
                                                     <Typography
                                                         variant="subtitle2"
-                                                        sx={{ mb: 1, color: 'text.secondary' }}
+                                                        sx={{ mb: 0.5, fontWeight: 700, fontSize: '0.875rem' }}
                                                     >
-                                                        Chi tiết lý do
+                                                        2. Mô tả chi tiết sự cố <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                                                    </Typography>
+                                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.8125rem' }}>
+                                                        Ghi rõ vị trí rách, phần thông tin bị mờ hoặc nguyên nhân hư hại để đối chiếu.
                                                     </Typography>
                                                     <TextField
                                                         size="small"
                                                         fullWidth
                                                         multiline
-                                                        minRows={state.faultedBy === 'LOST' ? 4 : 3}
+                                                        minRows={4}
                                                         value={state.damagedReason}
                                                         onChange={(e) =>
                                                             updateIncident(ticketId, {
                                                                 damagedReason: e.target.value,
                                                             })
                                                         }
-                                                        placeholder="Nhập chi tiết sự cố..."
+                                                        placeholder="Ví dụ: Vé bị rách góc trên bên phải làm mờ một phần mã kiểm tra, các chữ số trúng thưởng vẫn nhìn rõ..."
+                                                        inputProps={{ 'aria-label': 'Mô tả sự cố của vé' }}
+                                                        sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                                bgcolor: 'background.paper',
+                                                                fontSize: '0.875rem',
+                                                            },
+                                                        }}
                                                     />
                                                 </Box>
-                                                {QUICK_INCIDENT_REASONS[state.faultedBy] && (
+
+                                                {QUICK_INCIDENT_REASONS.DAMAGED && (
                                                     <Box>
                                                         <Typography
                                                             variant="caption"
@@ -446,9 +742,10 @@ export function OrderCancelWithRefundPage() {
                                                                 color: 'text.secondary',
                                                                 display: 'block',
                                                                 mb: 1,
+                                                                fontWeight: 600,
                                                             }}
                                                         >
-                                                            Gợi ý nhanh
+                                                            Chọn nhanh lý do gợi ý:
                                                         </Typography>
                                                         <Box
                                                             sx={{
@@ -457,132 +754,99 @@ export function OrderCancelWithRefundPage() {
                                                                 gap: 1,
                                                             }}
                                                         >
-                                                            {QUICK_INCIDENT_REASONS[
-                                                                state.faultedBy
-                                                            ].map((reason) => (
-                                                                <Typography
-                                                                    key={reason}
-                                                                    variant="caption"
-                                                                    onClick={() =>
-                                                                        updateIncident(ticketId, {
-                                                                            damagedReason: reason,
-                                                                        })
-                                                                    }
-                                                                    sx={{
-                                                                        cursor: 'pointer',
-                                                                        px: 1.25,
-                                                                        py: 0.75,
-                                                                        bgcolor: 'action.hover',
-                                                                        borderRadius: 1,
-                                                                        border: '1px solid var(--palette-divider)',
-                                                                        '&:hover': {
-                                                                            bgcolor: 'action.selected',
-                                                                        },
-                                                                    }}
-                                                                >
-                                                                    {reason}
-                                                                </Typography>
-                                                            ))}
+                                                            {QUICK_INCIDENT_REASONS.DAMAGED.map((reason) => {
+                                                                const isSelected = state.damagedReason === reason;
+                                                                return (
+                                                                    <Button
+                                                                        key={reason}
+                                                                        size="small"
+                                                                        onClick={() =>
+                                                                            updateIncident(ticketId, {
+                                                                                damagedReason: reason,
+                                                                            })
+                                                                        }
+                                                                        sx={{
+                                                                            px: 1.25,
+                                                                            py: 0.5,
+                                                                            bgcolor: isSelected ? 'error.lighter' : 'var(--palette-grey-100, #f8fafc)',
+                                                                            borderRadius: '8px',
+                                                                            border: '1px solid',
+                                                                            borderColor: isSelected ? 'error.light' : 'divider',
+                                                                            color: isSelected ? 'error.dark' : 'text.primary',
+                                                                            textTransform: 'none',
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: isSelected ? 700 : 500,
+                                                                            textAlign: 'left',
+                                                                            lineHeight: 1.35,
+                                                                            '&:hover': {
+                                                                                bgcolor: isSelected ? 'error.lighter' : 'action.hover',
+                                                                                borderColor: isSelected ? 'error.main' : 'text.disabled',
+                                                                            },
+                                                                        }}
+                                                                    >
+                                                                        {reason}
+                                                                    </Button>
+                                                                );
+                                                            })}
                                                         </Box>
                                                     </Box>
                                                 )}
                                             </Stack>
-                                        </Grid>
+                                        </Box>
 
-                                        <Grid size={{ xs: 12, md: 6 }}>
-                                            {state.faultedBy === 'DAMAGED' ? (
-                                                <Stack spacing={1} sx={{ height: '100%' }}>
-                                                    <Typography
-                                                        variant="subtitle2"
-                                                        sx={{ mb: 0.5, color: 'text.secondary' }}
-                                                    >
-                                                        Ảnh minh chứng
-                                                    </Typography>
-                                                    <Box
-                                                        sx={{
-                                                            flex: 1,
-                                                            display: 'flex',
-                                                            alignItems: 'stretch',
-                                                            minHeight: 140,
-                                                        }}
-                                                    >
-                                                        <UploadFiles
-                                                            compact
-                                                            files={state.damagedEvidenceFiles || []}
-                                                            onFilesChange={(files) => {
-                                                                updateIncident(ticketId, {
-                                                                    damagedEvidenceFiles: files,
-                                                                    damagedEvidenceUrl: String(
-                                                                        files.find(
-                                                                            (f) =>
-                                                                                typeof f === 'string'
-                                                                        ) || ''
-                                                                    ),
-                                                                });
-                                                            }}
-                                                        />
-                                                    </Box>
-                                                </Stack>
-                                            ) : (
-                                                <Box
+                                        {/* Cột 2: Ảnh chụp minh chứng */}
+                                        <Box
+                                            sx={{
+                                                flex: { xs: '1 1 auto', md: '1 1 45%' },
+                                                p: { xs: 2, md: 2.5 },
+                                                borderRadius: '12px',
+                                                border: '1px solid',
+                                                borderColor: 'divider',
+                                                bgcolor: 'background.paper',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                            }}
+                                        >
+                                            <Box sx={{ mb: 1.5 }}>
+                                                <Typography
+                                                    variant="subtitle2"
+                                                    sx={{ fontWeight: 700, fontSize: '0.875rem', mb: 0.5 }}
+                                                >
+                                                    3. Ảnh chụp minh chứng <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                                                </Typography>
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
                                                     sx={{
-                                                        height: '100%',
-                                                        minHeight: 140,
-                                                        p: 2.5,
-                                                        borderRadius: '12px',
-                                                        border: '1px dashed var(--palette-divider)',
-                                                        bgcolor: 'var(--palette-background-paper)',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        justifyContent: 'center',
-                                                        gap: 1,
+                                                        fontSize: '0.8125rem',
+                                                        lineHeight: 1.5,
                                                     }}
                                                 >
-                                                    <Stack
-                                                        direction="row"
-                                                        spacing={1.5}
-                                                        alignItems="flex-start"
-                                                    >
-                                                        <Box
-                                                            sx={{
-                                                                width: 36,
-                                                                height: 36,
-                                                                borderRadius: '10px',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                bgcolor: 'var(--palette-warning-lighter)',
-                                                                color: 'var(--palette-warning-dark)',
-                                                                flexShrink: 0,
-                                                            }}
-                                                        >
-                                                            <Icon
-                                                                icon="solar:box-minimalistic-bold-duotone"
-                                                                width={20}
-                                                            />
-                                                        </Box>
-                                                        <Box>
-                                                            <Typography
-                                                                variant="subtitle2"
-                                                                sx={{ fontWeight: 700, mb: 0.5 }}
-                                                            >
-                                                                Không còn vé thay thế
-                                                            </Typography>
-                                                            <Typography
-                                                                variant="body2"
-                                                                color="text.secondary"
-                                                                sx={{ lineHeight: 1.6 }}
-                                                            >
-                                                                Vé thất lạc sẽ được ghi nhận trong quy
-                                                                trình hủy toàn bộ đơn. Vui lòng mô tả
-                                                                chi tiết sự cố ở cột bên trái.
-                                                            </Typography>
-                                                        </Box>
-                                                    </Stack>
-                                                </Box>
-                                            )}
-                                        </Grid>
-                                    </Grid>
+                                                    Tải lên ảnh chụp rõ tình trạng thực tế của vé (thấy rõ dãy số và phần bị hư hỏng).
+                                                </Typography>
+                                            </Box>
+
+                                            <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                                <UploadSingleFile
+                                                    value={state.damagedEvidenceUrl || null}
+                                                    onChange={(fileOrUrl) => {
+                                                        const urlStr = typeof fileOrUrl === 'string' ? fileOrUrl : '';
+                                                        updateIncident(ticketId, {
+                                                            damagedEvidenceUrl: urlStr,
+                                                            damagedEvidenceFiles: urlStr ? [urlStr] : (fileOrUrl instanceof File ? [fileOrUrl] : []),
+                                                        });
+                                                    }}
+                                                    onUploadingChange={(uploading) => {
+                                                        setUploadingTicketIds((prev) => ({ ...prev, [ticketId]: uploading }));
+                                                    }}
+                                                    autoUpload={true}
+                                                    accept={{ 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] }}
+                                                    maxFileSizeMb={10}
+                                                    helperText="Hỗ trợ ảnh JPG, PNG, WEBP (tối đa 10MB)"
+                                                />
+                                            </Box>
+                                        </Box>
+                                    </Stack>
                                 )}
                             </Stack>
                         </Box>
@@ -591,6 +855,7 @@ export function OrderCancelWithRefundPage() {
             </TableRow>
         );
     };
+
 
     const allIncidentsValid = useMemo(() => {
         if (tickets.length === 0) return false;
@@ -608,13 +873,27 @@ export function OrderCancelWithRefundPage() {
         });
     }, [tickets, incidents]);
 
+    const isAnyImageUploading = useMemo(
+        () => Object.values(uploadingTicketIds).some(Boolean),
+        [uploadingTicketIds]
+    );
+
+    const completedIncidentCount = useMemo(() => tickets.filter((ticket) => {
+        const incident = incidents[ticket.id!];
+        if (!incident?.faultedBy || !incident.damagedReason.trim()) return false;
+        return incident.faultedBy === 'LOST' || (
+            !!incident.damagedEvidenceUrl &&
+            !(incident.damagedEvidenceFiles || []).some((file: any) => file instanceof File)
+        );
+    }).length, [tickets, incidents]);
+
     const canSubmit = useMemo(() => {
-        if (!cancelType || !cancelReason.trim() || cancelMutation.isPending) return false;
+        if (!cancelType || !cancelReason.trim() || cancelMutation.isPending || isAnyImageUploading) return false;
         if (cancelType === 'OUT_OF_STOCK_INCIDENT') {
             return allIncidentsValid;
         }
         return true;
-    }, [cancelType, cancelReason, cancelMutation.isPending, allIncidentsValid]);
+    }, [cancelType, cancelReason, cancelMutation.isPending, isAnyImageUploading, allIncidentsValid]);
 
     const handleSelectType = (type: StaffCancelType) => {
         if (type === 'OUT_OF_STOCK_INCIDENT' && order?.status !== OrderStatus.PREPARING) {
@@ -670,8 +949,7 @@ export function OrderCancelWithRefundPage() {
                             Báo lỗi & Hủy đơn
                         </Typography>
                         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            Hủy đơn luôn kèm yêu cầu hoàn tiền. Chọn loại hủy, kiểm tra thông tin rồi xác
-                            nhận.
+                            Chọn lý do hủy, kiểm tra vé và xác nhận yêu cầu hoàn tiền cho khách.
                         </Typography>
                     </Box>
                 </Stack>
@@ -728,26 +1006,34 @@ export function OrderCancelWithRefundPage() {
                         Báo lỗi & Hủy đơn
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        Hủy đơn luôn kèm yêu cầu hoàn tiền. Chọn loại hủy, kiểm tra thông tin rồi xác
-                        nhận.
+                        Chọn lý do hủy, kiểm tra vé và xác nhận yêu cầu hoàn tiền cho khách.
                     </Typography>
                 </Box>
             </Stack>
 
             <Stack spacing={2.5}>
-                <SectionCard title="Bước 1 — Loại hủy đơn" icon="solar:checklist-bold-duotone">
+                <SectionCard title="Bước 1 — Chọn lý do hủy đơn" icon="solar:checklist-bold-duotone">
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Chọn trường hợp phù hợp. Nếu vé gặp sự cố, bạn cần báo lỗi cho từng vé trước khi xác nhận hủy đơn.
+                    </Typography>
                     <Grid container spacing={2}>
                         {visibleTypeOptions.map((opt) => {
                             const selected = cancelType === opt.value;
                             return (
                                 <Grid key={opt.value} size={{ xs: 12, md: 6 }}>
                                     <Box
+                                        component="button"
+                                        type="button"
+                                        aria-pressed={selected}
                                         onClick={() => handleSelectType(opt.value)}
                                         sx={{
-                                            p: 2.5,
+                                            p: 2.25,
                                             height: '100%',
+                                            width: '100%',
                                             borderRadius: '12px',
                                             cursor: 'pointer',
+                                            textAlign: 'left',
+                                            font: 'inherit',
                                             border: selected
                                                 ? '2px solid var(--palette-warning-main)'
                                                 : '1px solid var(--palette-divider)',
@@ -758,12 +1044,14 @@ export function OrderCancelWithRefundPage() {
                                             '&:hover': {
                                                 borderColor: 'var(--palette-warning-main)',
                                             },
+                                            '&:focus-visible': { outline: '3px solid var(--palette-warning-main)', outlineOffset: 2 },
                                         }}
                                     >
-                                        <Typography sx={{ fontWeight: 700, mb: 0.75 }}>
-                                            {opt.title}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
+                                        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
+                                            <Typography sx={{ fontWeight: 700 }}>{opt.title}</Typography>
+                                            <Icon icon={selected ? 'solar:check-circle-bold' : 'solar:circle-linear'} width={22} color={selected ? 'var(--palette-warning-dark)' : 'var(--palette-text-disabled)'} />
+                                        </Stack>
+                                        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                                             {opt.description}
                                         </Typography>
                                     </Box>
@@ -822,18 +1110,41 @@ export function OrderCancelWithRefundPage() {
                             </Grid>
                         </SectionCard>
 
-                        <SectionCard title="Thông tin vé trong đơn" icon="solar:ticket-bold-duotone">
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                                Danh sách vé trong đơn
-                            </Typography>
+                        <SectionCard title="Bước 2 — Kiểm tra vé trong đơn" icon="solar:ticket-bold-duotone">
+                            <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" gap={1} sx={{ mb: 1.5 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    {cancelType === 'OUT_OF_STOCK_INCIDENT'
+                                        ? `Báo lỗi cho từng vé trong ${tickets.length} vé dưới đây. Mỗi vé cần chọn phân loại sự cố và mô tả chi tiết; vé hư hỏng cần tải lên ảnh minh chứng.`
+                                        : `Kiểm tra danh sách ${tickets.length} vé thuộc đơn hàng trước khi xác nhận hủy đơn.`}
+                                </Typography>
+                                {cancelType === 'OUT_OF_STOCK_INCIDENT' && (
+                                    <Chip
+                                        size="small"
+                                        label={`Đã hoàn tất ${completedIncidentCount}/${tickets.length} vé`}
+                                        color={completedIncidentCount === tickets.length && tickets.length > 0 ? 'success' : 'warning'}
+                                        variant={completedIncidentCount === tickets.length && tickets.length > 0 ? 'filled' : 'outlined'}
+                                        sx={{ fontWeight: 700, fontSize: '0.75rem' }}
+                                    />
+                                )}
+                            </Stack>
                             <TableContainer
                                 sx={{
                                     border: '1px solid',
                                     borderColor: 'var(--palette-divider)',
                                     borderRadius: '12px',
+                                    overflow: 'hidden',
                                 }}
                             >
-                                <Table size="small">
+                                <Table
+                                    size="small"
+                                    sx={{
+                                        '& .MuiTableCell-root': {
+                                            textAlign: 'center',
+                                            verticalAlign: 'middle',
+                                            py: 1.5,
+                                        },
+                                    }}
+                                >
                                     <TableHead>
                                         <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                                             <TableCell
@@ -853,7 +1164,7 @@ export function OrderCancelWithRefundPage() {
                                                     borderBottom: 'none',
                                                 }}
                                             >
-                                                Đài
+                                                Đài xổ
                                             </TableCell>
                                             <TableCell
                                                 sx={{
@@ -871,7 +1182,7 @@ export function OrderCancelWithRefundPage() {
                                                     borderBottom: 'none',
                                                 }}
                                             >
-                                                Giá
+                                                Mệnh giá
                                             </TableCell>
                                             <TableCell
                                                 sx={{
@@ -884,7 +1195,7 @@ export function OrderCancelWithRefundPage() {
                                             </TableCell>
                                             {cancelType === 'OUT_OF_STOCK_INCIDENT' && (
                                                 <TableCell
-                                                    align="right"
+                                                    align="center"
                                                     sx={{
                                                         color: 'var(--palette-text-secondary)',
                                                         fontWeight: 600,
@@ -1002,22 +1313,13 @@ export function OrderCancelWithRefundPage() {
                                                             />
                                                         </TableCell>
                                                         {cancelType === 'OUT_OF_STOCK_INCIDENT' && (
-                                                            <TableCell align="right">
+                                                            <TableCell align="center">
                                                                 <Stack
                                                                     direction="row"
                                                                     spacing={1}
                                                                     alignItems="center"
-                                                                    justifyContent="flex-end"
+                                                                    justifyContent="center"
                                                                 >
-                                                                    <Typography
-                                                                        variant="caption"
-                                                                        sx={{
-                                                                            color: 'var(--palette-text-secondary)',
-                                                                            fontWeight: 600,
-                                                                        }}
-                                                                    >
-                                                                        Hết vé thay thế
-                                                                    </Typography>
                                                                     <Button
                                                                         size="small"
                                                                         variant={
@@ -1035,20 +1337,30 @@ export function OrderCancelWithRefundPage() {
                                                                         onClick={() =>
                                                                             handleIncidentClick(ticket)
                                                                         }
+                                                                        startIcon={
+                                                                            isReporting ? (
+                                                                                <Icon icon="solar:alt-arrow-up-linear" width={16} />
+                                                                            ) : hasStartedFilling ? (
+                                                                                <Icon icon="solar:pen-bold" width={16} />
+                                                                            ) : (
+                                                                                <Icon icon="solar:danger-triangle-bold" width={16} />
+                                                                            )
+                                                                        }
                                                                         sx={{
                                                                             textTransform: 'none',
-                                                                            py: 0.25,
-                                                                            minWidth: 'auto',
+                                                                            py: 0.5,
+                                                                            px: 1.5,
                                                                             fontSize: '0.75rem',
-                                                                            borderRadius: '6px',
+                                                                            fontWeight: 700,
+                                                                            borderRadius: '8px',
                                                                             boxShadow: 'none',
                                                                         }}
                                                                     >
                                                                         {isReporting
-                                                                            ? 'Đóng'
+                                                                            ? 'Thu gọn'
                                                                             : hasStartedFilling
-                                                                              ? 'Đã báo lỗi'
-                                                                              : 'Báo lỗi'}
+                                                                              ? 'Chỉnh sửa'
+                                                                              : 'Báo sự cố'}
                                                                     </Button>
                                                                     {state &&
                                                                         (state.faultedBy ||
@@ -1070,11 +1382,11 @@ export function OrderCancelWithRefundPage() {
                                                                                         color: 'common.white',
                                                                                     },
                                                                                 }}
-                                                                                title="Hủy thao tác"
+                                                                                title="Xóa sự cố đã ghi nhận"
                                                                             >
                                                                                 <Icon
-                                                                                    icon="solar:close-circle-bold"
-                                                                                    fontSize={18}
+                                                                                    icon="solar:trash-bin-trash-bold"
+                                                                                    fontSize={16}
                                                                                 />
                                                                             </IconButton>
                                                                         )}
@@ -1096,8 +1408,7 @@ export function OrderCancelWithRefundPage() {
                                     color="text.secondary"
                                     sx={{ display: 'block', mt: 1.5 }}
                                 >
-                                    Phải báo lỗi (DAMAGED/LOST) cho toàn bộ {tickets.length} vé. Không
-                                    chọn vé thay thế — đơn sẽ bị hủy toàn bộ.
+                                    Cần hoàn tất báo lỗi cho cả {tickets.length} vé trước khi xác nhận. Đơn sẽ được hủy toàn bộ và tạo yêu cầu hoàn tiền.
                                 </Typography>
                             )}
                         </SectionCard>
@@ -1126,15 +1437,9 @@ export function OrderCancelWithRefundPage() {
                                     tone="blue"
                                 />
                             </AdminKpiCardsGrid>
-                            <Box sx={{ mt: 1 }}>
-                                <InfoField
-                                    label="Tài khoản nhận hoàn"
-                                    value="Chưa có — khách sẽ cung cấp STK"
-                                />
-                            </Box>
                         </SectionCard>
 
-                        <SectionCard title="Chi tiết yêu cầu" icon="solar:document-text-bold-duotone">
+                        <SectionCard title="Bước 3 — Xác nhận lý do hủy" icon="solar:document-text-bold-duotone">
                             <Typography
                                 variant="caption"
                                 sx={{
@@ -1143,7 +1448,7 @@ export function OrderCancelWithRefundPage() {
                                     mb: 1,
                                 }}
                             >
-                                Lý do hủy / hoàn tiền *
+                                Lý do hủy đơn và hoàn tiền *
                             </Typography>
                             <TextField
                                 fullWidth
@@ -1151,8 +1456,8 @@ export function OrderCancelWithRefundPage() {
                                 minRows={3}
                                 value={cancelReason}
                                 onChange={(e) => setCancelReason(e.target.value.slice(0, 500))}
-                                placeholder="Nhập lý do hủy đơn và hoàn tiền..."
-                                helperText="Được điền sẵn theo loại hủy — có thể chỉnh trước khi xác nhận."
+                                placeholder="Mô tả lý do hủy đơn để bộ phận hoàn tiền và khách hàng dễ đối chiếu..."
+                                helperText="Hệ thống đã điền sẵn theo loại hủy. Hãy kiểm tra và chỉnh lại nếu cần trước khi xác nhận."
                                 disabled={cancelMutation.isPending}
                             />
                             <Typography

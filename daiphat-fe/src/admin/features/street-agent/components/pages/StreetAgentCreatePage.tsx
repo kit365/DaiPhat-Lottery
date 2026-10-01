@@ -338,8 +338,16 @@ export const StreetAgentCreatePage = () => {
                         const failReason = verifyRes.data?.ekycFailureReason || verifyRes.message || "Ảnh CCCD gửi không hợp lệ/không đọc được.";
                         if (verifyRes.data) {
                             profile = verifyRes.data;
+                            toast.success(verifyRes.message || "Đã đọc và kiểm tra thông tin CCCD.");
                         }
-                        toast.error(`Xác thực CCCD thất bại: ${failReason}. Vui lòng tải lại ảnh CCCD!`);
+                    } catch (error: any) {
+                        toast.error(
+                            error?.response?.data?.message ||
+                                error?.message ||
+                                "Chưa đọc đủ thông tin CCCD — có thể thử lại sau khi lưu."
+                        );
+                    } finally {
+                        setIsVerifyingEkyc(false);
                     }
                 } catch (error: any) {
                     toast.error(

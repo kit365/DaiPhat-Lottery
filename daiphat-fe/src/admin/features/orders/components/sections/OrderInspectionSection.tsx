@@ -229,10 +229,15 @@ export function OrderInspectionSection({
     );
 
     const linkedRefundRequests = useMemo(() => {
-        const list = orderRefundsResponse?.data?.recordList ?? [];
+        const raw = orderRefundsResponse?.data;
+        const list = Array.isArray(raw?.recordList)
+            ? raw.recordList
+            : Array.isArray(raw)
+              ? raw
+              : [];
         return [...list].sort((a, b) => {
-            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
             return bTime - aTime;
         });
     }, [orderRefundsResponse]);

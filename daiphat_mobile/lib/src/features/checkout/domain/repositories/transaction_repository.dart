@@ -14,4 +14,11 @@ abstract interface class TransactionRepository {
   );
 
   Future<OrderResponse> syncOnlinePayment(String orderId);
+
+  Future<OrderResponse> cancelPayment({
+    required String orderId,
+    int? transactionId,
+    required String gateway,
+    String? reason,
+  });
 }

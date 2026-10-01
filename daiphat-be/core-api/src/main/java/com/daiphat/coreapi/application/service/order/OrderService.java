@@ -28,6 +28,7 @@ import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
+import com.daiphat.coreapi.application.service.lotteries.TicketSalesCutoffPolicy;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
 import com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategy;
@@ -82,7 +83,6 @@ public class OrderService implements OrderServicePort {
     private static final Set<String> MY_ORDERS_SORT_FIELDS = Set.of("createdAt", "totalAmount");
 
     private static final BigDecimal ONLINE_PAYMENT_MIN_AMOUNT = BigDecimal.valueOf(10_000);
-    private static final long MAX_PICKUP_LEAD_DAYS = 3;
 
     private final OrderRepositoryPort orderRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
@@ -97,6 +97,8 @@ public class OrderService implements OrderServicePort {
     private final PaymentTimeoutConfigService paymentTimeoutConfigService;
     private final OrderComplaintEligibilityService orderComplaintEligibilityService;
     private final StoragePort storagePort;
+    private final OrderPreparationExpiryService orderPreparationExpiryService;
+    private final TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
 
     @Override
     @Transactional
@@ -116,7 +118,7 @@ public class OrderService implements OrderServicePort {
             totalAmount = totalAmount.add(ticketSnapshot.price());
         }
 
-        ensureValidPickupTime(request.expectedPickupAt(), ticketSnapshots);
+        ensureValidPickupTime(request.expectedPickupAt());
 
         TransactionModel transaction = orderApplicationMapper.toOnlineTransactionModel(totalAmount, request.note());
         transaction.initializeForCreate();
@@ -225,14 +227,14 @@ public class OrderService implements OrderServicePort {
 
         OrderModel order = getOrderOrThrow(orderId);
         if (order.getStatus() == status) {
-            return orderApplicationMapper.toResponse(order);
+            return toOrderListResponse(order);
         }
 
         applyOrderStatusTransition(order, status, reason, operatorId);
         OrderModel saved = orderRepositoryPort.save(order);
         clearPendingPaymentCountdownIfResolved(saved);
         publishCustomerOrderStatusChanged(saved);
-        return orderApplicationMapper.toResponse(saved);
+        return toOrderListResponse(saved);
     }
 
     @Override
@@ -395,6 +397,7 @@ public class OrderService implements OrderServicePort {
             String sortBy,
             String direction
     ) {
+        orderPreparationExpiryService.expireOverduePreparingOrders();
         validateDateRange(fromDate, toDate);
 
         PageRequest pageable = PageRequest.of(
@@ -416,7 +419,7 @@ public class OrderService implements OrderServicePort {
                         toDate,
                         search
                 )
-                .map(orderApplicationMapper::toResponse);
+                .map(this::toOrderListResponse);
 
         return PageResponse.from(
                 resultPage,
@@ -566,6 +569,7 @@ public class OrderService implements OrderServicePort {
                 .totalAmount(base.totalAmount())
                 .status(base.status())
                 .expectedPickupAt(base.expectedPickupAt())
+                .preparationCutoffAt(resolvePreparationCutoff(order))
                 .cancelledAt(base.cancelledAt())
                 .cancelReason(base.cancelReason())
                 .cancelType(base.cancelType())
@@ -605,6 +609,7 @@ public class OrderService implements OrderServicePort {
                 .totalAmount(base.totalAmount())
                 .status(base.status())
                 .expectedPickupAt(base.expectedPickupAt())
+                .preparationCutoffAt(resolvePreparationCutoff(order))
                 .cancelledAt(base.cancelledAt())
                 .cancelReason(base.cancelReason())
                 .cancelType(base.cancelType())
@@ -627,6 +632,18 @@ public class OrderService implements OrderServicePort {
                 .refundDeadlineAt(DrawScheduleUtils.toVietnamOffset(refundEvaluation.refundDeadlineAt()))
                 .complaintEligibility(orderComplaintEligibilityService.evaluateOrder(order, LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))))
                 .build();
+    }
+
+    private OrderResponse toOrderListResponse(OrderModel order) {
+        return orderApplicationMapper.toResponse(order).toBuilder()
+                .preparationCutoffAt(resolvePreparationCutoff(order))
+                .build();
+    }
+
+    private java.time.OffsetDateTime resolvePreparationCutoff(OrderModel order) {
+        return ticketSalesCutoffPolicy.resolveEarliestCutoff(order)
+                .map(DrawScheduleUtils::toVietnamOffset)
+                .orElse(null);
     }
 
     private List<OrderDetailResponse> enrichOrderDetails(List<OrderDetailModel> details) {
@@ -954,23 +971,8 @@ public class OrderService implements OrderServicePort {
         }
     }
 
-    private void ensureValidPickupTime(LocalDateTime expectedPickupAt, List<OrderTicketSnapshot> ticketSnapshots) {
+    private void ensureValidPickupTime(LocalDateTime expectedPickupAt) {
         if (expectedPickupAt == null || expectedPickupAt.isBefore(LocalDateTime.now().plusMinutes(15))) {
-            throw new DomainException(ErrorCode.INVALID_PICKUP_TIME);
-        }
-
-        LocalDate earliestDrawDate = ticketSnapshots.stream()
-                .map(OrderTicketSnapshot::drawDate)
-                .filter(java.util.Objects::nonNull)
-                .min(LocalDate::compareTo)
-                .orElse(null);
-        if (earliestDrawDate == null) {
-            throw new DomainException(ErrorCode.INVALID_PICKUP_TIME);
-        }
-
-        LocalDate pickupDate = expectedPickupAt.toLocalDate();
-        LocalDate earliestAllowedPickupDate = earliestDrawDate.minusDays(MAX_PICKUP_LEAD_DAYS);
-        if (pickupDate.isBefore(earliestAllowedPickupDate) || pickupDate.isAfter(earliestDrawDate)) {
             throw new DomainException(ErrorCode.INVALID_PICKUP_TIME);
         }
     }

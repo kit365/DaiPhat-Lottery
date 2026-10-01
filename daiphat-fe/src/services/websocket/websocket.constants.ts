@@ -23,3 +23,6 @@ export const WS_USER_OVERRUN_ALERTS_QUEUE = `${WS_USER_PREFIX}${WS_QUEUE_PREFIX}
 
 export const getConversationTopic = (conversationId: number): string =>
     `${WS_TOPIC_PREFIX}${WS_CHAT_SEGMENT}${WS_CONVERSATIONS_SEGMENT}/${conversationId}`;
+
+export const getOcrSessionTopic = (sessionCode: string): string =>
+    `${WS_TOPIC_PREFIX}/ocr/sessions/${sessionCode}`;

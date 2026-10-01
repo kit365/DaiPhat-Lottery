@@ -133,19 +133,30 @@ public final class LotteryTicketSpecification {
             predicates.add(cb.equal(serialJoin.get("ticketCondition"), com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD));
             predicates.add(cb.isNull(serialJoin.get("returnBatchLineId")));
             predicates.add(cb.isNull(serialJoin.get("deletedAt")));
+            var importBatchJoin = serialJoin.join("importBatch", JoinType.LEFT);
+            var supplierJoin = importBatchJoin.join("supplier", JoinType.LEFT);
             query.distinct(true);
             predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.isActive)));
             predicates.add(cb.isNull(root.get(LotteryTicketEntity_.station).get(BaseEntity_.deletedAt)));
 
-            // Sale cutoff: tickets stop being publicly sellable once their draw has happened,
-            // even if the expiry scheduler has not flipped their status yet.
+            // Supplier return cutoff is the sales boundary for each physical serial.
+            // Legacy serials without an import supplier fall back to station draw time.
             LocalDate today = DrawScheduleUtils.today();
             LocalTime now = DrawScheduleUtils.nowTime();
-            predicates.add(cb.greaterThanOrEqualTo(root.get(LotteryTicketEntity_.drawDate), today));
+            Path<LocalDate> serialDrawDate = serialJoin.get("drawDate");
+            predicates.add(cb.greaterThanOrEqualTo(serialDrawDate, today));
             predicates.add(cb.or(
-                    cb.notEqual(root.get(LotteryTicketEntity_.drawDate), today),
-                    cb.isNull(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.drawTime)),
-                    cb.greaterThan(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.drawTime), now)
+                    cb.notEqual(serialDrawDate, today),
+                    cb.and(
+                            cb.isNotNull(supplierJoin.get("id")),
+                            cb.greaterThan(supplierJoin.<LocalTime>get("returnCutOffTime"), now)
+                    ),
+                    cb.and(
+                            cb.isNull(supplierJoin.get("id")),
+                            cb.greaterThan(
+                                    root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.drawTime),
+                                    now)
+                    )
             ));
 
             if (stationId != null) {

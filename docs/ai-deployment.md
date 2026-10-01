@@ -6,7 +6,7 @@ Each AI service has its own independent CD workflow:
 |---------|----------|-------|--------------------------|--------------|
 | AI Chatbot | `ai-chatbot-deploy.yml` | `daiphat-ai-chatbot` | `daiphat-ai-chatbot-{blue,green,gateway}` | `http://ai-gateway:8000` |
 | AI Ticket OCR | `ai-ticket-ocr-deploy.yml` | `daiphat-ai-ticket-ocr` | `daiphat-ai-ticket-ocr-{blue,green,gateway}` | `http://ticket-vision:8090` |
-| AI eKYC (CCCD OCR, face match, liveness) | `ai-ekyc-deploy.yml` | `daiphat-ai-ekyc` | `daiphat-ai-ekyc-{blue,green,gateway}` | `http://ekyc-vision:8000` |
+| AI CCCD OCR (face/liveness endpoints currently unused) | `ai-ekyc-deploy.yml` | `daiphat-ai-ekyc` (legacy repository) | `daiphat-ai-cccd-ocr-{blue,green,gateway}` | `http://ekyc-vision:8000` |
 
 A push to `main` deploys a service when its `daiphat-ai/<service>/` folder,
 its workflow, or the shared deploy tooling (`docker-compose.ai.yml`,
@@ -21,8 +21,8 @@ The internal hostnames, `.ai-deploy/chatbot|ocr|ekyc` slot state and the
 names because the backend and running slots depend on them.
 Container health and route rollback remain runtime operations.
 The script refuses to start an overlapping slot unless available RAM covers
-the candidate's memory limit plus 640 MiB reserve (1664 MiB for a 1 GiB OCR
-slot). There is no minimum installed-RAM gate; a 4 GiB host can qualify.
+the candidate's memory limit plus 384 MiB reserve (2432 MiB for the default
+2 GiB OCR slot). There is no minimum installed-RAM gate.
 OCR requires 10 GiB free on Docker's data filesystem for image pull/unpacking
 and cache. This is an admission budget, not a measured runtime guarantee.
 
@@ -49,6 +49,22 @@ current chatbot. Use `TICKET_VISION_RECOGNITION_ENGINE`; the older
 The per-call Groq timeout is 45 seconds in the example; retries and alternate
 crops can still exceed that time. This is not an end-to-end request deadline.
 
+The Ticket OCR defaults target a Cheap 6 host (4 vCPU / 8 GiB): one OCR slot
+receives 2 vCPU and 2 GiB, while Paddle, PyTorch, OpenMP, MKL, OpenBLAS and
+NumExpr are capped at two threads. PyTorch and Paddle MKL-DNN are disabled by
+default because affected virtual CPUs can terminate native convolution with
+SIGFPE. Override only after testing the exact production CPU and image:
+
+```env
+TICKET_VISION_CPU_LIMIT=2
+TICKET_VISION_MEMORY_LIMIT=2g
+TICKET_VISION_CPU_THREADS=2
+TICKET_VISION_PADDLE_CPU_THREADS=2
+TICKET_VISION_TORCH_NUM_THREADS=2
+TICKET_VISION_PADDLE_ENABLE_MKLDNN=false
+TICKET_VISION_TORCH_ENABLE_MKLDNN=false
+```
+
 ## First OCR rollout
 
 Dispatch `AI Ticket OCR Deploy` with `source_ref=main` after these deployment
@@ -64,25 +80,25 @@ The backend must already use `http://ticket-vision:8090`, and the external
 refuses to take it over. Do not enable the root Compose's legacy `ocr` profile
 alongside the managed AI project.
 
-## First eKYC rollout
+## First CCCD OCR rollout
 
-AI eKYC had no production deployment before this pipeline. Before the
+AI CCCD OCR had no production deployment before this pipeline. Before the
 first run:
 
 1. Add `KYC_AI_API_KEY` (a strong random value) to `.env.prod` and to the
-   `ENV_FILE_CONTENT` secret. The eKYC job refuses to deploy without it, because
+   `ENV_FILE_CONTENT` secret. The CCCD OCR job refuses to deploy without it, because
    the service skips API-key checks when the key is empty. Optional sizing:
    `EKYC_VISION_MEMORY_LIMIT` (default `2g`), `EKYC_VISION_CPU_LIMIT` (default
    `1`) and `EKYC_VISION_CPU_THREADS` (default `1`).
 2. Roll out the backend so it runs with
    `DAIPHAT_EKYC_AI_BASE_URL=http://ekyc-vision:8000` and
    `DAIPHAT_EKYC_AI_API_KEY` taken from `KYC_AI_API_KEY`; both come from
-   `docker-compose.prod.yml`. CD refuses to route eKYC traffic until the running
+   `docker-compose.prod.yml`. CD refuses to route CCCD OCR traffic until the running
    backend uses that URL.
-3. Dispatch `AI eKYC Deploy`.
+3. Dispatch `AI CCCD OCR Deploy`.
 
-The eKYC gateway owns the `ekyc-vision` network alias and allows 25 MiB request
-bodies with a 125-second proxy timeout, matching the backend's 120-second eKYC
+The CCCD OCR gateway owns the legacy `ekyc-vision` network alias and allows 25 MiB request
+bodies with a 125-second proxy timeout, matching the backend's 120-second OCR
 read timeout. Admission needs the memory limit plus 640 MiB of available RAM
 and 4 GiB of free Docker disk.
 
@@ -101,7 +117,7 @@ its eventual retirement is a separate infrastructure action.
 ## Slot releases and recovery
 
 `docker-compose.ai.yml` owns a separate `daiphat-ai` project, attached to the
-existing production network. Chatbot, OCR and eKYC each have blue/green slots and
+existing production network. Chatbot, ticket OCR and CCCD OCR each have blue/green slots and
 an internal Nginx gateway. No AI port is published on the host.
 
 The deployment starts the inactive slot, waits for container health, reloads

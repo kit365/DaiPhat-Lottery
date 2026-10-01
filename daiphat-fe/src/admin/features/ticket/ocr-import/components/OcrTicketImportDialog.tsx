@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CloseIcon from '@mui/icons-material/Close';
+import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
+import { MobileScanConnectDialog } from './MobileScanConnectDialog';
+import { useOcrScanSession } from '../hooks/useOcrScanSession';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import DocumentScannerOutlinedIcon from '@mui/icons-material/DocumentScannerOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -25,6 +28,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import {
     Accordion,
     AccordionDetails,
@@ -36,6 +41,7 @@ import {
     Dialog,
     DialogActions,
     DialogContent,
+    DialogContentText,
     DialogTitle,
     FormControl,
     FormControlLabel,
@@ -73,7 +79,8 @@ import { ROUTES } from '../../../../../constants/routes';
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 import { useActiveSuppliers } from '../../../supplier';
 import { useStations } from '../../../station/hooks/useStation';
-import type { ImportBatch, ImportBatchLine } from '../../import-batch/types/importBatch.type';
+import type { ImportBatch, ImportBatchFileStationSummary, ImportBatchLine } from '../../import-batch/types/importBatch.type';
+import { ImportBatchQuickAllocationModal } from '../../import-batch/components/sections/ImportBatchQuickAllocationModal';
 import {
     uploadImportBatchInvoiceEvidence,
     uploadImportBatchTicketListImage,
@@ -91,13 +98,15 @@ import {
     getImportBatchStatusLabel,
 } from '../../import-batch/utils/batchTypeLabels';
 import { useOcrImportWizard } from '../hooks/useOcrImportWizard';
-import { OCR_IMPORT_DRAFT_KEY } from '../types/ticketOcr.type';
+import { OCR_IMPORT_DRAFT_KEY, type OcrReviewRow } from '../types/ticketOcr.type';
 import {
     buildReviewImageGroups,
+    buildReviewStationGroups,
     countOcrBatchesBlockedByIntake,
     filterEligibleOcrBatches,
     formatDenomination,
     getImportOutcomeLabel,
+    hasHighConfidenceOcrFields,
     getScanLogEventLabel,
     getScanLogMethodLabel,
     parseTicketPriceNumber,
@@ -110,6 +119,9 @@ import {
 } from '../utils/ocrScanErrorMessage';
 import OcrReviewImagePane, { type OcrFieldSelection } from './OcrReviewImagePane';
 import OcrReviewResultCards from './OcrReviewResultCards';
+import OcrImageEditDialog from './OcrImageEditDialog';
+import { OcrImagePreviewLightbox } from './OcrImagePreviewLightbox';
+import { OcrCameraCaptureDialog } from './OcrCameraCaptureDialog';
 import { getOcrTemplateDefaultReady } from '../../../station/services/ocrTemplateService';
 import { getOcrServiceReady, type OcrServiceReady } from '../services/ticketOcrService';
 
@@ -148,6 +160,43 @@ const formatFileSize = (bytes?: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const normalizeReviewSearchValue = (value?: string | number | null) =>
+    String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase()
+        .trim();
+
+const matchesReviewSearch = (
+    row: OcrReviewRow,
+    query: string,
+    stationCode?: string | null
+) => {
+    const normalizedQuery = normalizeReviewSearchValue(query);
+    if (!normalizedQuery) return true;
+
+    const drawDate = row.drawDate && dayjs(row.drawDate).isValid()
+        ? dayjs(row.drawDate).format('DD/MM/YYYY')
+        : row.drawDate;
+    const searchableValues = [
+        row.numbers,
+        row.serialNumber,
+        row.stationName,
+        stationCode,
+        row.drawDate,
+        drawDate,
+        row.batchCode,
+        row.ticketType,
+        formatDenomination(row.ticketType),
+    ];
+
+    return searchableValues.some((value) =>
+        normalizeReviewSearchValue(value).includes(normalizedQuery)
+    );
 };
 
 const stepTitle: Record<string, string> = {
@@ -201,6 +250,7 @@ const ImportBatchReviewSummaryCard = ({
     wizard,
     stationLabel,
     onOpenScanHistory,
+    onEditAllocation,
     imageCount,
     selectedStationId,
 }: {
@@ -209,6 +259,7 @@ const ImportBatchReviewSummaryCard = ({
     wizard: ReturnType<typeof useOcrImportWizard>;
     stationLabel: (stationId?: number) => string;
     onOpenScanHistory?: (tab?: 'logs' | 'images') => void;
+    onEditAllocation?: () => void;
     imageCount?: number;
     selectedStationId?: number | null;
 }) => {
@@ -227,6 +278,8 @@ const ImportBatchReviewSummaryCard = ({
 
     const confirmableCount = wizard.rows.filter(wizard.isRowConfirmable).length;
     const totalRowsCount = wizard.rows.length;
+    const allConfirmableSelected =
+        confirmableCount > 0 && wizard.confirmableCount === confirmableCount;
 
     const activeSelectedLine = lines.find((l) => l.lotteryStationId === selectedStationId);
 
@@ -295,30 +348,64 @@ const ImportBatchReviewSummaryCard = ({
                     </Stack>
 
                     <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                        {onEditAllocation && (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<EditOutlinedIcon sx={{ fontSize: '0.95rem' }} />}
+                                onClick={onEditAllocation}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    fontSize: '0.775rem',
+                                    borderRadius: '9px',
+                                    px: 1.4,
+                                    py: 0.55,
+                                    color: '#4338ca',
+                                    borderColor: '#c7d2fe',
+                                    bgcolor: '#eef2ff',
+                                    boxShadow: '0 1px 2px rgba(67, 56, 202, 0.08)',
+                                    '&:hover': {
+                                        borderColor: '#818cf8',
+                                        bgcolor: '#e0e7ff',
+                                    },
+                                }}
+                            >
+                                Chỉnh sửa phân bổ
+                            </Button>
+                        )}
                         <Button
                             size="small"
-                            variant="outlined"
+                            variant={allConfirmableSelected ? 'contained' : 'outlined'}
+                            startIcon={allConfirmableSelected
+                                ? <CheckCircleIcon sx={{ fontSize: '0.95rem' }} />
+                                : <CheckCircleOutlineOutlinedIcon sx={{ fontSize: '0.95rem' }} />}
+                            disabled={confirmableCount === 0}
                             onClick={() =>
-                                wizard.toggleAllConfirmable(
-                                    wizard.confirmableCount < confirmableCount
-                                )
+                                wizard.toggleAllConfirmable(!allConfirmableSelected)
                             }
                             sx={{
                                 textTransform: 'none',
                                 fontWeight: 700,
                                 fontSize: '0.775rem',
-                                borderRadius: '7px',
-                                px: 1.25,
-                                py: 0.35,
-                                borderColor: '#cbd5e1',
-                                color: '#334155',
+                                borderRadius: '9px',
+                                px: 1.4,
+                                py: 0.55,
+                                borderColor: allConfirmableSelected ? '#16a34a' : '#bbf7d0',
+                                color: allConfirmableSelected ? '#ffffff' : '#15803d',
+                                bgcolor: allConfirmableSelected ? '#16a34a' : '#f0fdf4',
+                                boxShadow: allConfirmableSelected
+                                    ? '0 3px 8px rgba(22, 163, 74, 0.24)'
+                                    : '0 1px 2px rgba(22, 163, 74, 0.08)',
                                 '&:hover': {
-                                    borderColor: '#94a3b8',
-                                    bgcolor: '#f1f5f9',
+                                    borderColor: allConfirmableSelected ? '#15803d' : '#86efac',
+                                    bgcolor: allConfirmableSelected ? '#15803d' : '#dcfce7',
                                 },
                             }}
                         >
-                            Chọn tất cả hợp lệ ({confirmableCount})
+                            {allConfirmableSelected
+                                ? `Đã chọn (${confirmableCount}) vé`
+                                : `Chọn tất cả hợp lệ (${confirmableCount})`}
                         </Button>
                         {onOpenScanHistory && (
                             <Button
@@ -412,7 +499,7 @@ const ImportBatchReviewSummaryCard = ({
                         </Stack>
                         {activeSelectedLine && (
                             <Typography variant="caption" color="#2563eb" sx={{ fontSize: '0.725rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                🎯 Đài vé đang chọn: <strong>{stationLabel(activeSelectedLine.lotteryStationId)}</strong>
+                                Đài vé đang chọn: <strong>{stationLabel(activeSelectedLine.lotteryStationId)}</strong>
                             </Typography>
                         )}
                     </Stack>
@@ -551,6 +638,33 @@ export const OcrTicketImportDialog = ({
     onDraftRestored,
 }: OcrTicketImportDialogProps) => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [mobileScanDialogOpen, setMobileScanDialogOpen] = useState(false);
+    const [cameraCaptureDialogOpen, setCameraCaptureDialogOpen] = useState(false);
+    const [previewLightboxOpen, setPreviewLightboxOpen] = useState(false);
+    const [previewLightboxIndex, setPreviewLightboxIndex] = useState(0);
+    const [confirmDisconnectMobileOpen, setConfirmDisconnectMobileOpen] = useState(false);
+    const mobileScanSession = useOcrScanSession({
+        onTicketsScanned: (tickets, scanId) => {
+            wizard.addScannedTicketsFromMobile(tickets, scanId);
+        },
+    });
+
+    const handleOpenMobileScan = async () => {
+        await mobileScanSession.startSession({
+            importBatchId: wizard.selectedBatch?.id ?? wizard.selectedImportBatchId,
+            importBatchLineId: wizard.prefillLineOption?.lineId,
+        });
+        setMobileScanDialogOpen(true);
+    };
+
+    const handleCloseMobileScan = () => {
+        setMobileScanDialogOpen(false);
+    };
+
+    const handleEndMobileSession = () => {
+        setMobileScanDialogOpen(false);
+        mobileScanSession.stopSession();
+    };
     const wizard = useOcrImportWizard({
         open,
         prefillBatch,
@@ -569,6 +683,7 @@ export const OcrTicketImportDialog = ({
     const [ocrServiceRechecking, setOcrServiceRechecking] = useState(false);
     const [isInvoiceUploading, setIsInvoiceUploading] = useState(false);
     const [isTicketListUploading, setIsTicketListUploading] = useState(false);
+    const [allocationOpen, setAllocationOpen] = useState(false);
     const { data: activeSuppliers = [] } = useActiveSuppliers(open);
     const { data: timePolicy } = useImportBatchTimePolicy();
     const returnBufferMinutes =
@@ -761,6 +876,75 @@ export const OcrTicketImportDialog = ({
         () => buildReviewImageGroups(wizard.images, wizard.rows),
         [wizard.images, wizard.rows]
     );
+    const reviewStationGroups = useMemo(
+        () => buildReviewStationGroups(wizard.rows),
+        [wizard.rows]
+    );
+    const selectedBatchDrawDate = wizard.selectedImportBatch?.drawDate || wizard.selectedBatch?.drawDate || null;
+    const [reviewListTab, setReviewListTab] = useState<'images' | 'stations'>('images');
+    const [reviewSearchQuery, setReviewSearchQuery] = useState('');
+    const [collapsedTicketKeys, setCollapsedTicketKeys] = useState<Set<string>>(() => new Set());
+    const [imageBeingEdited, setImageBeingEdited] = useState<{ id: string; file: File } | null>(null);
+
+    const filteredReviewRows = useMemo(() => {
+        if (!reviewSearchQuery.trim()) return wizard.rows;
+        return wizard.rows.filter((row) => {
+            const stationCode = stations.find((station) => station.id === row.stationId)?.code;
+            return matchesReviewSearch(row, reviewSearchQuery, stationCode);
+        });
+    }, [reviewSearchQuery, stations, wizard.rows]);
+
+    const filteredReviewRowKeys = useMemo(
+        () => new Set(filteredReviewRows.map((row) => row.key)),
+        [filteredReviewRows]
+    );
+
+    const filteredReviewImageGroups = useMemo(() => {
+        if (!reviewSearchQuery.trim()) return reviewImageGroups;
+        return reviewImageGroups
+            .map((group) => ({
+                ...group,
+                rows: group.rows.filter((row) => filteredReviewRowKeys.has(row.key)),
+            }))
+            .filter((group) => group.rows.length > 0);
+    }, [filteredReviewRowKeys, reviewImageGroups, reviewSearchQuery]);
+
+    const filteredReviewStationGroups = useMemo(
+        () => buildReviewStationGroups(filteredReviewRows),
+        [filteredReviewRows]
+    );
+
+    useEffect(() => {
+        if (!open) {
+            setReviewSearchQuery('');
+            setCollapsedTicketKeys(new Set());
+        }
+    }, [open]);
+
+    const handleEditImage = async (imageId: string, previewUrl?: string) => {
+        if (wizard.scanning) return;
+        const queued = wizard.images.find((image) => image.id === imageId);
+        if (queued?.file.size) {
+            setImageBeingEdited({ id: imageId, file: queued.file });
+            return;
+        }
+        const source = previewUrl || queued?.previewUrl;
+        if (!source) {
+            toast.error('Không tìm thấy ảnh gốc để chỉnh sửa.');
+            return;
+        }
+        try {
+            const response = await fetch(source);
+            if (!response.ok) throw new Error('Không tải được ảnh gốc.');
+            const blob = await response.blob();
+            setImageBeingEdited({
+                id: imageId,
+                file: new File([blob], queued?.file.name || 've-ocr.jpg', { type: blob.type || 'image/jpeg' }),
+            });
+        } catch {
+            toast.error('Không tải được ảnh đã quét để chỉnh sửa. Vui lòng tải ảnh từ máy lên lại.');
+        }
+    };
 
     const activeSelectedStationId = useMemo(() => {
         if (!fieldSelection?.rowKey) {
@@ -844,6 +1028,35 @@ export const OcrTicketImportDialog = ({
         () => wizard.rows.filter(wizard.isRowConfirmable),
         [wizard.rows, wizard.isRowConfirmable]
     );
+    const allConfirmableRowsSelected =
+        confirmableRows.length > 0 && wizard.confirmableCount === confirmableRows.length;
+
+    const ocrAllocationStations: ImportBatchFileStationSummary[] = useMemo(() => {
+        const byStation = new Map<number, ImportBatchFileStationSummary>();
+        confirmableRows.forEach((row) => {
+            if (row.stationId == null) return;
+            const existing = byStation.get(row.stationId);
+            if (existing) {
+                existing.ticketCount += 1;
+                existing.serialCount += 1;
+                existing.declaredQuantity += 1;
+                return;
+            }
+            const importCost = wizard.selectedImportBatch?.lines.find(
+                (line) => line.lotteryStationId === row.stationId
+            )?.importCost ?? 0;
+            byStation.set(row.stationId, {
+                lotteryStationId: row.stationId,
+                stationName: stationLabel(row.stationId),
+                ticketCount: 1,
+                serialCount: 1,
+                declaredQuantity: 1,
+                importCost,
+                declaredCostValue: importCost,
+            });
+        });
+        return Array.from(byStation.values());
+    }, [confirmableRows, wizard.selectedImportBatch, stationLabel]);
 
     const confirmAllocationSummary = useMemo(() => {
         const map = new Map<
@@ -903,6 +1116,7 @@ export const OcrTicketImportDialog = ({
     const handleClose = () => {
         wizard.persistUnimportedDraft();
         wizard.reset();
+        mobileScanSession.stopSession();
         onClose();
     };
 
@@ -1960,23 +2174,93 @@ export const OcrTicketImportDialog = ({
                                             />
                                         </Stack>
 
-                                        <Button
-                                            variant="contained"
-                                            size="medium"
-                                            disabled={!canUploadImages}
-                                            startIcon={<AddPhotoAlternateOutlinedIcon />}
-                                            sx={{
-                                                borderRadius: '10px',
-                                                textTransform: 'none',
-                                                fontWeight: 700,
-                                                px: 3,
-                                                py: 1,
-                                                pointerEvents: 'none',
-                                                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
-                                            }}
+                                        <Stack
+                                            direction={{ xs: 'column', sm: 'row' }}
+                                            spacing={1.5}
+                                            alignItems="center"
+                                            justifyContent="center"
+                                            sx={{ mt: 1 }}
+                                            onClick={(e) => e.stopPropagation()}
                                         >
-                                            Chọn ảnh từ thiết bị
-                                        </Button>
+                                            <Button
+                                                variant="contained"
+                                                size="medium"
+                                                disabled={!canUploadImages}
+                                                startIcon={<AddPhotoAlternateOutlinedIcon />}
+                                                onClick={() => {
+                                                    if (!canUploadImages) return;
+                                                    fileInputRef.current?.click();
+                                                }}
+                                                sx={{
+                                                    borderRadius: '10px',
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    px: 3,
+                                                    py: 1,
+                                                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                                                }}
+                                            >
+                                                Chọn ảnh từ thiết bị
+                                            </Button>
+
+                                            <Button
+                                                variant="outlined"
+                                                color="primary"
+                                                size="medium"
+                                                disabled={!canUploadImages}
+                                                startIcon={<CameraAltIcon />}
+                                                onClick={() => {
+                                                    if (!wizard.supplierId) {
+                                                        toast.warning('Vui lòng chọn Nhà cung cấp trước khi chụp ảnh vé.');
+                                                        return;
+                                                    }
+                                                    if (!batchReadyForScan) {
+                                                        toast.warning(requireBatchOrEvidenceMessage);
+                                                        return;
+                                                    }
+                                                    if (wizard.hasPreviousScan) {
+                                                        toast.warning(requireFinishPreviousScanMessage);
+                                                        return;
+                                                    }
+                                                    setCameraCaptureDialogOpen(true);
+                                                }}
+                                                sx={{
+                                                    borderRadius: '10px',
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    px: 2.5,
+                                                    py: 1,
+                                                    bgcolor: '#ffffff',
+                                                    borderWidth: 1.5,
+                                                    '&:hover': {
+                                                        borderWidth: 1.5,
+                                                        bgcolor: '#eff6ff',
+                                                    },
+                                                }}
+                                            >
+                                                Chụp từ Camera / Webcam
+                                            </Button>
+
+                                            <Button
+                                                variant="contained"
+                                                color="secondary"
+                                                size="medium"
+                                                startIcon={<PhoneIphoneIcon />}
+                                                onClick={handleOpenMobileScan}
+                                                sx={{
+                                                    borderRadius: '10px',
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    px: 2.5,
+                                                    py: 1,
+                                                    bgcolor: '#475569',
+                                                    boxShadow: '0 2px 6px rgba(71, 85, 105, 0.25)',
+                                                    '&:hover': { bgcolor: '#334155' },
+                                                }}
+                                            >
+                                                Quét vé bằng Mobile App
+                                            </Button>
+                                        </Stack>
                                     </Box>
 
                                     {/* OCR Quality Tips */}
@@ -2028,58 +2312,96 @@ export const OcrTicketImportDialog = ({
                                 </Stack>
                             ) : (
                                 <Stack spacing={2}>
-                                    {/* Selected Images Action Bar */}
-                                    <Stack
-                                        direction={{ xs: 'column', sm: 'row' }}
-                                        alignItems={{ xs: 'flex-start', sm: 'center' }}
-                                        justifyContent="space-between"
-                                        spacing={1.5}
+                                    {/* Selected Images Action Bar with Direct Confirmation */}
+                                    <Paper
+                                        elevation={0}
                                         sx={{
-                                            p: 1.5,
-                                            bgcolor: '#f8fafc',
-                                            borderRadius: '12px',
-                                            border: '1px solid #e2e8f0',
+                                            p: 2,
+                                            bgcolor: '#f0fdf4',
+                                            borderRadius: '14px',
+                                            border: '1.5px solid #86efac',
+                                            boxShadow: '0 2px 10px rgba(16, 185, 129, 0.08)',
+                                            display: 'flex',
+                                            flexDirection: { xs: 'column', md: 'row' },
+                                            alignItems: { xs: 'stretch', md: 'center' },
+                                            justifyContent: 'space-between',
+                                            gap: 1.5,
                                         }}
                                     >
-                                        <Stack direction="row" alignItems="center" spacing={1.25}>
+                                        <Stack direction="row" alignItems="center" spacing={1.5}>
                                             <Box
                                                 sx={{
-                                                    width: 32,
-                                                    height: 32,
-                                                    borderRadius: '8px',
-                                                    bgcolor: '#dbeafe',
-                                                    color: '#2563eb',
+                                                    width: 38,
+                                                    height: 38,
+                                                    borderRadius: '10px',
+                                                    bgcolor: '#dcfce7',
+                                                    color: '#15803d',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                    boxShadow: '0 1px 3px rgba(22, 101, 52, 0.15)',
                                                 }}
                                             >
-                                                <DocumentScannerOutlinedIcon sx={{ fontSize: '1.2rem' }} />
+                                                <CheckCircleIcon sx={{ fontSize: '1.35rem' }} />
                                             </Box>
                                             <Box>
-                                                <Stack direction="row" spacing={1} alignItems="center">
-                                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                                                        Đã chọn {wizard.images.length} ảnh vé
+                                                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ fontSize: '0.95rem' }}>
+                                                        Vé đã chọn ({wizard.images.length} ảnh)
                                                     </Typography>
                                                     <Chip
                                                         size="small"
                                                         label="Sẵn sàng quét"
                                                         sx={{
-                                                            bgcolor: '#dcfce7',
-                                                            color: '#15803d',
-                                                            fontWeight: 700,
+                                                            bgcolor: '#bbf7d0',
+                                                            color: '#14532d',
+                                                            fontWeight: 800,
                                                             fontSize: '0.7rem',
                                                             height: 22,
-                                                            border: '1px solid #bbf7d0',
+                                                            border: '1px solid #86efac',
                                                         }}
                                                     />
                                                 </Stack>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Bạn có thể thêm ảnh hoặc nhấn &quot;Bắt đầu quét OCR&quot; bên dưới
+                                                <Typography variant="caption" color="#475569" sx={{ display: 'block', mt: 0.25 }}>
+                                                    Bấm vào từng ảnh để <b>xem phóng to</b>, hoặc nhấn [X] để xóa ảnh chụp lỗi/mờ.
                                                 </Typography>
                                             </Box>
                                         </Stack>
-                                        <Stack direction="row" spacing={1}>
+
+                                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ gap: 1 }}>
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                startIcon={<CameraAltIcon />}
+                                                onClick={() => {
+                                                    if (!wizard.supplierId) {
+                                                        toast.warning('Vui lòng chọn Nhà cung cấp trước khi chụp ảnh vé.');
+                                                        return;
+                                                    }
+                                                    if (!batchReadyForScan) {
+                                                        toast.warning(requireBatchOrEvidenceMessage);
+                                                        return;
+                                                    }
+                                                    if (wizard.hasPreviousScan) {
+                                                        toast.warning(requireFinishPreviousScanMessage);
+                                                        return;
+                                                    }
+                                                    setCameraCaptureDialogOpen(true);
+                                                }}
+                                                disabled={wizard.scanning || !canUploadImages}
+                                                sx={{
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    borderRadius: '8px',
+                                                    bgcolor: '#ffffff',
+                                                    borderColor: '#cbd5e1',
+                                                    color: '#334155',
+                                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
+                                                }}
+                                            >
+                                                + Chụp thêm
+                                            </Button>
                                             <Button
                                                 size="small"
                                                 variant="outlined"
@@ -2100,7 +2422,15 @@ export const OcrTicketImportDialog = ({
                                                     fileInputRef.current?.click();
                                                 }}
                                                 disabled={wizard.scanning || !canUploadImages}
-                                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+                                                sx={{
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    borderRadius: '8px',
+                                                    bgcolor: '#ffffff',
+                                                    borderColor: '#cbd5e1',
+                                                    color: '#334155',
+                                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
+                                                }}
                                             >
                                                 Thêm ảnh
                                             </Button>
@@ -2115,8 +2445,47 @@ export const OcrTicketImportDialog = ({
                                             >
                                                 Xóa tất cả
                                             </Button>
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                size="medium"
+                                                startIcon={
+                                                    wizard.scanning ? (
+                                                        <CircularProgress size={16} color="inherit" />
+                                                    ) : (
+                                                        <DocumentScannerOutlinedIcon />
+                                                    )
+                                                }
+                                                disabled={
+                                                    wizard.scanning
+                                                    || wizard.images.length === 0
+                                                    || wizard.hasPreviousScan
+                                                    || !wizard.supplierId
+                                                    || !batchReadyForScan
+                                                    || isInvoiceUploading
+                                                    || isTicketListUploading
+                                                    || ocrReady === false
+                                                    || ocrReadyLoading
+                                                    || ocrServiceReady === false
+                                                    || ocrServiceLoading
+                                                }
+                                                onClick={() => void wizard.runScan()}
+                                                sx={{
+                                                    textTransform: 'none',
+                                                    fontWeight: 800,
+                                                    borderRadius: '10px',
+                                                    px: 2.5,
+                                                    py: 0.8,
+                                                    bgcolor: '#16a34a',
+                                                    boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)',
+                                                    whiteSpace: 'nowrap',
+                                                    '&:hover': { bgcolor: '#15803d' },
+                                                }}
+                                            >
+                                                {wizard.scanning ? 'Đang quét…' : `🚀 Bắt đầu quét OCR (${wizard.images.length} ảnh)`}
+                                            </Button>
                                         </Stack>
-                                    </Stack>
+                                    </Paper>
 
                                     {/* Selected Images Grid */}
                                     <Box
@@ -2136,9 +2505,13 @@ export const OcrTicketImportDialog = ({
                                             p: 0.5,
                                         }}
                                     >
-                                        {wizard.images.map((image) => (
+                                        {wizard.images.map((image, imgIdx) => (
                                             <Box
                                                 key={image.id}
+                                                onClick={() => {
+                                                    setPreviewLightboxIndex(imgIdx);
+                                                    setPreviewLightboxOpen(true);
+                                                }}
                                                 sx={{
                                                     border: '1px solid #e2e8f0',
                                                     borderRadius: '12px',
@@ -2149,9 +2522,10 @@ export const OcrTicketImportDialog = ({
                                                     flexDirection: 'column',
                                                     boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                                                     transition: 'all 0.2s',
+                                                    cursor: 'pointer',
                                                     '&:hover': {
-                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                                                        borderColor: '#cbd5e1',
+                                                        boxShadow: '0 4px 14px rgba(37, 99, 235, 0.15)',
+                                                        borderColor: '#93c5fd',
                                                     },
                                                 }}
                                             >
@@ -2178,14 +2552,79 @@ export const OcrTicketImportDialog = ({
                                                             },
                                                         }}
                                                     />
+                                                    {/* Hover zoom overlay */}
+                                                    <Box
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            inset: 0,
+                                                            bgcolor: 'rgba(15, 23, 42, 0)',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            transition: 'all 0.2s',
+                                                            '&:hover': {
+                                                                bgcolor: 'rgba(15, 23, 42, 0.35)',
+                                                                '& .zoom-tag': { opacity: 1, transform: 'scale(1)' },
+                                                            },
+                                                        }}
+                                                    >
+                                                        <Box
+                                                            className="zoom-tag"
+                                                            sx={{
+                                                                opacity: 0,
+                                                                transform: 'scale(0.85)',
+                                                                transition: 'all 0.2s',
+                                                                bgcolor: 'rgba(0, 0, 0, 0.75)',
+                                                                color: '#ffffff',
+                                                                borderRadius: '999px',
+                                                                px: 1.25,
+                                                                py: 0.4,
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: 0.5,
+                                                                fontSize: '0.725rem',
+                                                                fontWeight: 700,
+                                                                backdropFilter: 'blur(4px)',
+                                                                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                                                            }}
+                                                        >
+                                                            <ZoomInIcon sx={{ fontSize: 16 }} /> Xem ảnh lớn
+                                                        </Box>
+                                                    </Box>
                                                     <IconButton
                                                         size="small"
-                                                        onClick={() => wizard.removeImage(image.id)}
+                                                        aria-label={`Chỉnh sửa ảnh ${image.file.name}`}
+                                                        title="Crop hoặc xoay ảnh"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            void handleEditImage(image.id, image.previewUrl);
+                                                        }}
+                                                        disabled={wizard.scanning}
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: 6,
+                                                            right: 36,
+                                                            zIndex: 2,
+                                                            bgcolor: 'rgba(255,255,255,0.9)',
+                                                            boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                                                            p: 0.5,
+                                                            '&:hover': { bgcolor: '#ffffff' },
+                                                        }}
+                                                    >
+                                                        <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            wizard.removeImage(image.id);
+                                                        }}
                                                         disabled={wizard.scanning}
                                                         sx={{
                                                             position: 'absolute',
                                                             top: 6,
                                                             right: 6,
+                                                            zIndex: 2,
                                                             bgcolor: 'rgba(255,255,255,0.85)',
                                                             backdropFilter: 'blur(4px)',
                                                             boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
@@ -2388,6 +2827,56 @@ export const OcrTicketImportDialog = ({
 
                 {wizard.step === 'review' && (
                     <Stack spacing={2.5}>
+                        {mobileScanSession.status === 'CONNECTED' && (
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 1.5,
+                                    px: 2,
+                                    bgcolor: '#f0fdf4',
+                                    border: '1.5px solid #86efac',
+                                    borderRadius: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                }}
+                            >
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                    <Box
+                                        sx={{
+                                            width: 10,
+                                            height: 10,
+                                            borderRadius: '50%',
+                                            bgcolor: '#22c55e',
+                                            boxShadow: '0 0 0 3px rgba(34, 197, 94, 0.25)',
+                                        }}
+                                    />
+                                    <Typography variant="body2" fontWeight="bold" color="#166534">
+                                        Đang kết nối Mobile: {mobileScanSession.connectedDevice || 'Điện thoại'} (Mã #{mobileScanSession.sessionCode}) • Có thể tiếp tục chụp trên điện thoại để đổ thêm vé
+                                    </Typography>
+                                </Stack>
+                                <Stack direction="row" spacing={1}>
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        color="success"
+                                        onClick={() => setMobileScanDialogOpen(true)}
+                                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                                    >
+                                        Xem lại mã QR / PIN
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        color="error"
+                                        variant="text"
+                                        onClick={() => setConfirmDisconnectMobileOpen(true)}
+                                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                                    >
+                                        Ngắt kết nối
+                                    </Button>
+                                </Stack>
+                            </Paper>
+                        )}
                         <input
                             ref={scanMoreFileInputRef}
                             type="file"
@@ -2499,6 +2988,7 @@ export const OcrTicketImportDialog = ({
                                 wizard={wizard}
                                 stationLabel={stationLabel}
                                 onOpenScanHistory={handleOpenScanHistory}
+                                onEditAllocation={() => setAllocationOpen(true)}
                                 imageCount={reviewImageGroups.length}
                                 selectedStationId={activeSelectedStationId}
                             />
@@ -2557,28 +3047,35 @@ export const OcrTicketImportDialog = ({
                                 <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap">
                                     <Button
                                         size="small"
-                                        variant="outlined"
+                                        variant={allConfirmableRowsSelected ? 'contained' : 'outlined'}
+                                        startIcon={allConfirmableRowsSelected
+                                            ? <CheckCircleIcon sx={{ fontSize: '1rem' }} />
+                                            : <CheckCircleOutlineOutlinedIcon sx={{ fontSize: '1rem' }} />}
+                                        disabled={confirmableRows.length === 0}
                                         onClick={() =>
-                                            wizard.toggleAllConfirmable(
-                                                wizard.confirmableCount <
-                                                    wizard.rows.filter(wizard.isRowConfirmable).length
-                                            )
+                                            wizard.toggleAllConfirmable(!allConfirmableRowsSelected)
                                         }
                                         sx={{
                                             textTransform: 'none',
                                             fontWeight: 700,
-                                            borderRadius: '8px',
+                                            borderRadius: '9px',
                                             px: 1.75,
                                             py: 0.75,
-                                            borderColor: '#cbd5e1',
-                                            color: '#334155',
+                                            borderColor: allConfirmableRowsSelected ? '#16a34a' : '#bbf7d0',
+                                            color: allConfirmableRowsSelected ? '#ffffff' : '#15803d',
+                                            bgcolor: allConfirmableRowsSelected ? '#16a34a' : '#f0fdf4',
+                                            boxShadow: allConfirmableRowsSelected
+                                                ? '0 3px 8px rgba(22, 163, 74, 0.24)'
+                                                : '0 1px 2px rgba(22, 163, 74, 0.08)',
                                             '&:hover': {
-                                                borderColor: '#94a3b8',
-                                                bgcolor: '#f1f5f9',
+                                                borderColor: allConfirmableRowsSelected ? '#15803d' : '#86efac',
+                                                bgcolor: allConfirmableRowsSelected ? '#15803d' : '#dcfce7',
                                             },
                                         }}
                                     >
-                                        Chọn tất cả hợp lệ ({wizard.rows.filter(wizard.isRowConfirmable).length})
+                                        {allConfirmableRowsSelected
+                                            ? `Đã chọn (${confirmableRows.length}) vé`
+                                            : `Chọn tất cả hợp lệ (${confirmableRows.length})`}
                                     </Button>
                                     <Button
                                         size="small"
@@ -2633,7 +3130,8 @@ export const OcrTicketImportDialog = ({
                                 {wizard.rows.every(
                                     (row) => row.status === 'FAILED' || row.status === 'INCOMPLETE'
                                 ) &&
-                                    wizard.confirmableCount === 0 && (
+                                    wizard.confirmableCount === 0 &&
+                                    !wizard.rows.some(hasHighConfidenceOcrFields) && (
                                         <Paper
                                             elevation={0}
                                             sx={{
@@ -2653,7 +3151,7 @@ export const OcrTicketImportDialog = ({
                                                     Không nhận diện đủ thông tin hợp lệ
                                                 </Typography>
                                                 <Typography variant="body2" color="#b91c1c" sx={{ fontSize: '0.825rem' }}>
-                                                    Không đọc được đầy đủ thông tin từ ảnh đã quét. Kiểm tra từng ảnh bên dưới hoặc quay lại để chụp lại / nhập vé thủ công.
+                                                    Một số trường chưa được OCR đọc đủ rõ hoặc có độ tin cậy thấp. Kiểm tra từng ảnh bên dưới hoặc quay lại để chụp lại / nhập vé thủ công.
                                                 </Typography>
                                             </Box>
                                         </Paper>
@@ -2662,6 +3160,55 @@ export const OcrTicketImportDialog = ({
                                     Kiểm tra thông tin từng vé bên dưới. Bấm vào trường thông tin để chỉnh sửa nếu OCR nhận diện chưa chuẩn.
                                 </Typography>
 
+                                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                                    <Tabs
+                                        value={reviewListTab}
+                                        onChange={(_, value: 'images' | 'stations') => setReviewListTab(value)}
+                                        aria-label="Cách xem danh sách vé OCR"
+                                        sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 700 } }}
+                                    >
+                                        <Tab value="images" label={`Theo ảnh (${reviewImageGroups.length})`} />
+                                        <Tab value="stations" label={`Theo nhà đài (${reviewStationGroups.length})`} />
+                                    </Tabs>
+                                </Box>
+
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    value={reviewSearchQuery}
+                                    onChange={(event) => setReviewSearchQuery(event.target.value)}
+                                    placeholder="Tìm theo dãy số, số sê-ri, nhà đài, lịch quay, ký hiệu / lô hoặc mệnh giá…"
+                                    inputProps={{ 'aria-label': 'Tìm kiếm vé OCR' }}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon sx={{ color: '#64748b', fontSize: 20 }} />
+                                            </InputAdornment>
+                                        ),
+                                        endAdornment: reviewSearchQuery ? (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => setReviewSearchQuery('')}
+                                                    aria-label="Xóa nội dung tìm kiếm"
+                                                >
+                                                    <CloseIcon sx={{ fontSize: 18 }} />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ) : undefined,
+                                    }}
+                                    sx={{
+                                        maxWidth: 720,
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: '10px',
+                                            bgcolor: '#ffffff',
+                                            '&.Mui-focused': {
+                                                boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.08)',
+                                            },
+                                        },
+                                    }}
+                                />
+
                                 <Box
                                     sx={{
                                         display: 'flex',
@@ -2669,7 +3216,13 @@ export const OcrTicketImportDialog = ({
                                         gap: 2,
                                     }}
                                 >
-                                    {reviewImageGroups.map((group, index) => (
+                                    {reviewListTab === 'images' ? filteredReviewImageGroups.length === 0 ? (
+                                        <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', color: 'text.secondary', borderRadius: 2 }}>
+                                            Không tìm thấy vé phù hợp với “{reviewSearchQuery.trim()}”.
+                                        </Paper>
+                                    ) : filteredReviewImageGroups.map((group) => {
+                                        const originalIndex = reviewImageGroups.findIndex((item) => item.imageId === group.imageId);
+                                        return (
                                         <Box
                                             key={group.imageId}
                                             sx={{
@@ -2692,7 +3245,7 @@ export const OcrTicketImportDialog = ({
                                                         fontWeight={800}
                                                         title={group.fileName}
                                                     >
-                                                        Ảnh #{index + 1}: {formatReviewFileName(group.fileName, index)}
+                                                        Ảnh #{originalIndex + 1}: {formatReviewFileName(group.fileName, originalIndex)}
                                                     </Typography>
                                                     {group.imageStatus === 'pending' ? (
                                                         <Chip
@@ -2827,18 +3380,9 @@ export const OcrTicketImportDialog = ({
                                                         rows={group.rows}
                                                         selection={fieldSelection}
                                                         stations={stations}
-                                                        stationsForRow={(row) => {
-                                                            const targetDate =
-                                                                wizard.selectedImportBatch?.drawDate ||
-                                                                wizard.selectedBatch?.drawDate ||
-                                                                row.drawDate ||
-                                                                dayjs().format('YYYY-MM-DD');
-                                                            const scheduled =
-                                                                wizard.getStationsForDrawDate(targetDate);
-                                                            return scheduled.length > 0
-                                                                ? scheduled
-                                                                : stations;
-                                                        }}
+                                                        stationsForRow={() => selectedBatchDrawDate
+                                                            ? wizard.getStationsForDrawDate(selectedBatchDrawDate)
+                                                            : []}
                                                         validationContextForRow={
                                                             wizard.getRowValidationContext
                                                         }
@@ -2850,11 +3394,84 @@ export const OcrTicketImportDialog = ({
                                                         onSelect={setFieldSelection}
                                                         onToggle={wizard.toggleRow}
                                                         onUpdate={wizard.updateRow}
+                                                        showHeaderSelectAll={false}
                                                         embedded
                                                     />
                                                 )}
                                             </Box>
                                         </Box>
+                                        );
+                                    }) : filteredReviewStationGroups.length === 0 ? (
+                                        <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                                            {reviewSearchQuery.trim()
+                                                ? `Không tìm thấy vé phù hợp với “${reviewSearchQuery.trim()}”.`
+                                                : 'Chưa có vé được nhận diện. Chuyển sang tab Theo ảnh để xem ảnh chờ quét.'}
+                                        </Paper>
+                                    ) : filteredReviewStationGroups.map((station) => (
+                                        <Paper key={station.key} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                                            <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1} sx={{ px: 2, py: 1.5, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                                <Typography variant="subtitle1" fontWeight={800}>
+                                                    {station.stationName}
+                                                </Typography>
+                                                <Stack direction="row" spacing={1}>
+                                                    <Chip size="small" label={`${station.tickets.length} dãy số`} variant="outlined" />
+                                                    <Chip size="small" label={`${station.tickets.reduce((sum, ticket) => sum + ticket.rows.length, 0)} sê-ri`} variant="outlined" />
+                                                </Stack>
+                                            </Stack>
+                                            <Stack sx={{ p: 1.5 }} spacing={1}>
+                                                {station.tickets.map((ticket) => {
+                                                    const ticketKey = `${station.key}:${ticket.rows
+                                                        .map((row) => row.key)
+                                                        .sort()
+                                                        .join('|')}`;
+                                                    const validCount = ticket.rows.filter(wizard.isRowConfirmable).length;
+                                                    return (
+                                                        <Accordion
+                                                            key={ticketKey}
+                                                            expanded={!collapsedTicketKeys.has(ticketKey)}
+                                                            onChange={(_, expanded) => setCollapsedTicketKeys((previous) => {
+                                                                const next = new Set(previous);
+                                                                if (expanded) next.delete(ticketKey);
+                                                                else next.add(ticketKey);
+                                                                return next;
+                                                            })}
+                                                            disableGutters
+                                                            elevation={0}
+                                                            sx={{ border: '1px solid #e2e8f0', borderRadius: '8px !important', '&:before': { display: 'none' } }}
+                                                        >
+                                                            <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-label={`Xem sê-ri dãy số ${ticket.numbers || 'chưa xác định'}`}>
+                                                                <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.5} flexWrap="wrap">
+                                                                    <Typography variant="body2" fontWeight={800}>
+                                                                        Dãy số: {ticket.numbers || 'Chưa xác định'}
+                                                                    </Typography>
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        Ngày quay: {ticket.drawDate && dayjs(ticket.drawDate).isValid() ? dayjs(ticket.drawDate).format('DD/MM/YYYY') : 'Chưa xác định'}
+                                                                    </Typography>
+                                                                    <Chip size="small" label={`${ticket.rows.length} sê-ri`} variant="outlined" />
+                                                                    <Chip size="small" label={`${validCount}/${ticket.rows.length} hợp lệ`} color={validCount === ticket.rows.length ? 'success' : 'warning'} variant="outlined" />
+                                                                </Stack>
+                                                            </AccordionSummary>
+                                                            <AccordionDetails sx={{ px: 1, pb: 1.5 }}>
+                                                                <OcrReviewResultCards
+                                                                    rows={ticket.rows}
+                                                                    selection={fieldSelection}
+                                                                    stations={stations}
+                                                                    stationsForRow={() => selectedBatchDrawDate
+                                                                        ? wizard.getStationsForDrawDate(selectedBatchDrawDate)
+                                                                        : []}
+                                                                    validationContextForRow={wizard.getRowValidationContext}
+                                                                    batchDrawDate={wizard.selectedImportBatch?.drawDate || wizard.selectedBatch?.drawDate || null}
+                                                                    onSelect={setFieldSelection}
+                                                                    onToggle={wizard.toggleRow}
+                                                                    onUpdate={wizard.updateRow}
+                                                                    embedded
+                                                                />
+                                                            </AccordionDetails>
+                                                        </Accordion>
+                                                    );
+                                                })}
+                                            </Stack>
+                                        </Paper>
                                     ))}
                                 </Box>
                             </>
@@ -4420,6 +5037,13 @@ export const OcrTicketImportDialog = ({
                                         borderRadius: 2.5,
                                         overflowY: 'auto',
                                         maxHeight: 520,
+                                        '& .MuiTableCell-stickyHeader': {
+                                            backgroundColor: '#f1f5f9 !important',
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 3,
+                                            boxShadow: 'inset 0 -1px 0 #cbd5e1',
+                                        },
                                     }}
                                 >
                                     <Table size="small" stickyHeader>
@@ -4832,6 +5456,21 @@ export const OcrTicketImportDialog = ({
                                                                 >
                                                                     Ảnh #{index + 1}: {formatReviewFileName(group.fileName, index)}
                                                                 </Typography>
+                                                                {group.previewUrl && group.imageStatus !== 'scanning' && (
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        aria-label={`Chỉnh sửa ảnh ${group.fileName}`}
+                                                                        title="Crop hoặc xoay ảnh; sau khi lưu sẽ quét lại"
+                                                                        onClick={(event) => {
+                                                                            event.stopPropagation();
+                                                                            void handleEditImage(group.imageId, group.previewUrl);
+                                                                        }}
+                                                                        disabled={wizard.scanning}
+                                                                        sx={{ p: 0.25, color: 'primary.main' }}
+                                                                    >
+                                                                        <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                                                                    </IconButton>
+                                                                )}
                                                                 {group.imageStatus === 'pending' && (
                                                                     <IconButton
                                                                         size="small"
@@ -5053,6 +5692,108 @@ export const OcrTicketImportDialog = ({
                     </Button>
                 </DialogActions>
             </Dialog>
+            <OcrImageEditDialog
+                imageFile={imageBeingEdited?.file ?? null}
+                onClose={() => setImageBeingEdited(null)}
+                onSave={(file) => {
+                    if (!imageBeingEdited) return;
+                    wizard.replaceImage(imageBeingEdited.id, file);
+                    toast.info('Đã lưu ảnh chỉnh sửa. Hãy quét lại ảnh để cập nhật kết quả OCR.');
+                }}
+            />
+            <OcrImagePreviewLightbox
+                open={previewLightboxOpen}
+                images={wizard.images}
+                initialIndex={previewLightboxIndex}
+                onClose={() => setPreviewLightboxOpen(false)}
+                onDeleteImage={(id) => {
+                    wizard.removeImage(id);
+                }}
+            />
+            <OcrCameraCaptureDialog
+                open={cameraCaptureDialogOpen}
+                onClose={() => setCameraCaptureDialogOpen(false)}
+                onConfirmCapture={(files) => {
+                    wizard.addImages(files);
+                }}
+            />
+            <MobileScanConnectDialog
+                open={mobileScanDialogOpen}
+                onClose={handleCloseMobileScan}
+                onEndSession={handleEndMobileSession}
+                sessionCode={mobileScanSession.sessionCode}
+                status={mobileScanSession.status}
+                connectedStaff={mobileScanSession.connectedStaff}
+                connectedDevice={mobileScanSession.connectedDevice}
+                scannedCount={mobileScanSession.scannedCount}
+                qrToken={mobileScanSession.qrToken}
+                isCreating={mobileScanSession.isCreating}
+            />
+            {/* Modal xác nhận ngắt kết nối Mobile */}
+            <Dialog
+                open={confirmDisconnectMobileOpen}
+                onClose={() => setConfirmDisconnectMobileOpen(false)}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle sx={{ pb: 1, pt: 2, px: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box
+                        sx={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            bgcolor: 'rgba(239, 68, 68, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'error.main',
+                        }}
+                    >
+                        <PhoneIphoneIcon />
+                    </Box>
+                    <Box>
+                        <Typography variant="h6" fontWeight="bold" fontSize="1.05rem">
+                            Xác nhận ngắt kết nối
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Phiên quét vé Mobile
+                        </Typography>
+                    </Box>
+                </DialogTitle>
+                <DialogContent sx={{ px: 2.5, py: 1.5 }}>
+                    <DialogContentText sx={{ color: 'text.primary', fontSize: '0.9rem' }}>
+                        Bạn có chắc chắn muốn ngắt kết nối với thiết bị <b>{mobileScanSession.connectedDevice || 'Mobile'}</b> không? Sau khi ngắt kết nối, điện thoại sẽ dừng đồng bộ vé vào phiên này.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ px: 2.5, pb: 2, pt: 1, gap: 1 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => setConfirmDisconnectMobileOpen(false)}
+                        sx={{ textTransform: 'none', fontWeight: 600, flex: 1 }}
+                    >
+                        Hủy
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={() => {
+                            setConfirmDisconnectMobileOpen(false);
+                            handleEndMobileSession();
+                        }}
+                        sx={{ textTransform: 'none', fontWeight: 700, flex: 1 }}
+                    >
+                        Ngắt kết nối
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            <ImportBatchQuickAllocationModal
+                open={allocationOpen}
+                onClose={() => setAllocationOpen(false)}
+                batch={wizard.selectedImportBatch}
+                fileStations={ocrAllocationStations}
+                sourceLabel="Ảnh OCR"
+                onBatchUpdated={wizard.reloadBatches}
+            />
         </Dialog>
     );
 };

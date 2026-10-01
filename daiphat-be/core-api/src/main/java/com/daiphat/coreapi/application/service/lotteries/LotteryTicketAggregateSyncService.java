@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -28,33 +27,31 @@ public class LotteryTicketAggregateSyncService implements LotteryTicketAggregate
 
     private static final Collection<LotteryTicketSerialStatus> SOLD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.SOLD);
-    private static final Collection<LotteryTicketSerialStatus> EXPIRABLE_STATUSES = List.of(
-            LotteryTicketSerialStatus.IN_STOCK,
-            LotteryTicketSerialStatus.RESERVED
-    );
+    private static final Collection<LotteryTicketSerialStatus> EXPIRABLE_STATUSES =
+            List.of(LotteryTicketSerialStatus.IN_STOCK);
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final LotteryStationServicePort lotteryStationServicePort;
+    private final TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
 
     @Transactional
     public void syncTicketAggregate(Long ticketId) {
         LotteryTicketModel ticket = lotteryTicketRepositoryPort.findById(ticketId)
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
-        LotteryStationModel station = lotteryStationServicePort.findModelById(ticket.getStationId())
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
+        lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(ticketId, EXPIRABLE_STATUSES)
+                .stream()
+                .filter(ticketSalesCutoffPolicy::isClosed)
+                .forEach(serial -> {
+                    serial.expire();
+                    lotteryTicketSerialRepositoryPort.save(serial);
+                });
 
-        LocalTime cutoffTime = station.getDrawTime();
-        if (ticket.isExpired(cutoffTime)) {
-            lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(ticketId, EXPIRABLE_STATUSES)
-                    .forEach(serial -> {
-                        serial.expire();
-                        lotteryTicketSerialRepositoryPort.save(serial);
-                    });
-        }
-
-        long availableSerialCount = lotteryTicketSerialRepositoryPort.countSellableByTicketId(ticketId);
         List<LotteryTicketSerialModel> allSerials = lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId);
+        long availableSerialCount = allSerials.stream()
+                .filter(LotteryTicketSerialModel::isAvailableForSale)
+                .filter(serial -> !ticketSalesCutoffPolicy.isClosed(serial))
+                .count();
         int totalSerialCount = (int) allSerials.stream().filter(LotteryTicketSerialModel::isVisibleInventory).count();
         int soldSerialCount = (int) lotteryTicketSerialRepositoryPort.countByTicketIdAndStatuses(
                 ticketId, SOLD_SERIAL_STATUSES);
@@ -62,13 +59,32 @@ public class LotteryTicketAggregateSyncService implements LotteryTicketAggregate
                 .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .filter(serial -> serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported())
                 .toList();
-        ticket.syncAggregateState(
-                (int) availableSerialCount,
-                totalSerialCount,
-                soldSerialCount,
-                faultySerials.size(),
-                cutoffTime,
-                LotteryTicketModel.buildAllSerialsFaultyReason(faultySerials));
+        String allFaultyReason = LotteryTicketModel.buildAllSerialsFaultyReason(faultySerials);
+        if (allSerials.isEmpty()) {
+            LotteryStationModel station = lotteryStationServicePort.findModelById(ticket.getStationId())
+                    .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
+            ticket.syncAggregateState(
+                    (int) availableSerialCount,
+                    totalSerialCount,
+                    soldSerialCount,
+                    faultySerials.size(),
+                    station.getDrawTime(),
+                    allFaultyReason);
+        } else {
+            ticket.syncAggregateStateFromSerials(
+                    (int) availableSerialCount,
+                    totalSerialCount,
+                    soldSerialCount,
+                    faultySerials.size(),
+                    allFaultyReason);
+        }
+        boolean hasReserved = allSerials.stream()
+                .anyMatch(serial -> serial.getStatus() == LotteryTicketSerialStatus.RESERVED);
+        boolean hasExpired = allSerials.stream()
+                .anyMatch(serial -> serial.getStatus() == LotteryTicketSerialStatus.EXPIRED);
+        if (availableSerialCount == 0 && hasExpired && !hasReserved) {
+            ticket.expire();
+        }
         lotteryTicketRepositoryPort.save(ticket);
         lotteryStationServicePort.recalculateInventory(ticket.getStationId());
     }

@@ -68,6 +68,9 @@ class LotteryTicketSerialServiceTest {
     @Mock
     private SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
 
+    @Mock
+    private TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
+
     private LotteryTicketSerialServicePort lotteryTicketSerialService;
 
     private final Long TICKET_ID = 1L;
@@ -87,6 +90,7 @@ class LotteryTicketSerialServiceTest {
                 importBatchRepositoryPort,
                 lotterySupplierRepositoryPort,
                 intakeWindowPolicy,
+                ticketSalesCutoffPolicy,
                 Clock.systemDefaultZone());
 
         ticketModel = LotteryTicketModel.builder().id(TICKET_ID).numbers("001234").build();
@@ -110,6 +114,30 @@ class LotteryTicketSerialServiceTest {
         assertThatThrownBy(() -> lotteryTicketSerialService.upsertSerialForTicket(ticketModel, req, USER_ID, 1L, 2L))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED);
+    }
+
+    @Test
+    void cancellationBeforeCutoffReturnsSoldSerialToStock() {
+        serialModel.setStatus(LotteryTicketSerialStatus.SOLD);
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serialModel));
+        when(ticketSalesCutoffPolicy.isClosed(serialModel)).thenReturn(false);
+        when(lotteryTicketSerialRepositoryPort.save(serialModel)).thenReturn(serialModel);
+
+        LotteryTicketSerialModel result = lotteryTicketSerialService.returnSoldToStock(SERIAL_ID);
+
+        assertThat(result.getStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+    }
+
+    @Test
+    void cancellationAtOrAfterCutoffExpiresSoldSerial() {
+        serialModel.setStatus(LotteryTicketSerialStatus.SOLD);
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serialModel));
+        when(ticketSalesCutoffPolicy.isClosed(serialModel)).thenReturn(true);
+        when(lotteryTicketSerialRepositoryPort.save(serialModel)).thenReturn(serialModel);
+
+        LotteryTicketSerialModel result = lotteryTicketSerialService.returnSoldToStock(SERIAL_ID);
+
+        assertThat(result.getStatus()).isEqualTo(LotteryTicketSerialStatus.EXPIRED);
     }
 
     @Test
@@ -366,8 +394,10 @@ class LotteryTicketSerialServiceTest {
     @Test
     @DisplayName("[DP-37] countAvailableSerials")
     void countAvailableSerials() {
-        lotteryTicketSerialService.countAvailableSerials(TICKET_ID);
-        verify(lotteryTicketSerialRepositoryPort).countSellableByTicketId(TICKET_ID);
+        when(lotteryTicketSerialRepositoryPort.findAllByTicketId(TICKET_ID)).thenReturn(List.of(serialModel));
+        when(ticketSalesCutoffPolicy.isClosed(serialModel)).thenReturn(false);
+
+        assertThat(lotteryTicketSerialService.countAvailableSerials(TICKET_ID)).isEqualTo(1);
     }
 
     @Test
@@ -382,13 +412,14 @@ class LotteryTicketSerialServiceTest {
     void expireActiveSerials() {
         when(lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(eq(TICKET_ID), anyList()))
                 .thenReturn(List.of(serialModel));
+        when(ticketSalesCutoffPolicy.isClosed(serialModel)).thenReturn(true);
         
         lotteryTicketSerialService.expireActiveSerials(TICKET_ID);
         
         assertThat(serialModel.getStatus()).isEqualTo(LotteryTicketSerialStatus.EXPIRED);
         verify(lotteryTicketSerialRepositoryPort).findByTicketIdAndStatuses(
                 TICKET_ID,
-                List.of(LotteryTicketSerialStatus.IN_STOCK, LotteryTicketSerialStatus.RESERVED));
+                List.of(LotteryTicketSerialStatus.IN_STOCK));
         verify(lotteryTicketSerialRepositoryPort).save(serialModel);
     }
 

@@ -32,7 +32,8 @@ export enum ReimburseStatus {
 export enum RefundRequestRole {
     CUSTOMER = 'CUSTOMER',
     STAFF = 'STAFF',
-    ADMIN = 'ADMIN'
+    ADMIN = 'ADMIN',
+    SYSTEM = 'SYSTEM'
 }
 
 export enum RefundProcessingUrgency {
@@ -329,6 +330,8 @@ export interface CompleteCounterRefundRequest {
     amount: number;
     transferEvidenceUrl?: string;
     identityConfirmed: boolean;
+    /** TRANSFER only: customer account that received the payout (defaults to the refund's account). */
+    bankAccountId?: number;
 }
 
 export interface RefundRequestAdminDetailResponse {

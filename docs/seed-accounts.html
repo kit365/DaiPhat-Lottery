@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DaiPhat — Seed accounts</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222d;
+      --line: #2a3544;
+      --text: #e8eef6;
+      --muted: #8b9bb0;
+      --accent: #3d8bfd;
+      --local: #3dd68c;
+      --prod: #ff8f6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(900px 500px at 10% -10%, #1a3a5c 0%, transparent 55%),
+        radial-gradient(700px 400px at 100% 0%, #3a1f18 0%, transparent 50%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px 20px 64px;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 6px;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 22px;
+      line-height: 1.45;
+    }
+    .warn {
+      background: rgba(245, 197, 66, 0.1);
+      border: 1px solid rgba(245, 197, 66, 0.35);
+      color: #ffe7a0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+    }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      padding: 8px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .tab.active-local {
+      color: #0b1a12;
+      background: var(--local);
+      border-color: transparent;
+    }
+    .tab.active-prod {
+      color: #1a0c08;
+      background: var(--prod);
+      border-color: transparent;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(0,0,0,0.2);
+    }
+    tr:last-child td { border-bottom: 0; }
+    .role { font-weight: 650; white-space: nowrap; }
+    .mono {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.88rem;
+    }
+    .cred { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 5px 9px;
+    }
+    button.copy {
+      appearance: none;
+      border: 0;
+      background: rgba(61, 139, 253, 0.18);
+      color: #9ec5ff;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.copy:hover { background: rgba(61, 139, 253, 0.3); }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #163528;
+      color: var(--local);
+      border: 1px solid rgba(61, 214, 140, 0.4);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: 0.2s ease;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: none; }
+    .notes {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .notes code {
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      color: #c5d4e8;
+      background: rgba(255,255,255,0.06);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Seed accounts</h1>
+    <p class="sub">
+      Chỉ 4 account do <code>AuthSeedInitializer</code> tạo:
+      admin / member / operator / street_agent.
+      Shipper <strong>không</strong> được seed (chỉ có key rác trong .env).
+    </p>
+    <div class="warn">
+      Chỉ dùng nội bộ. User đã tồn tại sẽ không bị ghi đè mật khẩu khi boot lại.
+    </div>
+
+    <div class="tabs">
+      <button class="tab active-local" type="button" data-env="local">Local</button>
+      <button class="tab" type="button" data-env="prod">Prod</button>
+    </div>
+
+    <div class="panel" id="panel-local">
+      <table>
+        <thead>
+          <tr><th>Role</th><th>Username</th><th>Password</th><th>Email</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="role">Admin</td>
+            <td><div class="cred"><span class="pill mono">admin</span><button class="copy" type="button" data-copy="admin">Copy</button></div></td>
+            <td><div class="cred"><span class="pill mono">admin</span><button class="copy" type="button" data-copy="admin">Copy</button></div></td>
+            <td class="mono">admin@daiphat.local</td>
+          </tr>
+          <tr>
+            <td class="role">Member</td>
+            <td><div class="cred"><span class="pill mono">member</span><button class="copy" type="button" data-copy="member">Copy</button></div></td>
+            <td><div class="cred"><span class="pill mono">member123</span><button class="copy" type="button" data-copy="member123">Copy</button></div></td>
+            <td class="mono">member@daiphat.local</td>
+          </tr>
+          <tr>
+            <td class="role">Operator</td>
+            <td><div class="cred"><span class="pill mono">operator</span><button class="copy" type="button" data-copy="operator">Copy</button></div></td>
+            <td><div class="cred"><span class="pill mono">operator123</span><button class="copy" type="button" data-copy="operator123">Copy</button></div></td>
+            <td class="mono">operator@daiphat.local</td>
+          </tr>
+          <tr>
+            <td class="role">Street agent</td>
+            <td><div class="cred"><span class="pill mono">street_agent</span><button class="copy" type="button" data-copy="street_agent">Copy</button></div></td>
+            <td><div class="cred"><span class="pill mono">agent123</span><button class="copy" type="button" data-copy="agent123">Copy</button></div></td>
+            <td class="mono">agent@daiphat.local</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel hidden" id="panel-prod">
+      <table>
+        <thead>
+          <tr><th>Role</th><th>Username</th><th>Password</th><th>Email</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="role">Admin</td>
+            <td><div class="cred"><span class="pill mono">admin</span><button class="copy" type="button" data-copy="admin">Copy</button></div></td>
+            <td><div class="cred"><span class="pill mono">Admin123456</span><button class="copy" type="button" data-copy="Admin123456">Copy</button></div></td>
+            <td class="mono">admin@daiphat.com</td>
+          </tr>
+          <tr>
+            <td class="role">Member</td>
+            <td><div class="cred"><span class="pill mono">member</span><button class="copy" type="button" data-copy="member">Copy</button></div></td>
+            <td><div class="cred"><span class="pill mono">Member123456</span><button class="copy" type="button" data-copy="Member123456">Copy</button></div></td>
+            <td class="mono">member@daiphat.com</td>
+          </tr>
+          <tr>
+            <td class="role">Operator</td>
+            <td><div class="cred"><span class="pill mono">operator</span><button class="copy" type="button" data-copy="operator">Copy</button></div></td>
+            <td><div class="cred"><span class="pill mono">Operator123456</span><button class="copy" type="button" data-copy="Operator123456">Copy</button></div></td>
+            <td class="mono">operator@daiphat.com</td>
+          </tr>
+          <tr>
+            <td class="role">Street agent</td>
+            <td><div class="cred"><span class="pill mono">street-agent</span><button class="copy" type="button" data-copy="street-agent">Copy</button></div></td>
+            <td><div class="cred"><span class="pill mono">StreetAgent123456</span><button class="copy" type="button" data-copy="StreetAgent123456">Copy</button></div></td>
+            <td class="mono">street-agent@daiphat.com</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="notes">
+      <p><strong>Street agent có thật</strong> — AuthSeed tạo user role <code>ROLE_STREET_AGENT</code>; <code>StreetAgentDemoSeedInitializer</code> gắn profile ACTIVE + contract.</p>
+      <p><strong>Shipper không có</strong> — <code>AUTH_SEED_SHIPPER_*</code> trong .env không được code đọc/tạo.</p>
+      <p>Prod street agent username dùng dấu <code>-</code>: <code>street-agent</code>.</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied</div>
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const localPanel = document.getElementById('panel-local');
+    const prodPanel = document.getElementById('panel-prod');
+    const toast = document.getElementById('toast');
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const env = tab.dataset.env;
+        tabs.forEach((t) => t.classList.remove('active-local', 'active-prod'));
+        if (env === 'local') {
+          tab.classList.add('active-local');
+          localPanel.classList.remove('hidden');
+          prodPanel.classList.add('hidden');
+        } else {
+          tab.classList.add('active-prod');
+          prodPanel.classList.remove('hidden');
+          localPanel.classList.add('hidden');
+        }
+      });
+    });
+    document.querySelectorAll('button.copy').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const value = btn.getAttribute('data-copy') || '';
+        try {
+          await navigator.clipboard.writeText(value);
+          toast.textContent = 'Copied: ' + value;
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 1200);
+        } catch (_) {}
+      });
+    });
+  </script>
+</body>
+</html>

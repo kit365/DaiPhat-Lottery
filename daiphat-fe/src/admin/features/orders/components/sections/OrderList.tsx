@@ -221,13 +221,14 @@ export const OrderList = () => {
         (Number(safeStatusCounts[OrderStatus.PREPARING]) || 0) +
         (Number(safeStatusCounts[OrderStatus.PAYMENT_COMPLAINT_PENDING]) || 0);
 
-    const preparingCount = safeStatusCounts['NEED_PROCESSING'];
+    const preparingCount = Number(safeStatusCounts[OrderStatus.PREPARING]) || 0;
     const {
         phase: cutoffPhase,
         cutoffLabel,
         shouldHighlightPreparing,
         showReminderBanner,
-    } = useOrderDrawCutoff(preparingCount);
+        urgentOrderIds,
+    } = useOrderDrawCutoff(orders, preparingCount, refetch);
 
     return (
         <>
@@ -337,7 +338,9 @@ export const OrderList = () => {
                             orders.map((row: any) => {
                                 const isOpen = openRows.includes(row.id);
                                 const isPreparingUrgentRow =
-                                    shouldHighlightPreparing && row.status === 'PREPARING';
+                                    shouldHighlightPreparing &&
+                                    row.status === 'PREPARING' &&
+                                    urgentOrderIds.has(row.id);
 
                                 return (
                                     <React.Fragment key={row.id}>

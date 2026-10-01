@@ -6,6 +6,7 @@ import '../../domain/usecases/get_my_order_detail.dart';
 import '../../domain/usecases/get_my_orders.dart';
 import '../../domain/usecases/get_order_refund_eligibility.dart';
 import '../../domain/usecases/request_order_refund.dart';
+import '../../domain/usecases/submit_payment_timeout_complaint.dart';
 
 // Transitional dependency for profile/ticket screens pending their migration.
 final orderServiceProvider = Provider<OrderService>((ref) {
@@ -36,3 +37,9 @@ final getOrderRefundEligibilityProvider =
 final requestOrderRefundProvider = Provider<RequestOrderRefund>((ref) {
   return RequestOrderRefund(ref.watch(ordersRepositoryProvider));
 });
+
+final submitPaymentTimeoutComplaintProvider =
+    Provider<SubmitPaymentTimeoutComplaint>((ref) {
+      return SubmitPaymentTimeoutComplaint(ref.watch(ordersRepositoryProvider));
+    });
+

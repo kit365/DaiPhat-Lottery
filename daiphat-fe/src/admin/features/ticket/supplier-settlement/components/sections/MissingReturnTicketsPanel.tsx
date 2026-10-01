@@ -34,6 +34,7 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
+import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import type { SettlementAdjustmentReasonCode, SettlementResolvableSerial } from '../../types/supplierSettlement.type';
 import { formatSettlementMoney } from '../../utils/settlementCashflow';
 import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
@@ -45,6 +46,8 @@ interface MissingReturnTicketsPanelProps {
     submitting?: boolean;
     /** Block resolve actions when return-batches are not yet handed over. */
     disabled?: boolean;
+    collapsed?: boolean;
+    onBackToEdit?: () => void;
     onResolve: (payload: {
         serialIds?: number[];
         resolution: 'EXPIRED' | 'LOST' | 'DAMAGED' | 'VOIDED';
@@ -68,6 +71,8 @@ export const MissingReturnTicketsPanel = ({
     loading,
     submitting,
     disabled = false,
+    collapsed = false,
+    onBackToEdit,
     onResolve,
 }: MissingReturnTicketsPanelProps) => {
     const [selected, setSelected] = useState<number[]>([]);
@@ -166,11 +171,30 @@ export const MissingReturnTicketsPanel = ({
     }, [serials, selected]);
     const amountDisplay = selected.length > 0 ? formatNumberWithDots(selectedCostSum) : '';
 
+    if (collapsed) {
+        return (
+            <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: '12px', borderColor: '#bbf7d0', bgcolor: '#f0fdf4' }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between">
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                        <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} />
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight={800} color="#166534">Đã xác nhận tạm xử lý chênh lệch vé trả</Typography>
+                            <Typography variant="caption" color="#15803d">Dữ liệu chưa lưu lên hệ thống.</Typography>
+                        </Box>
+                    </Stack>
+                    <Button variant="outlined" startIcon={<ArrowBackOutlinedIcon />} onClick={onBackToEdit} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '9px' }}>
+                        Quay lại
+                    </Button>
+                </Stack>
+            </Paper>
+        );
+    }
+
     return (
         <Paper
             elevation={0}
             sx={{
-                p: { xs: 2.5, md: 3.5 },
+                p: { xs: 2, md: 2.5 },
                 borderRadius: '16px',
                 border: '1px solid #e2e8f0',
                 bgcolor: '#ffffff',
@@ -178,13 +202,13 @@ export const MissingReturnTicketsPanel = ({
             }}
         >
             {/* Header */}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" sx={{ mb: 2.5 }}>
-                <Stack direction="row" spacing={1.5} alignItems="center">
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" sx={{ mb: 2 }}>
+                <Stack direction="row" spacing={1.25} alignItems="center">
                     <Box
                         sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: '12px',
+                            width: 38,
+                            height: 38,
+                            borderRadius: '10px',
                             bgcolor: '#fff7ed',
                             color: '#ea580c',
                             display: 'flex',
@@ -194,14 +218,14 @@ export const MissingReturnTicketsPanel = ({
                             border: '1px solid #ffedd5',
                         }}
                     >
-                        <AssignmentReturnOutlinedIcon sx={{ fontSize: '1.5rem' }} />
+                        <AssignmentReturnOutlinedIcon sx={{ fontSize: '1.3rem' }} />
                     </Box>
                     <Box>
-                        <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ fontSize: '1.15rem', lineHeight: 1.3 }}>
-                            Xử lý thiếu trả
+                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ lineHeight: 1.3 }}>
+                            Xử lý hệ thống ghi thừa vé trả
                         </Typography>
-                        <Typography variant="body2" color="#64748b" sx={{ mt: 0.25 }}>
-                            Thực tế trả ít hơn hệ thống. Chọn vé đang nằm trong phiếu trả nhưng không có trong kiểm đếm để ghi mất/hỏng/hủy — vé vẫn lưu vết trên phiếu, không còn tính là vé trả hợp lệ.
+                        <Typography variant="caption" color="#64748b" sx={{ mt: 0.25, display: 'block', maxWidth: 760 }}>
+                            Chọn đúng các vé không có trong kiểm đếm và ghi lý do. Vé vẫn được lưu vết trên phiếu trả.
                         </Typography>
                     </Box>
                 </Stack>
@@ -211,10 +235,10 @@ export const MissingReturnTicketsPanel = ({
                 />
             </Stack>
 
-            <Divider sx={{ mb: 2.5, borderColor: '#f1f5f9' }} />
+            <Divider sx={{ mb: 2, borderColor: '#f1f5f9' }} />
 
             {/* Station Tabs */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2.5 }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
                 <Tabs
                     value={selectedStation}
                     onChange={(_, val) => setSelectedStation(val)}
@@ -357,7 +381,7 @@ export const MissingReturnTicketsPanel = ({
                         borderRadius: '12px',
                         overflow: 'hidden',
                         borderColor: '#e2e8f0',
-                        mb: 2.5,
+                        mb: 2,
                     }}
                 >
                     <Box sx={{ maxHeight: 320, overflow: 'auto' }}>
@@ -456,11 +480,11 @@ export const MissingReturnTicketsPanel = ({
             <Paper
                 variant="outlined"
                 sx={{
-                    p: 2.5,
+                    p: 2,
                     borderRadius: '14px',
                     borderColor: '#e2e8f0',
                     bgcolor: '#f8fafc',
-                    mb: 2.5,
+                    mb: 2,
                 }}
             >
                 <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', mb: 2 }}>
@@ -567,7 +591,7 @@ export const MissingReturnTicketsPanel = ({
                 icon={<WarningAmberOutlinedIcon sx={{ color: '#ea580c' }} />}
                 severity="warning"
                 sx={{
-                    mb: 2.5,
+                    mb: 2,
                     borderRadius: '12px',
                     bgcolor: '#fff7ed',
                     border: '1px solid #fed7aa',

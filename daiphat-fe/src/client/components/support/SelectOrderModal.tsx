@@ -9,6 +9,7 @@ const ORDER_CANCEL_TYPE_LABELS: Record<string, string> = {
     CUSTOMER_REQUEST: 'Bạn đã huỷ',
     ADMIN_FORCE_CANCEL: 'Nhân viên đã huỷ',
     SYSTEM_PAYMENT_TIMEOUT: 'Quá hạn thanh toán',
+    SYSTEM_PREPARATION_TIMEOUT: 'Quá hạn chuẩn bị đơn',
     OUT_OF_STOCK_INCIDENT: 'Sự cố kho vé',
 };
 
@@ -36,7 +37,9 @@ function resolveEligibility(order: OrderResponse) {
         if (order.cancelType === 'ADMIN_FORCE_CANCEL') {
             return { eligible: false, reason: 'Nhân viên đã huỷ đơn này' };
         }
-        if (order.cancelType !== 'SYSTEM_PAYMENT_TIMEOUT' && order.cancelType !== 'OUT_OF_STOCK_INCIDENT') {
+        if (order.cancelType !== 'SYSTEM_PAYMENT_TIMEOUT' &&
+            order.cancelType !== 'SYSTEM_PREPARATION_TIMEOUT' &&
+            order.cancelType !== 'OUT_OF_STOCK_INCIDENT') {
             return { eligible: false, reason: 'Đơn đã huỷ' };
         }
     }

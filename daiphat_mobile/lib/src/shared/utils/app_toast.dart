@@ -30,31 +30,33 @@ class AppToast {
     String? actionLabel,
     VoidCallback? onAction,
   }) {
-    toastification.dismissAll(delayForAnimation: false);
+    try {
+      toastification.dismissAll(delayForAnimation: false);
 
-    final autoCloseDuration = (actionLabel != null && onAction != null)
-        ? _actionDuration
-        : _duration;
+      final autoCloseDuration = (actionLabel != null && onAction != null)
+          ? _actionDuration
+          : _duration;
 
-    toastification.showCustom(
-      alignment: alignment,
-      autoCloseDuration: autoCloseDuration,
-      animationDuration: const Duration(milliseconds: 280),
-      builder: (context, holder) {
-        return _CustomToastCard(
-          message: message,
-          type: type,
-          actionLabel: actionLabel,
-          onAction: (actionLabel != null && onAction != null)
-              ? () {
-                  toastification.dismiss(holder);
-                  onAction();
-                }
-              : null,
-          onClose: () => toastification.dismiss(holder),
-        );
-      },
-    );
+      toastification.showCustom(
+        alignment: alignment,
+        autoCloseDuration: autoCloseDuration,
+        animationDuration: const Duration(milliseconds: 280),
+        builder: (context, holder) {
+          return _CustomToastCard(
+            message: message,
+            type: type,
+            actionLabel: actionLabel,
+            onAction: (actionLabel != null && onAction != null)
+                ? () {
+                    toastification.dismiss(holder);
+                    onAction();
+                  }
+                : null,
+            onClose: () => toastification.dismiss(holder),
+          );
+        },
+      );
+    } catch (_) {}
   }
 }
 

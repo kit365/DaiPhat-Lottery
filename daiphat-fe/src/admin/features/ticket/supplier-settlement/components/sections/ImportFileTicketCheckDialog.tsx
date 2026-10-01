@@ -276,8 +276,20 @@ export const ImportFileTicketCheckDialog = ({
                                     Khớp {data.matchedCount.toLocaleString('vi-VN')} vé giữa tệp và hệ thống.
                                 </Typography>
                                 <Box sx={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'auto', maxHeight: 360 }}>
-                                    <Table size="small" stickyHeader>
-                                        <TableHead>
+                                    <Table size="small" stickyHeader sx={{ '--TableCell-stickyHeader-background': '#f8fafc' }}>
+                                        <TableHead
+                                            sx={{
+                                                position: 'sticky',
+                                                top: 0,
+                                                zIndex: 10,
+                                                '& .MuiTableCell-head, & .MuiTableCell-stickyHeader': {
+                                                    backgroundColor: '#f8fafc !important',
+                                                    bgcolor: '#f8fafc !important',
+                                                    zIndex: 10,
+                                                    fontWeight: 700,
+                                                },
+                                            }}
+                                        >
                                             <TableRow>
                                                 <TableCell sx={{ fontWeight: 700 }}>Sê-ri</TableCell>
                                                 <TableCell sx={{ fontWeight: 700 }}>Dãy số</TableCell>

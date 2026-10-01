@@ -9,7 +9,7 @@ os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
 
 _default_threads = os.environ.get("TICKET_VISION_PADDLE_CPU_THREADS") or os.environ.get(
     "TICKET_VISION_TORCH_NUM_THREADS"
-) or "4"
+) or "2"
 os.environ.setdefault("OMP_NUM_THREADS", str(_default_threads))
 os.environ.setdefault("MKL_NUM_THREADS", str(_default_threads))
 os.environ.setdefault("OPENBLAS_NUM_THREADS", str(_default_threads))
@@ -36,8 +36,19 @@ from routers.scan import router as scan_router
 try:
     from domain.ocr.torch_threads import apply_torch_thread_limits
 
-    apply_torch_thread_limits(
-        num_threads=int(getattr(settings, "TICKET_VISION_TORCH_NUM_THREADS", 4) or 4)
+    _torch_threads = apply_torch_thread_limits(
+        num_threads=int(getattr(settings, "TICKET_VISION_TORCH_NUM_THREADS", 2) or 2),
+        enable_mkldnn=bool(
+            getattr(settings, "TICKET_VISION_TORCH_ENABLE_MKLDNN", False)
+        ),
+    )
+    import torch
+
+    logger.info(
+        "PyTorch CPU runtime configured: threads=%s interop_threads=%s mkldnn=%s",
+        _torch_threads,
+        torch.get_num_interop_threads(),
+        torch.backends.mkldnn.enabled,
     )
 except Exception:  # noqa: BLE001
     pass

@@ -42,10 +42,8 @@ import java.util.stream.Collectors;
 public class LotteryTicketSerialService implements LotteryTicketSerialServicePort {
 
     private static final List<LotteryTicketSerialStatus> AVAILABLE_STATUSES = List.of(LotteryTicketSerialStatus.IN_STOCK);
-    private static final List<LotteryTicketSerialStatus> EXPIRABLE_STATUSES = List.of(
-            LotteryTicketSerialStatus.IN_STOCK,
-            LotteryTicketSerialStatus.RESERVED
-    );
+    private static final List<LotteryTicketSerialStatus> EXPIRABLE_STATUSES =
+            List.of(LotteryTicketSerialStatus.IN_STOCK);
 
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final StoragePort storagePort;
@@ -55,6 +53,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     private final SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
+    private final TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
     private final Clock clock;
 
     @Override
@@ -179,8 +178,9 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public LotteryTicketSerialModel releaseReservation(Long ticketSerialId, boolean expireAfterRelease) {
         LotteryTicketSerialModel serial = getByIdOrThrow(ticketSerialId);
+        boolean closed = expireAfterRelease || ticketSalesCutoffPolicy.isClosed(serial);
         serial.releaseReservation();
-        if (expireAfterRelease) {
+        if (closed) {
             serial.expire();
         }
         return lotteryTicketSerialRepositoryPort.save(serial);
@@ -189,7 +189,11 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public LotteryTicketSerialModel returnSoldToStock(Long ticketSerialId) {
         LotteryTicketSerialModel serial = getByIdOrThrow(ticketSerialId);
+        boolean closed = ticketSalesCutoffPolicy.isClosed(serial);
         serial.returnSoldToStock();
+        if (closed) {
+            serial.expire();
+        }
         return lotteryTicketSerialRepositoryPort.save(serial);
     }
 
@@ -211,11 +215,27 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
     @Override
     public long countAvailableSerials(Long ticketId) {
-        return lotteryTicketSerialRepositoryPort.countSellableByTicketId(ticketId);
+        return lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId).stream()
+                .filter(LotteryTicketSerialModel::isAvailableForSale)
+                .filter(serial -> !ticketSalesCutoffPolicy.isClosed(serial))
+                .count();
     }
 
     @Override
     public Map<Long, Long> countAvailableSerialsByTicketIds(Collection<Long> ticketIds) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return Map.of();
+        }
+        return lotteryTicketSerialRepositoryPort.findAllByTicketIds(ticketIds).stream()
+                .filter(LotteryTicketSerialModel::isAvailableForSale)
+                .filter(serial -> !ticketSalesCutoffPolicy.isClosed(serial))
+                .collect(Collectors.groupingBy(
+                        LotteryTicketSerialModel::getTicketId,
+                        Collectors.counting()));
+    }
+
+    @Override
+    public Map<Long, Long> countSellableByTicketIds(Collection<Long> ticketIds) {
         return lotteryTicketSerialRepositoryPort.countSellableByTicketIds(ticketIds);
     }
 
@@ -232,7 +252,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public void expireActiveSerials(Long ticketId) {
         lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(ticketId, EXPIRABLE_STATUSES).forEach(serial -> {
-            if (serial.isVoided()) {
+            if (serial.isVoided() || !ticketSalesCutoffPolicy.isClosed(serial)) {
                 return;
             }
             serial.expire();
@@ -261,6 +281,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     private LotteryTicketSerialModel getFirstAvailableSerialOrThrow(Long ticketId) {
         return lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId).stream()
                 .filter(LotteryTicketSerialModel::isAvailableForSale)
+                .filter(serial -> !ticketSalesCutoffPolicy.isClosed(serial))
                 .findFirst()
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS, "Vé đã hết sê-ri khả dụng."));
     }

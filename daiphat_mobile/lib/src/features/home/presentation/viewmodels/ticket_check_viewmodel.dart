@@ -40,7 +40,8 @@ class TicketCheckState {
     this.dateError,
     this.stationError,
     this.numberError,
-  });
+    int? checkSequence,
+  }) : _checkSequence = checkSequence ?? 0;
 
   final DateTime? selectedDate;
   final List<LotteryStationDraw> stations;
@@ -56,6 +57,9 @@ class TicketCheckState {
   final String? dateError;
   final String? stationError;
   final String? numberError;
+  final int? _checkSequence;
+
+  int get checkSequence => _checkSequence ?? 0;
 
   LotteryStationDraw? get selectedStation {
     final id = selectedStationId;
@@ -88,6 +92,7 @@ class TicketCheckState {
     bool clearStationError = false,
     String? numberError,
     bool clearNumberError = false,
+    int? checkSequence,
   }) {
     return TicketCheckState(
       selectedDate: selectedDate ?? this.selectedDate,
@@ -110,6 +115,7 @@ class TicketCheckState {
       stationError:
           clearStationError ? null : (stationError ?? this.stationError),
       numberError: clearNumberError ? null : (numberError ?? this.numberError),
+      checkSequence: checkSequence ?? this.checkSequence,
     );
   }
 }
@@ -231,44 +237,37 @@ class TicketCheckViewModel extends Notifier<TicketCheckState> {
     );
 
     try {
-      final result = await _checkTicketWinning(
+      final checkFuture = _checkTicketWinning(
         stationId: stationId,
         drawDate: drawDate,
         ticketNumber: number,
       );
-      state = state.copyWith(
-        isChecking: false,
-        hasChecked: true,
-        checkResult: result,
-        isLoadingCheckedStationResult: true,
-      );
-
-      LotteryResult? stationResult;
-      try {
-        final board = await _fetchHomeLotteryResults(drawDate);
+      final boardFuture = _fetchHomeLotteryResults(drawDate).then<LotteryResult?>((board) {
         for (final item in board.data.results) {
           if (item.stationId == stationId) {
-            stationResult = item;
-            break;
+            return item;
           }
         }
-      } catch (_) {
-        // Ticket checking remains successful even when the presentation board
-        // cannot be loaded. The UI will show a non-blocking fallback state.
-      }
+        return null;
+      }).catchError((_) => null);
 
-      final currentResult = state.checkResult;
+      final results = await Future.wait([checkFuture, boardFuture]);
+      final checkResult = results[0] as TicketCheckResult;
+      final stationResult = results[1] as LotteryResult?;
+
       final isStillShowingLookup =
           ref.mounted &&
-          state.hasChecked &&
-          state.isLoadingCheckedStationResult &&
-          currentResult?.ticketNumber == result.ticketNumber &&
+          state.isChecking &&
           state.selectedStationId == stationId &&
           _isSameDate(state.selectedDate, drawDate);
       if (isStillShowingLookup) {
         state = state.copyWith(
+          isChecking: false,
+          hasChecked: true,
+          checkResult: checkResult,
           checkedStationResult: stationResult,
           isLoadingCheckedStationResult: false,
+          checkSequence: state.checkSequence + 1,
         );
       }
     } catch (e) {

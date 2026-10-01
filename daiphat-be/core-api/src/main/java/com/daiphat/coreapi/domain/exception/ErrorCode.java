@@ -187,7 +187,7 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST),
     REFUND_REQUEST_COUNTER_IDENTITY_REQUIRED(
             "ORD_060",
-            "Cần xác thực CCCD (mặt trước và mặt sau) của khách hàng trước khi hoàn tất hoàn tiền tại quầy.",
+            "Cần đọc đủ thông tin từ ảnh CCCD mặt trước và mặt sau trước khi hoàn tất hoàn tiền tại quầy.",
             HttpStatus.BAD_REQUEST),
     REFUND_REQUEST_COUNTER_AMOUNT_MISMATCH(
             "ORD_061",
@@ -339,6 +339,11 @@ public enum ErrorCode {
     SUPPLIER_SETTLEMENT_RECONCILIATION_NOT_OPEN(
             "LT_143",
             "Chưa đến giờ đối soát. Vui lòng đợi đến mốc thời gian đệm trước thanh toán NCC.",
+            HttpStatus.CONFLICT
+    ),
+    SUPPLIER_SETTLEMENT_EXCESS_IMPORT_NOT_OPEN(
+            "LT_144",
+            "Danh sách vé nhập thừa chỉ được xử lý sau giờ chốt trả vé và khi đã đến giờ đối soát NCC.",
             HttpStatus.CONFLICT
     ),
     IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
@@ -674,16 +679,16 @@ public enum ErrorCode {
             HttpStatus.CONFLICT),
     STREET_AGENT_EKYC_REQUIRED(
             "SAG_034",
-            "Vui lòng hoàn tất xác thực CCCD (eKYC) trước khi kích hoạt hồ sơ.",
+            "Vui lòng đọc và kiểm tra thông tin CCCD bằng OCR trước khi kích hoạt hồ sơ.",
             HttpStatus.BAD_REQUEST),
     STREET_AGENT_EKYC_IMAGES_REQUIRED(
             "SAG_035",
-            "Cần ảnh CCCD mặt trước và mặt sau để xác thực eKYC.",
+            "Cần ảnh CCCD mặt trước và mặt sau để đọc thông tin bằng OCR.",
             HttpStatus.BAD_REQUEST),
 
     // eKYC (CCCD) — shared Street Agent + Prize Payout
     EKYC_INVALID_DOCUMENTS("EKYC_001", "Ảnh CCCD / selfie không hợp lệ hoặc bị thiếu.", HttpStatus.BAD_REQUEST),
-    EKYC_AI_UNAVAILABLE("EKYC_002", "Dịch vụ xác thực CCCD tạm thời không khả dụng.", HttpStatus.SERVICE_UNAVAILABLE),
+    EKYC_AI_UNAVAILABLE("EKYC_002", "Dịch vụ đọc thông tin CCCD bằng OCR tạm thời không khả dụng.", HttpStatus.SERVICE_UNAVAILABLE),
     EKYC_LIVENESS_FAILED("EKYC_003", "Xác thực sống (liveness) thất bại. Vui lòng chụp lại selfie.", HttpStatus.BAD_REQUEST),
     EKYC_FACE_MISMATCH("EKYC_004", "Khuôn mặt selfie không khớp ảnh CCCD.", HttpStatus.BAD_REQUEST),
     EKYC_OCR_FAILED("EKYC_005", "Không đọc được thông tin từ ảnh CCCD. Vui lòng chụp lại rõ hơn.", HttpStatus.BAD_REQUEST),
@@ -861,6 +866,14 @@ public enum ErrorCode {
     OCR_FIELD_VALIDATION_RULE_INVALID(
             "LT_129",
             "Cấu hình luật kiểm tra trường OCR không hợp lệ.",
+            HttpStatus.BAD_REQUEST),
+    OCR_SESSION_NOT_FOUND(
+            "LT_130",
+            "Phiên quét vé không tồn tại hoặc đã hết hạn.",
+            HttpStatus.NOT_FOUND),
+    OCR_SESSION_CLOSED(
+            "LT_131",
+            "Phiên quét vé đã kết thúc.",
             HttpStatus.BAD_REQUEST);
 
     private final String code;

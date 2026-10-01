@@ -24,6 +24,7 @@ public record ImportBatchResponse(
         String invoiceEvidenceUrl,
         List<String> ticketListImageUrls,
         UUID importedBy,
+        String importedByDisplayName,
         LocalDateTime importedAt,
         ImportBatchStatus status,
         Integer lineCount,

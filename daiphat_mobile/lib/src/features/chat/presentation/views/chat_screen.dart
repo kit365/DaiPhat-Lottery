@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
+import 'package:daiphat_mobile/src/app/routing/app_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/features/cart/domain/entities/cart_item.dart';
+import 'package:daiphat_mobile/src/features/cart/presentation/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/domain/entities/chat_models.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/viewmodels/chat_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_constants.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart';
+import 'package:daiphat_mobile/src/features/home/domain/entities/lottery_result.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_results_lookup_provider.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/home_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/schedule/domain/entities/lottery_station_schedule.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_date_picker_dialog.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
@@ -31,6 +42,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
   final _inputController = TextEditingController();
   ProviderSubscription<ChatState>? _chatSubscription;
+  double _lastMaxScrollExtent = 0;
 
   @override
   void initState() {
@@ -40,9 +52,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       previous,
       next,
     ) {
-      if ((previous?.visibleMessages.length ?? 0) !=
-          next.visibleMessages.length) {
-        _scrollToBottom();
+      final prevList = previous?.visibleMessages ?? const [];
+      final nextList = next.visibleMessages;
+
+      // 1. Nếu tin nhắn cũ được tải thêm ở đầu danh sách:
+      // Giữ nguyên vị trí cuộn hiện tại của người dùng, không cuộn xuống đáy.
+      final prevFirstId = prevList.firstOrNull?.id;
+      final nextFirstId = nextList.firstOrNull?.id;
+      final wasPrepended = prevList.isNotEmpty &&
+          nextList.length > prevList.length &&
+          prevFirstId != nextFirstId;
+
+      if (wasPrepended) {
+        final prevMax = _lastMaxScrollExtent;
+        final prevPixels = _scrollController.hasClients
+            ? _scrollController.position.pixels
+            : 0.0;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_scrollController.hasClients) return;
+          final newMax = _scrollController.position.maxScrollExtent;
+          final diff = newMax - prevMax;
+          if (diff > 0) {
+            _scrollController.jumpTo(prevPixels + diff);
+          }
+          _lastMaxScrollExtent = newMax;
+        });
+        return;
+      }
+
+      // 2. Nếu có tin nhắn mới ở cuối danh sách (tin người dùng vừa gửi hoặc bot vừa trả lời):
+      final prevLastId = prevList.lastOrNull?.id;
+      final nextLastId = nextList.lastOrNull?.id;
+      final isNewAtBottom = prevLastId != nextLastId ||
+          (prevList.isEmpty && nextList.isNotEmpty);
+
+      // Chỉ tự cuộn xuống đáy nếu người dùng gửi tin HOẶC người dùng đang ở gần đáy:
+      final userSent = next.isSending || (nextList.lastOrNull?.isUser == true);
+      final wasNearBottom = _isNearBottom();
+
+      if (isNewAtBottom && (userSent || wasNearBottom)) {
+        _scrollToBottom(animate: wasNearBottom);
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _ensureBootstrap());
@@ -81,9 +130,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels <= 48) {
-      ref.read(chatViewModelProvider.notifier).loadMoreTimeline();
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    _lastMaxScrollExtent = pos.maxScrollExtent;
+
+    // Không kích hoạt tải thêm tin cũ đối với luồng chat ngắn (chưa vượt quá chiều cao màn hình)
+    if (pos.maxScrollExtent <= 96) return;
+
+    // Chỉ tải thêm khi người dùng chủ động vuốt lên chạm đỉnh danh sách
+    if (pos.pixels <= 48 &&
+        pos.userScrollDirection == ScrollDirection.forward) {
+      final state = ref.read(chatViewModelProvider);
+      if (state.hasMoreTimeline && !state.isLoading && !state.isLoadingOlder) {
+        ref.read(chatViewModelProvider.notifier).loadMoreTimeline();
+      }
     }
+  }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    final pos = _scrollController.position;
+    return (pos.maxScrollExtent - pos.pixels) <= 120;
   }
 
   void _scrollToBottom({bool animate = true}) {
@@ -97,8 +164,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (animate) {
         _scrollController.animateTo(
           max,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutQuad,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
         );
       } else {
         _scrollController.jumpTo(max);
@@ -188,21 +255,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             )
           else
             Expanded(
-              child: RefreshIndicator(
-                color: AppColors.primary,
-                onRefresh: () =>
-                    ref.read(chatViewModelProvider.notifier).refresh(),
-                child: ListView.builder(
-                  controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  itemCount: chatState.visibleMessages.length,
-                  itemBuilder: (context, index) {
-                    if (index < 0 || index >= visibleMessages.length) {
-                      return const SizedBox.shrink();
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                itemCount: visibleMessages.length +
+                    (chatState.isLoadingOlder ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (chatState.isLoadingOlder) {
+                    if (index == 0) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      );
                     }
+                    index -= 1;
+                  }
+                  if (index < 0 || index >= visibleMessages.length) {
+                    return const SizedBox.shrink();
+                  }
                     final message = visibleMessages[index];
                     Widget child;
                     if (message.variant == ChatMessageVariant.divider) {
@@ -235,7 +317,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   },
                 ),
               ),
-            ),
           if (chatState.errorMessage != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -264,6 +345,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bottomInset: bottomInset,
             enabled: !chatState.isSending,
             onSend: _sendMessage,
+            onTap: () {
+              if (_isNearBottom()) {
+                _scrollToBottom();
+              }
+            },
           ),
         ],
       ),
@@ -731,6 +817,8 @@ class _SupportBubble extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final chatState = ref.watch(chatViewModelProvider);
     final isSending = chatState.isSending;
+    final isResultSummary =
+        message.variant == ChatMessageVariant.scheduleResultSummary;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -740,7 +828,8 @@ class _SupportBubble extends ConsumerWidget {
         Flexible(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width * 0.76,
+              maxWidth: MediaQuery.sizeOf(context).width *
+                  (isResultSummary ? 0.90 : 0.76),
             ),
             child: Container(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
@@ -785,6 +874,13 @@ class _SupportBubble extends ConsumerWidget {
                       color: AppColors.contentHeading,
                     ),
                   ),
+                  if (isResultSummary &&
+                      message.scheduleResultSummary != null) ...[
+                    const SizedBox(height: 8),
+                    _ChatLotteryResultSummary(
+                      data: message.scheduleResultSummary!,
+                    ),
+                  ],
                   if (message.actions.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     Wrap(
@@ -794,42 +890,70 @@ class _SupportBubble extends ConsumerWidget {
                         return OutlinedButton(
                           onPressed: isSending
                               ? null
-                              : () {
-                                  ref
-                                      .read(chatViewModelProvider.notifier)
-                                      .sendText(action.payload);
+                              : () async {
+                                  final chatNotifier =
+                                      ref.read(chatViewModelProvider.notifier);
+                                  if (action.payload.startsWith('ACTION_PICK_DATE')) {
+                                    final isResult =
+                                        action.payload.contains('goal=RESULT');
+                                    final now = DateTime.now();
+                                    final picked = await AppDatePickerDialog.show(
+                                      context,
+                                      now,
+                                      firstDate: DateTime(now.year - 1),
+                                      lastDate: isResult
+                                          ? now
+                                          : now.add(const Duration(days: 30)),
+                                      title: isResult
+                                          ? 'Chọn ngày xem kết quả'
+                                          : 'Chọn ngày xem lịch',
+                                    );
+                                    if (picked != null && context.mounted) {
+                                      final d = picked.day
+                                          .toString()
+                                          .padLeft(2, '0');
+                                      final m = picked.month
+                                          .toString()
+                                          .padLeft(2, '0');
+                                      final y = picked.year.toString();
+                                      final dateText = '$d/$m/$y';
+                                      await chatNotifier.sendText(dateText);
+                                    }
+                                    return;
+                                  }
+                                  await chatNotifier.sendText(action.payload);
                                 },
                           style: OutlinedButton.styleFrom(
                             foregroundColor: action.primary
-                                ? AppColors.white
-                                : AppColors.primary,
-                            backgroundColor: action.primary
                                 ? AppColors.primary
-                                : AppColors.surfacePrimary,
+                                : AppColors.contentHeading,
+                            backgroundColor: action.primary
+                                ? AppColors.surfaceBrandWarm
+                                : AppColors.surfaceSoft,
                             side: BorderSide(
                               color: action.primary
-                                  ? AppColors.primary
-                                  : AppColors.brandPrimaryBorderLight,
+                                  ? AppColors.brandPrimaryBorderLight
+                                  : AppColors.borderLight,
                               width: 1.0,
                             ),
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                              horizontal: 14,
+                              vertical: 8,
                             ),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(999),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                           child: Text(
                             action.label,
                             style: AppTypography.buttonSmall(
-                              fontSize: 11.5,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.w600,
                               color: action.primary
-                                  ? AppColors.white
-                                  : AppColors.primary,
+                                  ? AppColors.primary
+                                  : AppColors.contentHeading,
                             ),
                           ),
                         );
@@ -852,6 +976,462 @@ class _SupportBubble extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _ChatLotteryResultSummary extends ConsumerStatefulWidget {
+  const _ChatLotteryResultSummary({required this.data});
+
+  final ScheduleResultSummaryData data;
+
+  @override
+  ConsumerState<_ChatLotteryResultSummary> createState() =>
+      _ChatLotteryResultSummaryState();
+}
+
+class _ChatLotteryResultSummaryState
+    extends ConsumerState<_ChatLotteryResultSummary> {
+  List<LotteryResult> _results = const [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  int _loadGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _loadGeneration++;
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ChatLotteryResultSummary oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.data.drawDate != widget.data.drawDate ||
+        oldWidget.data.region != widget.data.region ||
+        oldWidget.data.stationId != widget.data.stationId) {
+      _load();
+    }
+  }
+
+  DateTime _resolveDate(String? raw) {
+    if (raw == null || raw.isEmpty) return DateTime.now();
+    final upper = raw.toUpperCase().trim();
+    if (upper == 'YESTERDAY') {
+      return DateTime.now().subtract(const Duration(days: 1));
+    }
+    if (upper == 'TODAY') {
+      return DateTime.now();
+    }
+    if (upper == 'TOMORROW') {
+      return DateTime.now().add(const Duration(days: 1));
+    }
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(raw)) {
+      return DateTime.tryParse(raw) ?? DateTime.now();
+    }
+    if (RegExp(r'^\d{1,2}/\d{1,2}/\d{4}').hasMatch(raw)) {
+      final parts = raw.split('/');
+      final day = int.tryParse(parts[0]) ?? 1;
+      final month = int.tryParse(parts[1]) ?? 1;
+      final year = int.tryParse(parts[2].substring(0, 4)) ?? DateTime.now().year;
+      return DateTime(year, month, day);
+    }
+    return DateTime.now();
+  }
+
+  String _formatDateLabel(DateTime date) {
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    return '$d/$m/${date.year}';
+  }
+
+  String? _regionLabel(String? region) {
+    if (region == null) return null;
+    return switch (region) {
+      'MIEN_NAM' => 'Miền Nam',
+      'MIEN_TRUNG' => 'Miền Trung',
+      'MIEN_BAC' => 'Miền Bắc',
+      _ => region,
+    };
+  }
+
+  List<LotteryResult> _filterResults(
+    List<LotteryResult> results,
+    int? stationId,
+    List<int>? stationIds,
+  ) {
+    if (stationId != null && stationId > 0) {
+      final match = results.where((r) => r.stationId == stationId).toList();
+      if (match.isNotEmpty) return match;
+    }
+    if (stationIds != null && stationIds.isNotEmpty) {
+      final idSet = stationIds.toSet();
+      final match = results.where((r) => idSet.contains(r.stationId)).toList();
+      if (match.isNotEmpty) return match;
+    }
+    return results;
+  }
+
+  Future<void> _load() async {
+    final currentGen = ++_loadGeneration;
+    final targetDate = _resolveDate(widget.data.drawDate);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _results = const [];
+    });
+
+    const maxAttempts = 6;
+    const pollInterval = Duration(milliseconds: 2500);
+
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      if (!mounted || currentGen != _loadGeneration) return;
+
+      try {
+        final fetch = ref.read(fetchHomeLotteryResultsProvider);
+        final fetchResult = await fetch(targetDate, region: widget.data.region);
+
+        if (!mounted || currentGen != _loadGeneration) return;
+
+        final filtered = _filterResults(
+          fetchResult.data.results,
+          widget.data.stationId,
+          widget.data.stationIds,
+        );
+
+        final hasPrizeData = filtered.any((r) =>
+            r.prizes.special.trim().isNotEmpty ||
+            r.prizes.first.trim().isNotEmpty ||
+            r.prizes.eighth.any((v) => v.trim().isNotEmpty));
+
+        if (filtered.isNotEmpty && hasPrizeData) {
+          setState(() {
+            _results = filtered;
+            _isLoading = false;
+          });
+          return;
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await Future<void>.delayed(pollInterval);
+          continue;
+        }
+
+        setState(() {
+          _results = filtered;
+          _isLoading = false;
+        });
+        return;
+      } catch (_) {
+        if (!mounted || currentGen != _loadGeneration) return;
+        if (attempt < maxAttempts - 1) {
+          await Future<void>.delayed(pollInterval);
+          continue;
+        }
+        setState(() {
+          _errorMessage =
+              'Không thể tải kết quả. Bạn có thể xem chi tiết trên trang Kết quả.';
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final targetDate = _resolveDate(widget.data.drawDate);
+    final displayDate = _formatDateLabel(targetDate);
+    final region = _regionLabel(widget.data.region);
+
+    if (_isLoading) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Đang tải kết quả ngày $displayDate...',
+                style: AppTypography.bodySmall(color: AppColors.contentNeutral),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          _errorMessage!,
+          style: AppTypography.bodySmall(color: AppColors.contentMuted),
+        ),
+      );
+    }
+
+    final hasPrizeData = _results.any((r) =>
+        r.prizes.special.trim().isNotEmpty ||
+        r.prizes.first.trim().isNotEmpty ||
+        r.prizes.eighth.any((v) => v.trim().isNotEmpty));
+
+    if (_results.isEmpty || !hasPrizeData) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'Chưa có kết quả cho ngày $displayDate${region != null ? ' ($region)' : ''}.',
+          style: AppTypography.bodySmall(color: AppColors.contentMuted),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < _results.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          _ChatLotteryStationCard(
+            result: _results[i],
+            fallbackDate: displayDate,
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ElevatedButton(
+              onPressed: () => _openStationResult(_results[i], targetDate),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: AppColors.white,
+                backgroundColor: AppColors.primary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                'Xem chi tiết',
+                style: AppTypography.buttonSmall(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _openStationResult(LotteryResult result, DateTime fallbackDate) {
+    final drawDate = (result.drawDate.year > 2000)
+        ? result.drawDate
+        : fallbackDate;
+    final targetDate = DateTime(
+      drawDate.year,
+      drawDate.month,
+      drawDate.day,
+    );
+    final stationName = result.province.trim();
+
+    String? region = widget.data.region;
+    if (region == null || region.trim().isEmpty) {
+      final schedules = ref.read(lotteryScheduleProvider).maybeWhen(
+            data: (list) => list,
+            orElse: () => const <LotteryStationSchedule>[],
+          );
+      for (final s in schedules) {
+        if ((result.stationId > 0 && s.stationId == result.stationId) ||
+            s.stationName.toLowerCase() == stationName.toLowerCase()) {
+          region = s.region;
+          break;
+        }
+      }
+    }
+
+    ref.read(lotteryResultsLookupProvider.notifier).setLookup(
+      LotteryResultsLookup(
+        drawDate: targetDate,
+        stationName: stationName.isNotEmpty ? stationName : null,
+        stationId: result.stationId > 0 ? result.stationId : null,
+        region: region,
+      ),
+    );
+
+    context.go(AppRoute.home.path);
+  }
+}
+
+class _ChatLotteryStationCard extends StatelessWidget {
+  const _ChatLotteryStationCard({
+    required this.result,
+    required this.fallbackDate,
+  });
+
+  final LotteryResult result;
+  final String fallbackDate;
+
+  String _formatValues(List<String> values) {
+    final clean = values.where((v) => v.trim().isNotEmpty).toList();
+    return clean.isEmpty ? '—' : clean.join(' · ');
+  }
+
+  String _formatSingle(String value) {
+    return value.trim().isEmpty ? '—' : value.trim();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <_PrizeItem>[
+      _PrizeItem(
+        label: 'Đặc biệt',
+        value: _formatSingle(result.prizes.special),
+        accent: true,
+      ),
+      _PrizeItem(label: 'Giải 1', value: _formatSingle(result.prizes.first)),
+      _PrizeItem(label: 'Giải 2', value: _formatSingle(result.prizes.second)),
+      _PrizeItem(label: 'Giải 3', value: _formatValues(result.prizes.third)),
+      _PrizeItem(label: 'Giải 4', value: _formatValues(result.prizes.fourth)),
+      _PrizeItem(label: 'Giải 5', value: _formatValues(result.prizes.fifth)),
+      _PrizeItem(label: 'Giải 6', value: _formatValues(result.prizes.sixth)),
+      _PrizeItem(label: 'Giải 7', value: _formatValues(result.prizes.seventh)),
+      _PrizeItem(label: 'Giải 8', value: _formatValues(result.prizes.eighth)),
+    ];
+
+    final dateLabel =
+        result.dateLabel.isNotEmpty ? result.dateLabel : fallbackDate;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceSlate100,
+              border: Border(bottom: BorderSide(color: AppColors.borderLight)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  result.province,
+                  style: AppTypography.caption(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.contentHeading,
+                  ),
+                ),
+                Text(
+                  dateLabel,
+                  style: AppTypography.caption(
+                    fontSize: 11,
+                    color: AppColors.contentMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0)
+              const Divider(
+                height: 1,
+                thickness: 1,
+                color: AppColors.borderSubtle,
+              ),
+            Container(
+              color: rows[i].accent
+                  ? AppColors.surfaceBrandWarm
+                  : AppColors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6.5,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 66,
+                    child: Text(
+                      rows[i].label,
+                      style: AppTypography.caption(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: rows[i].accent
+                            ? AppColors.primary
+                            : AppColors.contentNeutral,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      rows[i].value,
+                      style: AppTypography.caption(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
+                        color: rows[i].accent
+                            ? AppColors.primary
+                            : AppColors.contentHeading,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PrizeItem {
+  const _PrizeItem({
+    required this.label,
+    required this.value,
+    this.accent = false,
+  });
+
+  final String label;
+  final String value;
+  final bool accent;
 }
 
 class _TypingBubble extends StatelessWidget {
@@ -918,7 +1498,7 @@ class _TicketSuggestBlock extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.only(left: 36),
           child: SizedBox(
-            height: 148,
+            height: 162,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: message.suggestedTickets.length,
@@ -986,7 +1566,7 @@ class _TicketSuggestBlock extends ConsumerWidget {
   }
 }
 
-class _TicketSuggestCard extends StatelessWidget {
+class _TicketSuggestCard extends ConsumerWidget {
   const _TicketSuggestCard({required this.ticket});
 
   final SuggestedTicketModel ticket;
@@ -1000,10 +1580,18 @@ class _TicketSuggestCard extends StatelessWidget {
       AppFormatters.formatDateIso(ticket.drawDate, fallback: '—');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cart = ref.watch(cartProvider);
+    final inCartCount = cart
+        .where((item) => item.lotteryTicketId == ticket.id)
+        .fold(0, (sum, item) => sum + item.quantity);
+    final totalStock = ticket.quantity ?? 1;
+    final remainingStock = totalStock - inCartCount;
+    final canAddToCart = remainingStock > 0;
+
     return Container(
-      width: 180,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      width: 184,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(14),
@@ -1012,17 +1600,48 @@ class _TicketSuggestCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            ticket.numbers,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.lotteryDigit(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  ticket.numbers,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.lotteryDigit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              if (ticket.isBeautiful == true) ...[
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFFFDE68A),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    'Số đẹp',
+                    style: AppTypography.caption(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFB45309),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             ticket.stationName ?? 'Đài xổ số',
             maxLines: 1,
@@ -1040,60 +1659,602 @@ class _TicketSuggestCard extends StatelessWidget {
             ),
           ),
           const Spacer(),
+          Text(
+            _formatPrice(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.priceMedium(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 6),
           Row(
             children: [
+              if (canAddToCart) ...[
+                IconButton(
+                  tooltip: 'Thêm vào giỏ hàng',
+                  onPressed: () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      useRootNavigator: true,
+                      isScrollControlled: true,
+                      backgroundColor: AppColors.transparent,
+                      builder: (_) => _ChatAddToCartModalSheet(
+                        ticket: ticket,
+                        totalStock: totalStock,
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.add_shopping_cart_rounded,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.surfacePrimary,
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(
+                      color: AppColors.brandPrimaryBorderLight,
+                      width: 1.0,
+                    ),
+                    minimumSize: const Size(32, 32),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
               Expanded(
-                child: Text(
-                  _formatPrice(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.priceMedium(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.contentHeading,
+                child: TextButton(
+                  onPressed: () {
+                    final cartItem = CartItemData(
+                      lotteryTicketId: ticket.id,
+                      province: ticket.stationName ?? 'Đài xổ số',
+                      dateLabel: _formatDrawDate(),
+                      drawTime: '',
+                      kyHieu: ticket.kyHieu ?? '',
+                      number: ticket.numbers,
+                      quantity: 1,
+                      unitPrice: ticket.price?.toInt() ?? 10000,
+                      logoText: ticket.stationName ?? 'Đài xổ số',
+                      ticketImageUrl: ticket.ticketImageUrl,
+                      drawDateIso: ticket.drawDate,
+                      maxStock: totalStock,
+                    );
+                    ref.read(buyNowItemsProvider.notifier).start([cartItem]);
+                    context.push(AppRoute.checkout.path);
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.surfacePrimary,
+                    backgroundColor: AppColors.primary,
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              TextButton(
-                onPressed: () {
-                  final params = <String, String>{
-                    if (ticket.stationId != null)
-                      'stationId': '${ticket.stationId}',
-                    if (ticket.drawDate != null) 'drawDate': ticket.drawDate!,
-                    'search': ticket.numbers,
-                  };
-                  final query = params.entries
-                      .map(
-                        (entry) =>
-                            '${entry.key}=${Uri.encodeComponent(entry.value)}',
-                      )
-                      .join('&');
-                  context.push('${AppRoute.buyTicket.path}?$query');
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.surfacePrimary,
-                  backgroundColor: AppColors.primary,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 6,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(
-                  'Mua ngay',
-                  style: AppTypography.buttonSmall(
-                    color: AppColors.surfacePrimary,
+                  child: Text(
+                    'Mua ngay',
+                    style: AppTypography.buttonSmall(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.surfacePrimary,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ChatAddToCartModalSheet extends ConsumerStatefulWidget {
+  const _ChatAddToCartModalSheet({
+    required this.ticket,
+    required this.totalStock,
+  });
+
+  final SuggestedTicketModel ticket;
+  final int totalStock;
+
+  @override
+  ConsumerState<_ChatAddToCartModalSheet> createState() =>
+      _ChatAddToCartModalSheetState();
+}
+
+class _ChatAddToCartModalSheetState
+    extends ConsumerState<_ChatAddToCartModalSheet> {
+  int _quantity = 1;
+
+  int get _maxStock => widget.totalStock > 0 ? widget.totalStock : 1;
+  int get _unitPrice => widget.ticket.price?.toInt() ?? 10000;
+  int get _totalPrice => _unitPrice * _quantity;
+
+  String get _formattedTotalPrice =>
+      AppFormatters.formatCurrency(_totalPrice);
+
+  String _formatDrawDate() {
+    if (widget.ticket.drawDate == null || widget.ticket.drawDate!.isEmpty) {
+      return '';
+    }
+    final dt = DateTime.tryParse(widget.ticket.drawDate!)?.toLocal();
+    if (dt == null) return widget.ticket.drawDate!;
+    const weekdayLabels = {
+      DateTime.monday: 'Thứ 2',
+      DateTime.tuesday: 'Thứ 3',
+      DateTime.wednesday: 'Thứ 4',
+      DateTime.thursday: 'Thứ 5',
+      DateTime.friday: 'Thứ 6',
+      DateTime.saturday: 'Thứ 7',
+      DateTime.sunday: 'Chủ nhật',
+    };
+    final weekday = weekdayLabels[dt.weekday] ?? '';
+    final now = DateTime.now();
+    final isToday =
+        dt.year == now.year && dt.month == now.month && dt.day == now.day;
+    final isTomorrow =
+        dt.year == now.year && dt.month == now.month && dt.day == now.day + 1;
+    final suffix = isToday ? ' (Hôm nay)' : (isTomorrow ? ' (Ngày mai)' : '');
+    final dayStr = dt.day.toString().padLeft(2, '0');
+    final monthStr = dt.month.toString().padLeft(2, '0');
+    return '$weekday, $dayStr/$monthStr/${dt.year}$suffix';
+  }
+
+  void _decrease() {
+    if (_quantity > 1) {
+      setState(() => _quantity--);
+    }
+  }
+
+  void _increase() {
+    if (_quantity < _maxStock) {
+      setState(() => _quantity++);
+    } else {
+      AppToast.warning('Đã đạt số lượng vé tối đa còn lại');
+    }
+  }
+
+  void _addToCart() {
+    final ticket = widget.ticket;
+    final currentQtyInCart =
+        ref.read(cartProvider.notifier).quantityForTicket(ticket.id);
+    if (currentQtyInCart + _quantity > _maxStock) {
+      AppToast.error(
+        'Vé số ${ticket.numbers} chỉ còn $_maxStock vé (bạn đã có $currentQtyInCart vé trong giỏ)',
+      );
+      return;
+    }
+
+    final cartItem = CartItemData(
+      lotteryTicketId: ticket.id,
+      province: ticket.stationName ?? 'Đài xổ số',
+      dateLabel: _formatDrawDate(),
+      drawTime: '',
+      kyHieu: ticket.kyHieu ?? '',
+      number: ticket.numbers,
+      quantity: _quantity,
+      unitPrice: _unitPrice,
+      logoText: ticket.stationName ?? 'Đài xổ số',
+      ticketImageUrl: ticket.ticketImageUrl,
+      drawDateIso: ticket.drawDate,
+      maxStock: _maxStock,
+    );
+
+    final router = GoRouter.of(context);
+    ref.read(cartProvider.notifier).addItem(cartItem);
+    Navigator.of(context).pop();
+
+    AppToast.show(
+      'Đã thêm $_quantity vé ${ticket.numbers} vào giỏ hàng.',
+      actionLabel: 'Xem giỏ hàng',
+      onAction: () {
+        final currentCtx = rootNavigatorKey.currentContext;
+        if (currentCtx != null && currentCtx.mounted) {
+          currentCtx.push(AppRoute.cart.path);
+        } else {
+          router.push(AppRoute.cart.path);
+        }
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stationName = widget.ticket.stationName ?? 'Đài xổ số';
+    final dateText = _formatDrawDate();
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surfacePrimary,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 28,
+            offset: Offset(0, -6),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top Drag Handle & Close Button
+              Row(
+                children: [
+                  const SizedBox(width: 32),
+                  Expanded(
+                    child: Center(
+                      child: Container(
+                        width: 40,
+                        height: 4.5,
+                        decoration: BoxDecoration(
+                          color: AppColors.borderSubtle,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surfaceSlate100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: AppColors.contentMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Ticket Hero Box
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surfacePrimary,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.borderDecorative,
+                    width: 1.0,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppColors.shadowLight,
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Vé số $stationName',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.subtitle1(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.contentMuted,
+                            ),
+                          ),
+                        ),
+                        if (dateText.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.calendar_month_outlined,
+                                size: 13,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                dateText,
+                                style: AppTypography.subtitle2(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(height: 1, color: AppColors.borderSubtle),
+                    const SizedBox(height: 12),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        widget.ticket.numbers,
+                        textAlign: TextAlign.center,
+                        style: AppTypography.lotteryDigit(
+                          color: AppColors.contentPrimary,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 4,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Quantity Selector & Price Details
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSoft,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.borderSubtle),
+                ),
+                child: Column(
+                  children: [
+                    // 1. Unit price
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Đơn giá',
+                          style: AppTypography.bodyMedium(
+                            fontSize: 13.5,
+                            color: AppColors.contentMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          '${AppFormatters.formatCurrency(_unitPrice)} / vé',
+                          style: AppTypography.priceMedium(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Divider(
+                        height: 1,
+                        color: AppColors.borderDecorative,
+                      ),
+                    ),
+
+                    // 2. Stock available
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Số lượng còn',
+                          style: AppTypography.bodyMedium(
+                            fontSize: 13.5,
+                            color: AppColors.contentMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 3.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.brandPrimarySubtle,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: AppColors.brandPrimaryBorderLight,
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            '$_maxStock vé',
+                            style: AppTypography.labelSmall(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Divider(
+                        height: 1,
+                        color: AppColors.borderDecorative,
+                      ),
+                    ),
+
+                    // 3. Step control
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Số lượng mua',
+                          style: AppTypography.bodyMedium(
+                            fontSize: 13.5,
+                            color: AppColors.contentMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.surfacePrimary,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: AppColors.borderDecorative,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              _ChatStepButton(
+                                icon: Icons.remove_rounded,
+                                disabled: _quantity <= 1,
+                                onTap: _decrease,
+                              ),
+                              Container(
+                                width: 44,
+                                height: 36,
+                                alignment: Alignment.center,
+                                decoration: const BoxDecoration(
+                                  border: Border.symmetric(
+                                    vertical: BorderSide(
+                                      color: AppColors.borderDecorative,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  '$_quantity',
+                                  style: AppTypography.subtitle1(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                              _ChatStepButton(
+                                icon: Icons.add_rounded,
+                                disabled: _quantity >= _maxStock,
+                                onTap: _increase,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Divider(
+                        height: 1,
+                        color: AppColors.borderDecorative,
+                      ),
+                    ),
+
+                    // 4. Total calculation
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Tổng tiền',
+                          style: AppTypography.h6(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          _formattedTotalPrice,
+                          style: AppTypography.priceLarge(
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Single Action Button: Only "Thêm vào giỏ"
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _addToCart,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(
+                      color: AppColors.primary,
+                      width: 1.5,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 20,
+                  ),
+                  label: Text(
+                    'Thêm vào giỏ',
+                    style: AppTypography.buttonLarge(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatStepButton extends StatelessWidget {
+  const _ChatStepButton({
+    required this.icon,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: disabled ? null : onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        child: Icon(
+          icon,
+          size: 18,
+          color: disabled ? AppColors.contentDisabled : AppColors.primary,
+        ),
       ),
     );
   }
@@ -1161,12 +2322,14 @@ class _ChatInputBar extends StatelessWidget {
     required this.controller,
     required this.bottomInset,
     required this.onSend,
+    this.onTap,
     this.enabled = true,
   });
 
   final TextEditingController controller;
   final double bottomInset;
   final VoidCallback onSend;
+  final VoidCallback? onTap;
   final bool enabled;
 
   @override
@@ -1183,6 +2346,7 @@ class _ChatInputBar extends StatelessWidget {
             child: TextField(
               controller: controller,
               enabled: enabled,
+              onTap: onTap,
               textInputAction: TextInputAction.send,
               onSubmitted: enabled ? (_) => onSend() : null,
               decoration: InputDecoration(

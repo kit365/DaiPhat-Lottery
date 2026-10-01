@@ -1,15 +1,20 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
-
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
 import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
 import 'package:daiphat_mobile/src/features/prize_payouts/presentation/widgets/prize_payout_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers/bank_accounts_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/widgets/prize_payout_request_sheet.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint_form_page.dart';
 import '../viewmodels/prize_payout_detail_viewmodel.dart';
 
 class PrizePayoutDetailView extends ConsumerStatefulWidget {
@@ -21,8 +26,10 @@ class PrizePayoutDetailView extends ConsumerStatefulWidget {
       _PrizePayoutDetailViewState();
 }
 
-class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
+class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView>
+    with WidgetsBindingObserver {
   late final PrizePayoutDetailViewModel _viewModel;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
@@ -32,10 +39,42 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
       ref.read(cancelPrizePayoutProvider),
       widget.requestId,
     );
+    _viewModel.addListener(_onViewModelUpdated);
+    WidgetsBinding.instance.addObserver(this);
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted &&
+          (_viewModel.payout?.status == PrizePayoutRequestStatus.pending ||
+              _viewModel.payout?.status == PrizePayoutRequestStatus.approved)) {
+        _viewModel.load();
+      }
+    });
+  }
+
+  void _onViewModelUpdated() {
+    if (_viewModel.payout?.status == PrizePayoutRequestStatus.completed ||
+        _viewModel.payout?.status == PrizePayoutRequestStatus.rejected ||
+        _viewModel.payout?.status == PrizePayoutRequestStatus.cancelled) {
+      _pollingTimer?.cancel();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _viewModel.load();
+    }
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _viewModel.removeListener(_onViewModelUpdated);
     _viewModel.dispose();
     super.dispose();
   }
@@ -145,6 +184,10 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
                     payout.transferEvidenceUrl!.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _buildEvidenceCard(payout),
+                ],
+                if (_canShowComplaint(payout)) ...[
+                  const SizedBox(height: 16),
+                  _buildComplaintButton(payout),
                 ],
                 if (payout.status == PrizePayoutRequestStatus.rejected) ...[
                   const SizedBox(height: 16),
@@ -299,6 +342,150 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
     );
   }
 
+  bool _canShowComplaint(PrizePayoutRequestResponse payout) {
+    const waitHours = 48;
+    const graceDays = 15;
+
+    if (payout.status == PrizePayoutRequestStatus.pending ||
+        payout.status == PrizePayoutRequestStatus.approved) {
+      final updatedAt = DateTime.tryParse(payout.updatedAt ?? '');
+      return updatedAt != null &&
+          DateTime.now().difference(updatedAt).inHours >= waitHours;
+    }
+
+    if (payout.status == PrizePayoutRequestStatus.completed) {
+      final anchor = DateTime.tryParse(
+        payout.completedAt ?? payout.updatedAt ?? '',
+      );
+      return anchor == null ||
+          DateTime.now().difference(anchor).inDays <= graceDays;
+    }
+
+    return false;
+  }
+
+  Future<void> _openComplaintForm(PrizePayoutRequestResponse payout) async {
+    final isCompleted = payout.status == PrizePayoutRequestStatus.completed;
+    final result = await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (_) => ComplaintFormPage(
+          defaultCategoryCode: isCompleted
+              ? 'PRIZE_PAYOUT_PAID_ISSUE'
+              : 'PRIZE_PAYOUT_SLOW_PROCESSING',
+          defaultRefId: '${payout.id}',
+          defaultRefLabel: payout.requestCode,
+          defaultTitle: isCompleted
+              ? 'Chưa nhận được tiền trả thưởng'
+              : 'Yêu cầu trả thưởng xử lý chậm',
+          defaultDescription: isCompleted
+              ? 'Nhân viên đã xác nhận chuyển khoản nhưng tôi chưa nhận được tiền trả thưởng. Vui lòng kiểm tra và hỗ trợ đối soát giao dịch.'
+              : 'Yêu cầu trả thưởng của tôi đã quá thời gian xử lý cam kết. Vui lòng kiểm tra và hỗ trợ.',
+        ),
+      ),
+    );
+
+    if (result is SupportTicketResponse && mounted) {
+      context.pushNamed(
+        AppRoute.complaintDetail.name,
+        pathParameters: {'id': '${result.id}'},
+      );
+    }
+  }
+
+  Widget _buildComplaintButton(PrizePayoutRequestResponse payout) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfacePrimary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Chưa nhận được tiền?',
+            style: AppTypography.mainWith(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textMain,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Bạn có thể gửi khiếu nại để nhân viên kiểm tra giao dịch chuyển khoản.',
+            style: AppTypography.mainWith(
+              fontSize: 13,
+              color: AppColors.textMuted,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _openComplaintForm(payout),
+              icon: const Icon(Icons.headset_mic_outlined, size: 18),
+              label: Text(
+                'Khiếu nại giao dịch này',
+                style: AppTypography.mainWith(fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.surfacePrimary,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openResubmitSheet(PrizePayoutRequestResponse payout) async {
+    final ticket = PurchasedTicket(
+      orderId: payout.orderId ?? '',
+      orderCode: payout.orderCode ?? '',
+      orderDetailId: payout.orderDetailId,
+      ticketId: 0,
+      serialId: payout.serialId,
+      serialNumber: payout.serialNumber,
+      numbers: payout.numbers ?? '',
+      stationName: payout.stationName,
+      drawDate: payout.drawDate ?? '',
+      price: 10000,
+      purchasedAt: payout.createdAt ?? '',
+      drawResultStatus: 'WON',
+      matchedPrizeCode: payout.prizeCode,
+      matchedPrizeDisplayName: payout.prizeDisplayName,
+      prizeAmount: payout.grossAmount,
+      canClaimOnline: true,
+    );
+
+    final result = await showModalBottomSheet<dynamic>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+      builder: (context) => PrizePayoutRequestSheet(
+        ticket: ticket,
+        previewPrizePayout: ref.read(previewPrizePayoutProvider),
+        createPrizePayout: ref.read(createPrizePayoutProvider),
+        uploadRecipientIdImage:
+            ref.read(uploadPrizePayoutRecipientIdImageProvider),
+        getMyBankAccounts: ref.read(getMyBankAccountsProvider),
+        getBanks: ref.read(getBanksProvider),
+        createBankAccount: ref.read(createBankAccountProvider),
+      ),
+    );
+
+    if (result != null && mounted) {
+      _viewModel.load();
+    }
+  }
+
   Widget _buildRejectCard(PrizePayoutRequestResponse payout) {
     final canResubmit =
         !payout.onlineClaimLocked && payout.orderDetailId != null;
@@ -332,19 +519,24 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
             ),
           ),
           if (canResubmit) ...[
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => context.pushNamed(AppRoute.myTickets.name),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.surfacePrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _openResubmitSheet(payout),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(
+                  'Gửi lại giấy tờ / yêu cầu mới',
+                  style: AppTypography.mainWith(fontWeight: FontWeight.w700),
                 ),
-              ),
-              child: Text(
-                'Gửi yêu cầu mới từ Vé của tôi',
-                style: AppTypography.mainWith(fontWeight: FontWeight.w700),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.surfacePrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
             ),
           ],

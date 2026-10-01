@@ -47,7 +47,6 @@ import 'package:daiphat_mobile/src/features/utilities/presentation/views/utiliti
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 const _paymentNavigationPolicy = PaymentNavigationPolicy();
 
 GoRouter createAppRouter({
@@ -60,6 +59,7 @@ GoRouter createAppRouter({
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: AppRoute.home.path,
+    refreshListenable: loginViewModel,
     // Handle deep links from PayOS redirect
     redirect: (context, state) {
       final uri = state.uri;
@@ -132,6 +132,14 @@ GoRouter createAppRouter({
         return AppRoute.home.path;
       }
 
+      // Admin role restriction:
+      // When entering mobile with an admin account, restrict exclusively to OCR scan.
+      if (loginViewModel.isAuthenticated && loginViewModel.user?.isAdmin == true) {
+        if (path != AppRoute.adminScan.path) {
+          return AppRoute.adminScan.path;
+        }
+      }
+
       return null; // No redirect
     },
     routes: [
@@ -143,7 +151,6 @@ GoRouter createAppRouter({
         ),
         branches: [
           StatefulShellBranch(
-            navigatorKey: _shellNavigatorKey,
             routes: [
               _route(
                 AppRoute.buyTicket,
@@ -193,22 +200,13 @@ GoRouter createAppRouter({
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: AppRoute.profile.path,
-                name: AppRoute.profile.name,
-                builder: (context, state) => ProfileView(
-                  viewModel: profileViewModel,
-                  notificationViewModel: notificationViewModel,
-                ),
-                routes: [
-                  GoRoute(
-                    path: 'security',
-                    name: AppRoute.security.name,
-                    parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) =>
-                        SecurityView(profileViewModel: profileViewModel),
-                  ),
-                ],
+              _route(
+                AppRoute.profile,
+                loginViewModel,
+                registerViewModel,
+                forgotPasswordViewModel,
+                profileViewModel,
+                notificationViewModel,
               ),
             ],
           ),
@@ -423,6 +421,14 @@ GoRouter createAppRouter({
         notificationViewModel,
       ),
       _route(
+        AppRoute.security,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
         AppRoute.fortune,
         loginViewModel,
         registerViewModel,
@@ -464,7 +470,6 @@ GoRoute _route(
   NotificationViewModel notificationViewModel,
 ) {
   return GoRoute(
-    parentNavigatorKey: route.usesRootNavigator ? rootNavigatorKey : null,
     path: route.path,
     name: route.name,
     builder: (context, state) => _buildRoute(
@@ -619,8 +624,16 @@ Widget _buildRoute(
         return const SizedBox.shrink();
       }
       return Consumer(
-        builder: (context, ref, _) =>
-            AdminScanView(viewModel: ref.watch(adminScanViewModelProvider)),
+        builder: (context, ref, _) => AdminScanView(
+          viewModel: ref.watch(adminScanViewModelProvider),
+          adminUser: loginViewModel.user,
+          onLogout: () async {
+            await profileViewModel.logout();
+            if (context.mounted) {
+              context.go(AppRoute.login.path);
+            }
+          },
+        ),
       );
     case AppRoute.fortune:
       return FortuneCastView(profileViewModel: profileViewModel);

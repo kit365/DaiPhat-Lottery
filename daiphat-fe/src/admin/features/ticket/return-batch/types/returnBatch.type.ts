@@ -46,6 +46,7 @@ export interface ReturnBatch {
     remainingInspectableQuantity?: number | null;
     totalReturnValue: number;
     returnedBy?: string | null;
+    returnedByDisplayName?: string | null;
     returnedAt?: string | null;
     confirmedAt?: string | null;
     status: ReturnBatchStatus;

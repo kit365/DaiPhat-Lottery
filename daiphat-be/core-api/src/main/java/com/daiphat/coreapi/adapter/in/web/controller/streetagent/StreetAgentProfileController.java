@@ -148,7 +148,7 @@ public class StreetAgentProfileController {
     @PreAuthorize("hasAuthority('streetAgent:create') or hasAuthority('streetAgent:edit')")
     public ApiResponse<StreetAgentProfileResponse> verifyEkyc(@PathVariable Long id) {
         return ApiResponse.success(
-                "Xác thực CCCD (eKYC) thành công.",
+                "Đã đọc và kiểm tra thông tin CCCD bằng OCR.",
                 streetAgentProfileServicePort.verifyEkyc(id));
     }
 }

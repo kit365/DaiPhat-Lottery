@@ -48,8 +48,9 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
   bool _hasInvalidCheckoutUrl = false;
 
   // Countdown
-  int _remainingSeconds = 15 * 60; // default 15 min, synced from API
+  int _remainingSeconds = 0;
   bool _isExpired = false;
+  bool _isCountdownLoading = true;
   Timer? _countdownTimer;
 
   // Pull-to-refresh
@@ -94,8 +95,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     if (widget.orderId != null) {
       // Defer to post-frame so mounted = true before starting timer/setState
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _startCountdown(_remainingSeconds); // default 15 min
-        _fetchAndStartCountdown(); // sync real value from server
+        _fetchAndStartCountdown();
       });
     }
   }
@@ -114,18 +114,35 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
       if (!mounted) return;
       _startCountdown(result.remainingSeconds, alreadyExpired: result.expired);
     } catch (_) {
-      // Countdown sync failed silently — local countdown continues
+      // Do not fall back to a different hard-coded timeout. The backend is
+      // the source of truth for the configured payment timeout.
+      if (mounted) {
+        setState(() {
+          _isCountdownLoading = false;
+          _isExpired = true;
+        });
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (mounted) _handleCancel(isTimeout: true);
+        });
+      }
     }
   }
 
   void _startCountdown(int seconds, {bool alreadyExpired = false}) {
     _countdownTimer?.cancel();
     if (!mounted) return;
+    final isExpiredNow = alreadyExpired || seconds <= 0;
     setState(() {
       _remainingSeconds = seconds;
-      _isExpired = alreadyExpired || seconds <= 0;
+      _isExpired = isExpiredNow;
+      _isCountdownLoading = false;
     });
-    if (_isExpired) return;
+    if (isExpiredNow) {
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted) _handleCancel(isTimeout: true);
+      });
+      return;
+    }
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
@@ -138,6 +155,9 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
           _remainingSeconds = 0;
           _isExpired = true;
           timer.cancel();
+          Future.delayed(const Duration(milliseconds: 1200), () {
+            if (mounted) _handleCancel(isTimeout: true);
+          });
         }
       });
     });
@@ -187,20 +207,109 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     );
   }
 
-  void _handleCancel() {
+  Future<void> _handleCancel({bool isTimeout = false}) async {
     if (_isNavigatedToResult) return;
     _isNavigatedToResult = true;
+
+    if (widget.orderId != null) {
+      try {
+        final service = ref.read(transactionRepositoryProvider);
+        await service.cancelPayment(
+          orderId: widget.orderId!,
+          gateway: 'PAYOS',
+          reason: isTimeout ? 'Hết hạn thanh toán' : 'Người dùng hủy thanh toán',
+        );
+      } catch (_) {
+        // Silently continue to result screen
+      }
+    }
+
+    if (!mounted) return;
 
     context.pushReplacementNamed(
       AppRoute.checkoutResult.name,
       queryParameters: {
         'code': '',
         'cancel': 'true',
-        'status': 'cancelled',
+        'status': isTimeout ? 'timeout' : 'cancelled',
         if (widget.internalCode != null) 'internalCode': widget.internalCode!,
         if (widget.orderId != null) 'orderId': widget.orderId!,
       },
     );
+  }
+
+  Future<void> _confirmAndCancel() async {
+    final shouldCancel = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        backgroundColor: AppColors.surfacePrimary,
+        title: Row(
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.statusWarningAccent,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Hủy thanh toán?',
+              style: AppTypography.mainWith(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textMain,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Bạn có chắc chắn muốn hủy thanh toán cho đơn hàng này? Vé đã chọn sẽ được hoàn lại vào kho.',
+          style: AppTypography.mainWith(
+            fontSize: 14,
+            color: AppColors.textMuted,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Tiếp tục thanh toán',
+              style: AppTypography.mainWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.statusErrorSurface,
+              foregroundColor: AppColors.statusErrorForeground,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Hủy đơn',
+              style: AppTypography.mainWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.statusErrorForeground,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCancel == true) {
+      await _handleCancel(isTimeout: false);
+    }
   }
 
   @override
@@ -208,7 +317,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _handleCancel();
+        if (!didPop) _confirmAndCancel();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -227,7 +336,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
           surfaceTintColor: AppColors.transparent,
           leading: IconButton(
             icon: const Icon(Icons.close_rounded, size: 24),
-            onPressed: _handleCancel,
+            onPressed: _confirmAndCancel,
           ),
           actions: [
             if (widget.orderId != null) _buildCountdownChip(),
@@ -289,7 +398,13 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     final String label;
     final IconData icon;
 
-    if (_isExpired) {
+    if (_isCountdownLoading) {
+      bgColor = AppColors.surfaceNeutral;
+      textColor = AppColors.textMuted;
+      iconColor = AppColors.textMuted;
+      label = '...';
+      icon = Icons.timer_rounded;
+    } else if (_isExpired) {
       bgColor = AppColors.statusDangerSurface;
       textColor = AppColors.brandPrimaryDarkRed;
       iconColor = AppColors.statusDanger;

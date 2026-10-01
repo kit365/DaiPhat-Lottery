@@ -53,7 +53,11 @@ class _LoginViewState extends State<LoginView> {
     }
 
     AppToast.success('Đăng nhập thành công');
-    context.go(AppRoute.home.path);
+    if (widget.viewModel.user?.isAdmin == true) {
+      context.go(AppRoute.adminScan.path);
+    } else {
+      context.go(AppRoute.home.path);
+    }
   }
 
   Future<void> _handleGoogleLogin() async {
@@ -63,7 +67,11 @@ class _LoginViewState extends State<LoginView> {
     }
 
     AppToast.success('Đăng nhập Google thành công');
-    context.go(AppRoute.home.path);
+    if (widget.viewModel.user?.isAdmin == true) {
+      context.go(AppRoute.adminScan.path);
+    } else {
+      context.go(AppRoute.home.path);
+    }
   }
 
   @override

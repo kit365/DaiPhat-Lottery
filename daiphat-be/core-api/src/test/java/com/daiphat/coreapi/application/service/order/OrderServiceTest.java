@@ -123,7 +123,9 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 orderRefundGraceService,
                 paymentTimeoutConfigService,
                 mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class),
-                storagePort
+                storagePort,
+                mock(OrderPreparationExpiryService.class),
+                mock(com.daiphat.coreapi.application.service.lotteries.TicketSalesCutoffPolicy.class)
         );
         when(orderRefundGraceService.evaluate(any())).thenReturn(
                 new OrderRefundGraceService.RefundGraceEvaluation(false, null, 0L, 0, null, null)
@@ -243,30 +245,6 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
         verifyNoOrderCreation();
     }
 
-    @Test
-    @DisplayName("[TC-ORDER-035] CREATE: rejects pickup date before the allowed draw window")
-    void createOnlineOrder_rejectsPickupTimeTooFarFromDrawDate() {
-        UUID customerId = UUID.randomUUID();
-        LocalDate drawDate = LocalDate.now().plusDays(10);
-        CreateOnlineOrderRequest request = new CreateOnlineOrderRequest(
-                DEFAULT_CUSTOMER_NAME,
-                DEFAULT_PHONE,
-                null,
-                SINGLE_TICKET_ITEM,
-                null,
-                drawDate.minusDays(4).atTime(10, 0),
-                "string"
-        );
-
-        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(mock(UserModel.class));
-        when(lotteryTicketServicePort.reserveForOrder(List.of(101L)))
-                .thenReturn(List.of(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate)));
-
-        assertThatThrownBy(() -> orderService.createOnlineOrder(request, customerId))
-                .isInstanceOf(DomainException.class)
-                .hasMessage("Thời gian hẹn lấy vé không hợp lệ.");
-        verify(orderRepositoryPort, never()).save(any(OrderModel.class));
-    }
 
     @Test
     @DisplayName("[TC-ORDER-034] CREATE: rejects pickup time less than fifteen minutes from now")
@@ -616,38 +594,6 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_PICKUP_TIME);
     }
 
-    @Test
-    @DisplayName("[DP-346] CREATE: Tạo đơn online thất bại khi có vé không có drawDate")
-    void createOnlineOrder_nullDrawDate_throwsException() {
-        UUID customerId = UUID.randomUUID();
-        CreateOnlineOrderRequest request = createOnlineRequest(SINGLE_TICKET_ITEM, LocalDateTime.now().plusDays(1), DEFAULT_PHONE);
-
-        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(new UserModel());
-        // Return ticket snapshot with null drawDate
-        when(lotteryTicketServicePort.reserveForOrder(List.of(101L)))
-                .thenReturn(List.of(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), null)));
-
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> orderService.createOnlineOrder(request, customerId))
-                .isInstanceOf(DomainException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_PICKUP_TIME);
-    }
-
-    @Test
-    @DisplayName("[TC-ORDER-035] CREATE: rejects pickup date after the draw date")
-    void createOnlineOrder_pickupDateAfterDrawDate_throwsException() {
-        UUID customerId = UUID.randomUUID();
-        LocalDate drawDate = LocalDate.now().plusDays(2);
-        // Pickup date is 3 days after now, which is after drawDate
-        CreateOnlineOrderRequest request = createOnlineRequest(SINGLE_TICKET_ITEM, LocalDateTime.now().plusDays(3), DEFAULT_PHONE);
-
-        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(new UserModel());
-        when(lotteryTicketServicePort.reserveForOrder(List.of(101L)))
-                .thenReturn(List.of(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate)));
-
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> orderService.createOnlineOrder(request, customerId))
-                .isInstanceOf(DomainException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_PICKUP_TIME);
-    }
 
     @Test
     @DisplayName("[DP-346] CREATE: Tạo đơn trực tiếp thành công khi thiếu phone nhưng có email")
@@ -780,8 +726,8 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
-    @DisplayName("[DP-346] CREATE: Tạo đơn online thất bại khi ReceiveType không hợp lệ")
-    void createOnlineOrder_invalidReceiveType_throwsException() {
+    @DisplayName("[DP-346] CREATE: Tạo đơn online thất bại khi pickup time trong quá khứ")
+    void createOnlineOrder_pastPickupTime_throwsException() {
         UUID creatorId = UUID.randomUUID();
         CreateOnlineOrderRequest request = new CreateOnlineOrderRequest(
                 DEFAULT_CUSTOMER_NAME,
@@ -789,7 +735,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 DEFAULT_EMAIL,
                 SINGLE_TICKET_ITEM,
                 null,
-                LocalDateTime.now().plusDays(1),
+                LocalDateTime.now().minusMinutes(1),
                 DEFAULT_NOTE
         );
 

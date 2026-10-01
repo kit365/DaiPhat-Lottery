@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
@@ -9,9 +10,11 @@ import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_
 import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers/bank_accounts_providers.dart';
 import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
 import 'package:daiphat_mobile/src/features/prize_payouts/presentation/widgets/prize_payout_request_sheet.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/utils/rebuy_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/providers/purchased_tickets_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/ticket_number_display.dart';
@@ -54,14 +57,115 @@ class _TicketDetailBody extends ConsumerStatefulWidget {
   ConsumerState<_TicketDetailBody> createState() => _TicketDetailBodyState();
 }
 
-class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
+class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody>
+    with WidgetsBindingObserver {
   late PurchasedTicket _ticket;
   PurchasedTicket get ticket => _ticket;
+  bool _isRefreshing = false;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _ticket = widget.ticket;
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshTicket();
+      _startPollingIfNeeded();
+    });
+  }
+
+  void _startPollingIfNeeded() {
+    _pollingTimer?.cancel();
+    final isInProgress =
+        _ticket.activePayoutStatus == 'PENDING' ||
+        _ticket.activePayoutStatus == 'APPROVED' ||
+        _ticket.payoutState == 'PAYOUT_PENDING';
+    if (isInProgress) {
+      _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (mounted) {
+          _refreshTicket();
+        }
+      });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshTicket();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Future<void> _refreshTicket() async {
+    if (_isRefreshing) return;
+    _isRefreshing = true;
+
+    try {
+      // 1. If we have activePayoutRequestId, fetch latest payout status
+      final payoutId = _ticket.activePayoutRequestId;
+      if (payoutId != null) {
+        try {
+          final payoutResp =
+              await ref.read(getPrizePayoutDetailProvider).call(payoutId);
+          if (mounted) {
+            final statusStr = payoutResp.status.value;
+            final isDone =
+                payoutResp.status == PrizePayoutRequestStatus.completed;
+            setState(() {
+              _ticket = _ticket.copyWith(
+                activePayoutStatus: statusStr,
+                payoutState: isDone ? 'PAID_OUT' : _ticket.payoutState,
+                canClaimOnline: !isDone && (_ticket.canClaimOnline ?? false),
+              );
+            });
+            if (isDone ||
+                payoutResp.status == PrizePayoutRequestStatus.rejected ||
+                payoutResp.status == PrizePayoutRequestStatus.cancelled) {
+              _pollingTimer?.cancel();
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2. Query ticket list to sync all ticket-level fields
+      try {
+        final repo = ref.read(purchasedTicketsRepositoryProvider);
+        final resp = await repo.getMyTickets(
+          ticketNumber: _ticket.numbers,
+          size: 50,
+        );
+
+        final found = resp.records.firstWhere(
+          (t) =>
+              (t.serialId != null && t.serialId == _ticket.serialId) ||
+              (t.orderDetailId != null &&
+                  t.orderDetailId == _ticket.orderDetailId) ||
+              (t.ticketId == _ticket.ticketId) ||
+              (t.detailRouteId == _ticket.detailRouteId),
+          orElse: () => _ticket,
+        );
+
+        if (mounted && found != _ticket) {
+          setState(() {
+            _ticket = found;
+          });
+        }
+      } catch (_) {}
+    } catch (_) {
+      // Keep existing state on error
+    } finally {
+      if (mounted) {
+        _isRefreshing = false;
+      }
+    }
   }
 
   @override
@@ -97,82 +201,103 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTicketStub(
-              status: status,
-              fullNumber: fullNumber,
-              isWon: isWon,
-              possession: possession,
-            ),
-            if (isWon) ...[
-              const SizedBox(height: 16),
-              _buildPrizeSection(
-                context,
-                isEligible: isEligible,
-                payout: payout,
+      body: RefreshIndicator(
+        onRefresh: _refreshTicket,
+        color: AppColors.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTicketStub(
+                status: status,
+                fullNumber: fullNumber,
+                isWon: isWon,
+                possession: possession,
               ),
+              if (isWon) ...[
+                const SizedBox(height: 16),
+                _buildPrizeSection(
+                  context,
+                  isEligible: isEligible,
+                  payout: payout,
+                ),
+              ],
+              const SizedBox(height: 16),
             ],
-            const SizedBox(height: 16),
-            _buildViewDrawResultButton(context, ref),
-            const SizedBox(height: 10),
-            _buildRebuyButton(context),
-          ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          decoration: const BoxDecoration(
+            color: AppColors.surfacePrimary,
+            border: Border(
+              top: BorderSide(color: AppColors.borderLight, width: 1),
+            ),
+          ),
+          child: _buildActionButtonsRow(context, ref),
         ),
       ),
     );
   }
 
-  Widget _buildViewDrawResultButton(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () => _openDrawResults(context, ref),
-        icon: const Icon(Icons.calendar_month_rounded, size: 18),
-        label: Text(
-          'Xem kết quả kỳ quay',
-          style: AppTypography.mainWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
+  Widget _buildActionButtonsRow(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => _openDrawResults(context, ref),
+            icon: const Icon(Icons.calendar_month_rounded, size: 16),
+            label: Text(
+              'Xem kết quả kỳ quay',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.mainWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                color: AppColors.contentHeading,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.contentHeading,
+              backgroundColor: AppColors.surfaceSlate100,
+              side: const BorderSide(color: AppColors.borderLight),
+              padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textMain,
-          backgroundColor: AppColors.surfaceSlate100,
-          side: BorderSide.none,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        const SizedBox(width: 10),
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: () => openRebuyTicket(context, ticket),
+            icon: const Icon(Icons.add_shopping_cart_rounded, size: 16),
+            label: Text(
+              'Mua lại bộ số này',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.mainWith(
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                color: AppColors.surfacePrimary,
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surfacePrimary,
+              padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildRebuyButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: () => openRebuyTicket(context, ticket),
-        icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
-        label: Text(
-          'Mua lại bộ số này',
-          style: AppTypography.mainWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
-          ),
-        ),
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
+      ],
     );
   }
 
@@ -476,23 +601,22 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
                         color: AppColors.ticketResultWonForeground,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isPayoutCompleted
-                          ? 'Đã trả thưởng'
-                          : isPayoutInProgress
-                          ? 'Yêu cầu đang xử lý'
-                          : isStationOfficeOnly
-                          ? 'Đổi tại văn phòng đài'
-                          : _ticket.canClaimOnline == false ||
-                                _ticket.claimChannel == 'IN_PERSON'
-                          ? 'Đổi tại đại lý'
-                          : 'Có thể đổi thưởng trực tuyến',
-                      style: AppTypography.mainWith(
-                        fontSize: 12,
-                        color: AppColors.ticketMetadataForeground,
+                    if (payout == null ||
+                        payout.label == 'Chưa yêu cầu trả thưởng') ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        isStationOfficeOnly
+                            ? 'Đổi tại văn phòng đài'
+                            : _ticket.canClaimOnline == false ||
+                                  _ticket.claimChannel == 'IN_PERSON'
+                            ? 'Đổi tại đại lý'
+                            : 'Có thể đổi thưởng trực tuyến',
+                        style: AppTypography.mainWith(
+                          fontSize: 12,
+                          color: AppColors.ticketMetadataForeground,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -507,7 +631,8 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
                 ),
             ],
           ),
-          if (payout != null) ...[
+          if (payout != null &&
+              payout.label != 'Chưa yêu cầu trả thưởng') ...[
             const SizedBox(height: 10),
             _buildStatusChip(
               payout.label,
@@ -553,22 +678,73 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
             ),
           ],
           if (_hasPayoutDetailLink) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => _openPayoutDetail(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.5),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.receipt_long_outlined,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Xem chi tiết yêu cầu đổi thưởng',
+                        style: AppTypography.mainWith(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: AppColors.primary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 12,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (_ticket.activePayoutStatus == 'REJECTED') ...[
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _openPayoutDetail(context),
-                icon: const Icon(Icons.receipt_long_outlined, size: 18),
+              child: ElevatedButton.icon(
+                onPressed: () => _openPayoutSheet(context),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: Text(
-                  'Xem chi tiết yêu cầu đổi thưởng',
+                  'Gửi lại giấy tờ / yêu cầu mới',
                   style: AppTypography.mainWith(
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
                 ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.contentSlate700,
-                  side: const BorderSide(color: AppColors.borderMuted),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.surfacePrimary,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -584,17 +760,26 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
 
   bool get _hasPayoutDetailLink {
     final status = _ticket.activePayoutStatus;
-    return _ticket.activePayoutRequestId != null &&
-        (status == 'PENDING' || status == 'APPROVED' || status == 'COMPLETED');
+    return _ticket.activePayoutRequestId != null ||
+        status == 'PENDING' ||
+        status == 'APPROVED' ||
+        status == 'COMPLETED' ||
+        status == 'REJECTED';
   }
 
-  void _openPayoutDetail(BuildContext context) {
+  Future<void> _openPayoutDetail(BuildContext context) async {
     final requestId = _ticket.activePayoutRequestId;
-    if (requestId == null) return;
-    context.pushNamed(
-      AppRoute.prizePayoutDetail.name,
-      pathParameters: {'id': '$requestId'},
-    );
+    if (requestId != null) {
+      await context.pushNamed(
+        AppRoute.prizePayoutDetail.name,
+        pathParameters: {'id': '$requestId'},
+      );
+    } else {
+      await context.pushNamed(AppRoute.prizePayouts.name);
+    }
+    if (mounted) {
+      await _refreshTicket();
+    }
   }
 
   Future<void> _openPayoutSheet(BuildContext context) async {
@@ -614,14 +799,19 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
       ),
     );
 
-    if (result == true && mounted) {
+    if (result != null && mounted) {
+      final int? newRequestId = result is PrizePayoutRequestResult
+          ? result.id
+          : (result is int ? result : null);
       setState(() {
         _ticket = _ticket.copyWith(
+          activePayoutRequestId: newRequestId ?? _ticket.activePayoutRequestId,
           activePayoutStatus: 'PENDING',
           canClaimOnline: false,
           payoutState: 'PAYOUT_PENDING',
         );
       });
+      await _refreshTicket();
     }
   }
 

@@ -63,7 +63,8 @@ class OrderDetailViewModel extends ChangeNotifier {
   bool get isRefunding => _isRefunding;
   int get remainingSeconds => _remainingSeconds;
   bool get isExpired => _remainingSeconds <= 0;
-  bool get isPendingPayment => _order?.status == 'PENDING_PAYMENT';
+  bool get isPendingPayment =>
+      _order?.status == 'PENDING_PAYMENT' && !isExpired;
   bool get isCancelled => _order?.status == 'CANCELLED';
 
   OrderRefundEligibilityResponse? get eligibility => _eligibility;
@@ -100,7 +101,7 @@ class OrderDetailViewModel extends ChangeNotifier {
 
     try {
       _order = await _getMyOrderDetail(orderId);
-      _initPaymentCountdown();
+      await _initPaymentCountdown();
       await _loadRefundContext();
     } catch (e) {
       _error = e.toString();
@@ -187,29 +188,65 @@ class OrderDetailViewModel extends ChangeNotifier {
     });
   }
 
-  void _initPaymentCountdown() {
+  Future<void> _initPaymentCountdown() async {
     _countdownTimer?.cancel();
-    if (_order == null ||
-        _order!.status != 'PENDING_PAYMENT' ||
-        _order!.createdAt == null) {
+    _remainingSeconds = 0;
+    if (_order == null || _order!.status != 'PENDING_PAYMENT') {
       return;
     }
 
     try {
-      final createdAt = DateTime.parse(_order!.createdAt!).toUtc();
-      final expiresAt = createdAt.add(const Duration(minutes: 15));
-      final diff = expiresAt.difference(DateTime.now().toUtc()).inSeconds;
-      _remainingSeconds = diff > 0 ? diff : 0;
+      final result = await _transactionService.getPendingPaymentCountdown(
+        _order!.id,
+      );
+      _remainingSeconds = result.remainingSeconds;
+      if (result.expired || _remainingSeconds <= 0) {
+        _remainingSeconds = 0;
+        notifyListeners();
+        // Payment expired -> sync from gateway to transition order to CANCELLED
+        try {
+          await _transactionService.syncOnlinePayment(_order!.id);
+          _order = await _getMyOrderDetail(orderId);
+          notifyListeners();
+        } catch (_) {}
+        return;
+      }
     } catch (_) {
       _remainingSeconds = 0;
     }
 
     if (_remainingSeconds <= 0) return;
 
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_remainingSeconds > 0) _remainingSeconds--;
-      notifyListeners();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (_remainingSeconds > 0) {
+        _remainingSeconds--;
+        notifyListeners();
+      } else {
+        timer.cancel();
+        _countdownTimer = null;
+        _remainingSeconds = 0;
+        notifyListeners();
+        try {
+          await _transactionService.syncOnlinePayment(_order!.id);
+          _order = await _getMyOrderDetail(orderId);
+          notifyListeners();
+        } catch (_) {}
+      }
     });
+  }
+
+  Future<void> cancelPayment({String? reason}) async {
+    if (_order == null) return;
+    try {
+      await _transactionService.cancelPayment(
+        orderId: _order!.id,
+        gateway: 'PAYOS',
+        reason: reason ?? 'Người dùng hủy thanh toán',
+      );
+      await fetchOrderDetail();
+    } catch (_) {
+      await fetchOrderDetail();
+    }
   }
 
   Future<bool> requestRefund(CreateOrderRefundRequest request) async {

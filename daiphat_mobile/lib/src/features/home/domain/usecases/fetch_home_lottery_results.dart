@@ -5,6 +5,9 @@ class FetchHomeLotteryResults {
   final HomeLotteryRepository _repository;
   const FetchHomeLotteryResults(this._repository);
 
-  Future<HomeLotteryFetchResult> call(DateTime drawDate) =>
-      _repository.fetchResults(drawDate);
+  Future<HomeLotteryFetchResult> call(
+    DateTime drawDate, {
+    String? region,
+  }) =>
+      _repository.fetchResults(drawDate, region: region);
 }

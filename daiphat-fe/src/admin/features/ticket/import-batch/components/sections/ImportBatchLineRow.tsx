@@ -17,6 +17,7 @@ import {
     Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import { Controller, Control, UseFormSetValue } from 'react-hook-form';
@@ -25,6 +26,8 @@ import dayjs from 'dayjs';
 import { CreateImportBatchFormValues, UpdateImportBatchFormValues } from '../../schemas/importBatch.schema';
 import { getBatchTypeBadgeClass, getBatchTypeLabel, getImportBatchLineStatusLabel, getImportBatchLineStatusChipColor } from '../../utils/batchTypeLabels';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
+import { CanAccess } from '../../../../../components/auth/CanAccess';
+import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { resolveDisplayBatchType } from '../../utils/importBatchDrawDate';
 import {
     formatViInteger,
@@ -76,6 +79,9 @@ interface ImportBatchLineRowProps {
     highlighted?: boolean;
     /** Hides the trailing actions column (create flow uses multi-select for stations). */
     hideActionsColumn?: boolean;
+    showStationPricing?: boolean;
+    centerCells?: boolean;
+    onEditStation?: () => void;
     /** Highlights declare quantity when batch total was reduced below line sum (draft lines). */
     declareQuantityHighlighted?: boolean;
     declareQuantityAdjustmentHelper?: string;
@@ -114,6 +120,9 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
     showErrors = true,
     highlighted = false,
     hideActionsColumn = false,
+    showStationPricing = false,
+    centerCells = false,
+    onEditStation,
     declareQuantityHighlighted = false,
     declareQuantityAdjustmentHelper,
     shouldScrollDeclareQuantityIntoView = false,
@@ -218,7 +227,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 },
             }}
         >
-            <TableCell sx={{ width: '28%' }}>
+            <TableCell align={centerCells ? 'center' : 'left'} sx={{ width: centerCells ? 180 : '28%' }}>
                 {!showStationSelect ? (
                     <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.5 }}>
                         {displayStationName}
@@ -260,7 +269,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                         );
                                     }}
                                     disabled={stationLocked || eligibleStations.length === 0}
-                                    sx={{ minHeight: 40 }}
+                                    sx={{ minHeight: 40, ...(centerCells ? { '& .MuiSelect-select': { textAlign: 'center' } } : {}) }}
                                 >
                                     {availableStations.map((station) => (
                                         <MenuItem key={station.lotteryStationId} value={station.lotteryStationId}>
@@ -281,7 +290,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
 
 
             {showStatusColumn && (
-                <TableCell sx={{ width: 120, whiteSpace: 'nowrap' }}>
+                <TableCell align={centerCells ? 'center' : 'left'} sx={{ width: 120, whiteSpace: 'nowrap' }}>
                     {lineStatus ? (
                         <Chip
                             label={getImportBatchLineStatusLabel(lineStatus)}
@@ -292,7 +301,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 </TableCell>
             )}
             {showProgressColumn && (
-                <TableCell sx={{ width: 108, whiteSpace: 'nowrap' }}>
+                <TableCell align={centerCells ? 'center' : 'left'} sx={{ width: 108, whiteSpace: 'nowrap' }}>
                     {importedQuantity > 0 ? (
                         <Typography variant="body2">
                             {importedQuantity.toLocaleString('vi-VN')} /{' '}
@@ -301,9 +310,9 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     ) : null}
                 </TableCell>
             )}
-            <TableCell align="right" sx={{ width: 130, overflow: 'visible' }}>
+            <TableCell align={centerCells ? 'center' : 'right'} sx={{ width: 130, overflow: 'visible' }}>
                 {readOnly || declareQuantityReadOnly ? (
-                    <Typography variant="body2" sx={{ lineHeight: 1.5, fontWeight: 500, textAlign: 'right' }}>
+                    <Typography variant="body2" sx={{ lineHeight: 1.5, fontWeight: 500, textAlign: centerCells ? 'center' : 'right' }}>
                         {declareQuantity.toLocaleString('vi-VN')}
                     </Typography>
                 ) : (
@@ -359,15 +368,27 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                 inputProps={{
                                     inputMode: 'numeric',
                                     min: declareQuantityMin,
-                                    style: { textAlign: 'right', fontWeight: 500 },
+                                    style: { textAlign: centerCells ? 'center' : 'right', fontWeight: 500 },
                                 }}
                             />
                         )}
                     />
                 )}
             </TableCell>
-            <TableCell align="right" sx={{ width: 130 }}>
-                <Typography variant="body2" sx={{ lineHeight: 1.5, textAlign: 'right', color: '#475569' }} title="Tính từ giá bán × (1 − hoa hồng đài)">
+            {showStationPricing && (
+                <>
+                    <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap' }}>
+                        {selectedStation?.price != null ? formatVnd(selectedStation.price) : '—'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap' }}>
+                        {selectedStation?.commissionRate != null
+                            ? `${(selectedStation.commissionRate * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`
+                            : '—'}
+                    </TableCell>
+                </>
+            )}
+            <TableCell align={centerCells ? 'center' : 'right'} sx={{ width: 130 }}>
+                <Typography variant="body2" sx={{ lineHeight: 1.5, textAlign: centerCells ? 'center' : 'right', color: '#475569' }} title="Tính từ giá vé × (1 − hoa hồng đài)">
                     {formatVnd(importCost)}
                 </Typography>
                 <Controller
@@ -376,7 +397,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     render={({ field }) => <input type="hidden" {...field} value={field.value ?? ''} />}
                 />
             </TableCell>
-            <TableCell align="right" sx={{ width: 140, whiteSpace: 'nowrap' }}>
+            <TableCell align={centerCells ? 'center' : 'right'} sx={{ width: 140, whiteSpace: 'nowrap' }}>
                 <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.5, color: '#15803d' }}>
                     {formatVnd(lineTotal)}
                 </Typography>
@@ -438,6 +459,20 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                             >
                                 Tiếp tục
                             </Button>
+                        )}
+                        {onEditStation && lotteryStationId > 0 && (
+                            <CanAccess permission={PERMISSIONS.PROVIDER.EDIT}>
+                                <Tooltip title={`Chỉnh sửa nhà đài ${displayStationName}`}>
+                                    <IconButton
+                                        size="small"
+                                        onClick={onEditStation}
+                                        aria-label={`Chỉnh sửa nhà đài ${displayStationName}`}
+                                        sx={{ color: '#0284c7', borderRadius: '8px', p: 0.75 }}
+                                    >
+                                        <EditOutlinedIcon sx={{ fontSize: '1.15rem' }} />
+                                    </IconButton>
+                                </Tooltip>
+                            </CanAccess>
                         )}
                         {canRemove && (
                             <Tooltip title="Xóa đài này khỏi phiếu">

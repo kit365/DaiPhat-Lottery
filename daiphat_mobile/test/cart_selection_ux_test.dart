@@ -258,7 +258,7 @@ void main() {
       expect(find.text('Chọn tất cả'), findsOneWidget);
     });
 
-    testWidgets('When ticket quantity is 1, minus button is disabled', (
+    testWidgets('When ticket quantity is 1, minus button shows delete action and prompts confirmation modal', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -273,19 +273,89 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // First item quantity is 1
-      expect(find.text('1'), findsWidgets);
+      // First item quantity is 1 -> button semantics is 'Xóa vé'
+      final deleteBtn = find.bySemanticsLabel('Xóa vé');
+      expect(deleteBtn, findsOneWidget);
 
-      // Find minus button with semantics
-      final minusButtons = find.bySemanticsLabel('Giảm số lượng');
-      expect(minusButtons, findsWidgets);
-
-      // Tap the first minus button
-      await tester.tap(minusButtons.first);
+      // Tap the delete button
+      await tester.tap(deleteBtn);
       await tester.pumpAndSettle();
 
-      // Quantity should still be 1 (not decreased or changed to delete mode)
-      expect(find.text('1'), findsWidgets);
+      // Shows confirmation modal in the center
+      expect(find.text('Xác nhận xóa vé'), findsOneWidget);
+      expect(
+        find.text('Bạn có chắc muốn xóa vé số 123456 (TP. Hồ Chí Minh) khỏi giỏ hàng?'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Tapping "Chọn tất cả" in bottom bar toggles all tickets selection', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            cartProvider.overrideWith(() => _MockCartNotifier(List.from(testItems))),
+          ],
+          child: const ToastificationWrapper(
+            child: MaterialApp(home: CartView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find "Chọn tất cả" in bottom bar
+      final selectAllBtn = find.text('Chọn tất cả');
+      expect(selectAllBtn, findsOneWidget);
+      expect(find.text('(0/3)'), findsOneWidget); // 1 + 2 = 3 tickets total
+
+      // Tap "Chọn tất cả" -> All valid items selected
+      await tester.tap(selectAllBtn);
+      await tester.pumpAndSettle();
+
+      expect(find.text('(3/3)'), findsOneWidget);
+      expect(find.text('Tiến hành thanh toán (3)'), findsOneWidget);
+
+      // Tap "Chọn tất cả" again -> All items deselected
+      await tester.tap(selectAllBtn);
+      await tester.pumpAndSettle();
+
+      expect(find.text('(0/3)'), findsOneWidget);
+      expect(find.text('Tiến hành thanh toán'), findsOneWidget);
+    });
+
+    testWidgets('Tapping ticket in cart opens detail modal with quantity adjust and no Add-To-Cart or Buy-Now buttons', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            cartProvider.overrideWith(() => _MockCartNotifier(List.from(testItems))),
+          ],
+          child: const ToastificationWrapper(
+            child: MaterialApp(home: CartView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap on ticket 123456 to open detail modal
+      await tester.tap(find.text('123456'));
+      await tester.pumpAndSettle();
+
+      // In cart mode, should show 'Số lượng' and 'Xác nhận'
+      expect(find.text('Số lượng'), findsOneWidget);
+      expect(find.text('Xác nhận'), findsOneWidget);
+
+      // Should NOT show 'Thêm vào giỏ' or 'Mua ngay'
+      expect(find.text('Thêm vào giỏ'), findsNothing);
+      expect(find.text('Mua ngay'), findsNothing);
+
+      // Tap 'Xác nhận' closes the modal
+      await tester.tap(find.text('Xác nhận'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Xác nhận'), findsNothing);
     });
   });
 }
