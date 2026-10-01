@@ -37,6 +37,20 @@ class _AdminScanViewState extends State<AdminScanView> {
     super.dispose();
   }
 
+  Future<void> _handleDisconnectSession(BuildContext context) async {
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Ngắt kết nối',
+      message: 'Bạn có chắc chắn muốn ngắt kết nối với phiên Web Admin này không?',
+      confirmLabel: 'Ngắt kết nối',
+      isDestructive: true,
+    );
+
+    if (confirmed && mounted) {
+      widget.viewModel.disconnectRemoteSession();
+    }
+  }
+
   Future<void> _handleLogout(BuildContext context) async {
     final confirmed = await AppDialog.confirm(
       context,
@@ -99,7 +113,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                     color: AppColors.primary,
                   ),
                   tooltip: 'Ngắt kết nối',
-                  onPressed: () => vm.disconnectRemoteSession(),
+                  onPressed: () => _handleDisconnectSession(context),
                 ),
               if (widget.onLogout != null)
                 IconButton(

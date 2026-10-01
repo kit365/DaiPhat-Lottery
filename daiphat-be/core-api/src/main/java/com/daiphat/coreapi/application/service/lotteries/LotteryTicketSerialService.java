@@ -43,7 +43,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
     private static final List<LotteryTicketSerialStatus> AVAILABLE_STATUSES = List.of(LotteryTicketSerialStatus.IN_STOCK);
     private static final List<LotteryTicketSerialStatus> EXPIRABLE_STATUSES =
-            List.of(LotteryTicketSerialStatus.IN_STOCK);
+            List.of(LotteryTicketSerialStatus.IN_STOCK, LotteryTicketSerialStatus.RESERVED);
 
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final StoragePort storagePort;
@@ -215,23 +215,17 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
     @Override
     public long countAvailableSerials(Long ticketId) {
-        return lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId).stream()
-                .filter(LotteryTicketSerialModel::isAvailableForSale)
-                .filter(serial -> !ticketSalesCutoffPolicy.isClosed(serial))
-                .count();
+        return lotteryTicketSerialRepositoryPort.countSellableByTicketId(ticketId);
     }
 
     @Override
     public Map<Long, Long> countAvailableSerialsByTicketIds(Collection<Long> ticketIds) {
-        if (ticketIds == null || ticketIds.isEmpty()) {
-            return Map.of();
-        }
-        return lotteryTicketSerialRepositoryPort.findAllByTicketIds(ticketIds).stream()
-                .filter(LotteryTicketSerialModel::isAvailableForSale)
-                .filter(serial -> !ticketSalesCutoffPolicy.isClosed(serial))
-                .collect(Collectors.groupingBy(
-                        LotteryTicketSerialModel::getTicketId,
-                        Collectors.counting()));
+        return countSellableByTicketIds(ticketIds);
+    }
+
+    @Override
+    public Map<Long, Long> countSellableByTicketIds(Collection<Long> ticketIds) {
+        return lotteryTicketSerialRepositoryPort.countSellableByTicketIds(ticketIds);
     }
 
     @Override
@@ -247,7 +241,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public void expireActiveSerials(Long ticketId) {
         lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(ticketId, EXPIRABLE_STATUSES).forEach(serial -> {
-            if (serial.isVoided() || !ticketSalesCutoffPolicy.isClosed(serial)) {
+            if (serial.isVoided()) {
                 return;
             }
             serial.expire();
