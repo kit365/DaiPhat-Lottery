@@ -199,18 +199,17 @@ class AppColors {
   static const Color ticketNumberBorder = Color(0xFFE5E8EB);
   static const Color ticketMetadataForeground = Color(0xFF637381);
 
-  // Dark warning tone keeps small prize/status text readable on the warm
-  // ticket surface (AA contrast for compact labels).
-  static const Color ticketPrizeForeground = Color(0xFF7A4100);
-  static const Color ticketPrizeSurface = statusWarningSurface;
-  static const Color ticketPrizeBorder = statusWarningAccent;
+  // Ruby & Sunset Gold — "Đại Cát May Mắn" ticket winning semantic tokens
+  static const Color ticketPrizeForeground = Color(0xFFDC2626);
+  static const Color ticketPrizeSurface = Color(0xFFFEF2F2);
+  static const Color ticketPrizeBorder = Color(0xFFFECACA);
 
   static const Color ticketResultPendingForeground = Color(0xFF334155);
   static const Color ticketResultPendingSurface = Color(0xFFF1F5F9);
   static const Color ticketResultPendingBorder = Color(0xFFCBD5E1);
 
   static const Color ticketResultWonForeground = ticketPrizeForeground;
-  static const Color ticketResultWonSurface = Color(0xFFFFE082);
+  static const Color ticketResultWonSurface = ticketPrizeSurface;
   static const Color ticketResultWonBorder = ticketPrizeBorder;
 
   static const Color ticketResultLostForeground = Color(0xFF64748B);
@@ -269,7 +268,7 @@ class AppColors {
   static const Color ticketPayoutInPersonSurface = Color(0xFFF5F3FF);
   static const Color ticketPayoutInPersonBorder = Color(0xFFDDD6FE);
 
-  static const Color ticketActionPayoutBg = Color(0xFFB45309);
+  static const Color ticketActionPayoutBg = redPrimary;
   static const Color ticketActionPayoutFg = white;
   static const Color ticketActionRebuyBg = redPrimary;
   static const Color ticketActionRebuyFg = white;
@@ -285,15 +284,15 @@ class AppColors {
   static const Color ticketBallNeutralForeground = ticketNumberForeground;
   static const Color ticketBallNeutralBorder = ticketNumberBorder;
 
-  static const Color ticketStripWonStart = goldBase;
-  static const Color ticketStripWonMid = Color(0xFFF59E0B);
-  static const Color ticketStripWonEnd = Color(0xFFD97706);
+  static const Color ticketStripWonStart = Color(0xFFDC2626);
+  static const Color ticketStripWonMid = Color(0xFFEA580C);
+  static const Color ticketStripWonEnd = Color(0xFFF59E0B);
   static const Color ticketStripPendingStart = Color(0xFFE2E8F0);
   static const Color ticketStripPendingEnd = Color(0xFFCBD5E1);
   static const Color ticketStripLostStart = Color(0xFFF1F5F9);
   static const Color ticketStripLostEnd = Color(0xFFE2E8F0);
 
-  static const Color ticketPrizePanelStart = Color(0xFFFFFBEB);
+  static const Color ticketPrizePanelStart = Color(0xFFFFF1F2);
   static const Color ticketPrizePanelEnd = ticketPrizeSurface;
   static const Color ticketPrizePanelBorder = ticketResultWonBorder;
 

@@ -43,6 +43,11 @@ final operatingHoursProvider = FutureProvider.autoDispose<SiteOperatingHours>((
   return service.getOperatingHours();
 });
 
+final sitePhoneProvider = FutureProvider.autoDispose<String>((ref) async {
+  final service = ref.watch(systemConfigServiceProvider);
+  return service.getSitePhone();
+});
+
 // ─── Enum options (fetch once) ──────────────────────────────────────────────
 
 /// Mobile chỉ hỗ trợ nhận tại quầy + thanh toán online.

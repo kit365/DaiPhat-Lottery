@@ -70,6 +70,8 @@ public interface LotteryTicketSerialServicePort {
 
     Map<Long, Long> countAvailableSerialsByTicketIds(Collection<Long> ticketIds);
 
+    Map<Long, Long> countSellableByTicketIds(Collection<Long> ticketIds);
+
     Map<Long, Long> countSerialsByTicketIds(Collection<Long> ticketIds);
 
     long countByStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);

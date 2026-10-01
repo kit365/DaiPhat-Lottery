@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
@@ -56,18 +57,51 @@ class _TicketDetailBody extends ConsumerStatefulWidget {
   ConsumerState<_TicketDetailBody> createState() => _TicketDetailBodyState();
 }
 
-class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
+class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody>
+    with WidgetsBindingObserver {
   late PurchasedTicket _ticket;
   PurchasedTicket get ticket => _ticket;
   bool _isRefreshing = false;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _ticket = widget.ticket;
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshTicket();
+      _startPollingIfNeeded();
     });
+  }
+
+  void _startPollingIfNeeded() {
+    _pollingTimer?.cancel();
+    final isInProgress =
+        _ticket.activePayoutStatus == 'PENDING' ||
+        _ticket.activePayoutStatus == 'APPROVED' ||
+        _ticket.payoutState == 'PAYOUT_PENDING';
+    if (isInProgress) {
+      _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (mounted) {
+          _refreshTicket();
+        }
+      });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshTicket();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _refreshTicket() async {
@@ -92,6 +126,11 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
                 canClaimOnline: !isDone && (_ticket.canClaimOnline ?? false),
               );
             });
+            if (isDone ||
+                payoutResp.status == PrizePayoutRequestStatus.rejected ||
+                payoutResp.status == PrizePayoutRequestStatus.cancelled) {
+              _pollingTimer?.cancel();
+            }
           }
         } catch (_) {}
       }
@@ -177,21 +216,32 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
                 isWon: isWon,
                 possession: possession,
               ),
-            if (isWon) ...[
+              if (isWon) ...[
+                const SizedBox(height: 16),
+                _buildPrizeSection(
+                  context,
+                  isEligible: isEligible,
+                  payout: payout,
+                ),
+              ],
               const SizedBox(height: 16),
-              _buildPrizeSection(
-                context,
-                isEligible: isEligible,
-                payout: payout,
-              ),
             ],
-            const SizedBox(height: 16),
-            _buildActionButtonsRow(context, ref),
-          ],
+          ),
         ),
       ),
-    ),
-  );
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          decoration: const BoxDecoration(
+            color: AppColors.surfacePrimary,
+            border: Border(
+              top: BorderSide(color: AppColors.borderLight, width: 1),
+            ),
+          ),
+          child: _buildActionButtonsRow(context, ref),
+        ),
+      ),
+    );
   }
 
   Widget _buildActionButtonsRow(BuildContext context, WidgetRef ref) {
@@ -551,23 +601,22 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
                         color: AppColors.ticketResultWonForeground,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isPayoutCompleted
-                          ? 'Đã trả thưởng'
-                          : isPayoutInProgress
-                          ? 'Yêu cầu đang xử lý'
-                          : isStationOfficeOnly
-                          ? 'Đổi tại văn phòng đài'
-                          : _ticket.canClaimOnline == false ||
-                                _ticket.claimChannel == 'IN_PERSON'
-                          ? 'Đổi tại đại lý'
-                          : 'Có thể đổi thưởng trực tuyến',
-                      style: AppTypography.mainWith(
-                        fontSize: 12,
-                        color: AppColors.ticketMetadataForeground,
+                    if (payout == null ||
+                        payout.label == 'Chưa yêu cầu trả thưởng') ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        isStationOfficeOnly
+                            ? 'Đổi tại văn phòng đài'
+                            : _ticket.canClaimOnline == false ||
+                                  _ticket.claimChannel == 'IN_PERSON'
+                            ? 'Đổi tại đại lý'
+                            : 'Có thể đổi thưởng trực tuyến',
+                        style: AppTypography.mainWith(
+                          fontSize: 12,
+                          color: AppColors.ticketMetadataForeground,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -582,7 +631,8 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
                 ),
             ],
           ),
-          if (payout != null) ...[
+          if (payout != null &&
+              payout.label != 'Chưa yêu cầu trả thưởng') ...[
             const SizedBox(height: 10),
             _buildStatusChip(
               payout.label,

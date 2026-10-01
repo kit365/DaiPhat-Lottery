@@ -62,10 +62,11 @@ class MyOrdersViewModel extends ChangeNotifier {
       );
 
       if (refresh) {
-        _orders = result.records;
+        _orders = List<OrderResponse>.from(result.records);
       } else {
         _orders.addAll(result.records);
       }
+      _applySort();
 
       _hasMore = !result.pagination.isLast;
       if (_hasMore) _page++;
@@ -113,5 +114,37 @@ class MyOrdersViewModel extends ChangeNotifier {
       _direction = direction;
     }
     fetchOrders(refresh: true);
+  }
+
+  void _applySort() {
+    if (_sortBy == 'createdAt') {
+      _orders.sort((a, b) {
+        final pA = _getStatusPriority(a.status);
+        final pB = _getStatusPriority(b.status);
+        if (pA != pB) {
+          return pA.compareTo(pB);
+        }
+        final timeA = DateTime.tryParse(a.createdAt ?? '') ?? DateTime(1970);
+        final timeB = DateTime.tryParse(b.createdAt ?? '') ?? DateTime(1970);
+        return _direction == 'asc'
+            ? timeA.compareTo(timeB)
+            : timeB.compareTo(timeA);
+      });
+    }
+  }
+
+  int _getStatusPriority(String status) {
+    switch (status) {
+      case 'PENDING_PICKUP':
+      case 'PAID':
+      case 'PREPARING':
+      case 'PENDING_PAYMENT':
+      case 'PAYMENT_COMPLAINT_PENDING':
+        return 0; // Nhóm đơn đang xử lý / Chờ nhận vé -> Ưu tiên lên đầu, xếp theo createdAt mới nhất
+      case 'COMPLETED':
+      case 'CANCELLED':
+      default:
+        return 1; // Nhóm đơn đã kết thúc -> Xếp theo createdAt mới nhất
+    }
   }
 }

@@ -235,6 +235,11 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     }
 
     @Override
+    public Map<Long, Long> countSellableByTicketIds(Collection<Long> ticketIds) {
+        return lotteryTicketSerialRepositoryPort.countSellableByTicketIds(ticketIds);
+    }
+
+    @Override
     public Map<Long, Long> countSerialsByTicketIds(Collection<Long> ticketIds) {
         return lotteryTicketSerialRepositoryPort.countByTicketIds(ticketIds);
     }
