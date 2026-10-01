@@ -270,6 +270,7 @@ class LotteryTicketServiceTest {
         lenient().when(lotteryTicketSerialService.findFirstByTicketId(any())).thenReturn(Optional.empty());
         lenient().when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketSerialService.countSerialsByTicketIds(any())).thenReturn(Map.of());
+        lenient().when(lotteryTicketSerialService.countSellableByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketSerialService.countAvailableSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketApplicationMapper.toResponseDetail(any(), anyList(), nullable(String.class), nullable(String.class), anyInt()))
                 .thenReturn(mappedResponse);
@@ -377,7 +378,7 @@ class LotteryTicketServiceTest {
                 .thenReturn(new PageImpl<>(List.of(ticketB1, ticketB2), PageRequest.of(0, 5), 30));
         when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(anyList())).thenReturn(Map.of());
         when(lotteryTicketSerialService.findAllByTicketIds(any())).thenReturn(List.of());
-        when(lotteryTicketSerialService.countSerialsByTicketIds(anyList())).thenReturn(Map.of());
+        when(lotteryTicketSerialService.countSellableByTicketIds(anyList())).thenReturn(Map.of());
         when(lotteryTicketApplicationMapper.toResponse(any(), any(), any(), any(), anyInt())).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(

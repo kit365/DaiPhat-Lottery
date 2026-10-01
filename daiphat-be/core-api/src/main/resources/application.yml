@@ -161,7 +161,7 @@ daiphat:
       # Local profile sets true. Enable explicitly in other profiles when seeding import/return/settlement.
       enabled: ${LOTTERY_SEED_ENABLED:false}
       tickets-per-batch: 150
-      serials-per-ticket: 4
+      serials-per-ticket: ${LOTTERY_SEED_SERIALS_PER_TICKET:15}
       status-coverage:
         enabled: ${LOTTERY_SEED_STATUS_COVERAGE_ENABLED:false}
       southern-stations:

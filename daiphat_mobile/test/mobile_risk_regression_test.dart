@@ -178,6 +178,20 @@ class _FakeTransactionRepository implements TransactionRepository {
         totalAmount: 10000,
         status: syncStatus,
       );
+
+  @override
+  Future<OrderResponse> cancelPayment({
+    required String orderId,
+    int? transactionId,
+    required String gateway,
+    String? reason,
+  }) async =>
+      OrderResponse(
+        id: orderId,
+        orderCode: 'DP-PENDING',
+        totalAmount: 10000,
+        status: 'CANCELLED',
+      );
 }
 
 class _FakeAuthApiService extends AuthApiService {

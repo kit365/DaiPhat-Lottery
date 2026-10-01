@@ -61,6 +61,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     with WidgetsBindingObserver {
   final Set<String> _selectedProvinces = <String>{};
   DateTime _date = DateTime.now();
+  String? _region;
   String? _pendingStationName;
   int? _pendingStationId;
 
@@ -90,6 +91,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           lookup.drawDate!.day,
         );
       }
+      _region = lookup.region?.trim();
       _pendingStationName = lookup.stationName?.trim();
       _pendingStationId = lookup.stationId;
       _selectedProvinces.clear();
@@ -145,7 +147,15 @@ class _HomeContentState extends ConsumerState<_HomeContent>
 
   String _normalizeProvinceLabel(String value) {
     final trimmed = value.trim();
-    if (trimmed == 'Hồ Chí Minh') return 'TP. Hồ Chí Minh';
+    final lower = trimmed.toLowerCase();
+    if (lower == 'hồ chí minh' ||
+        lower == 'tp. hồ chí minh' ||
+        lower == 'tp.hcm' ||
+        lower == 'tphcm' ||
+        lower == 'tp hcm' ||
+        lower == 'hcm') {
+      return 'TP. Hồ Chí Minh';
+    }
     return trimmed;
   }
 
@@ -308,7 +318,11 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     });
 
     final normalizedDate = DateTime(_date.year, _date.month, _date.day);
-    final homeState = ref.watch(homeLotteryProvider(normalizedDate));
+    final homeQuery = HomeLotteryQuery(
+      drawDate: normalizedDate,
+      region: _region,
+    );
+    final homeState = ref.watch(homeLotteryProvider(homeQuery));
 
     return homeState.when(
       loading: () => _buildLoadedState(
@@ -335,6 +349,10 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     bool isContentLoading = false,
     String? errorMessage,
   }) {
+    final homeQuery = HomeLotteryQuery(
+      drawDate: normalizedDate,
+      region: _region,
+    );
     final scheduleAsync = ref.watch(lotteryScheduleProvider);
     final scheduleStations = scheduleAsync.maybeWhen(
       data: (stations) => stations,
@@ -352,7 +370,11 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     ];
     final dayId = scheduleDayOrder[normalizedDate.weekday - 1];
     final scheduledForDay = scheduleStations
-        .where((s) => s.drawDays.contains(dayId))
+        .where(
+          (s) =>
+              s.drawDays.contains(dayId) &&
+              (_region == null || s.region == _region),
+        )
         .toList();
 
     final placeholderResults =
@@ -417,6 +439,12 @@ class _HomeContentState extends ConsumerState<_HomeContent>
         .where((result) => displayProvinces.contains(result.province))
         .toList();
 
+    final defaultRegionDrawTime = switch (_region) {
+      'MIEN_BAC' => '18:15',
+      'MIEN_TRUNG' => '17:15',
+      _ => '16:15',
+    };
+
     final activeDrawTime = scheduleAsync.maybeWhen(
       data: (stations) {
         if (_selectedProvinces.isNotEmpty) {
@@ -427,9 +455,9 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             return matched.first.drawTime.trim();
           }
         }
-        return '16:15';
+        return defaultRegionDrawTime;
       },
-      orElse: () => '16:15',
+      orElse: () => defaultRegionDrawTime,
     );
 
     final hasResults = effectiveResults.any(
@@ -466,8 +494,8 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           child: RefreshIndicator(
             color: AppColors.primary,
             onRefresh: () async {
-              ref.invalidate(homeLotteryProvider(normalizedDate));
-              await ref.read(homeLotteryProvider(normalizedDate).future);
+              ref.invalidate(homeLotteryProvider(homeQuery));
+              await ref.read(homeLotteryProvider(homeQuery).future);
               if (widget.loginViewModel.isAuthenticated) {
                 await widget.notificationViewModel.fetchNotifications(
                   refresh: true,
@@ -555,9 +583,9 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                       isWaitingForResults: isWaitingForResults,
                       hasResults: hasResults,
                       onRefresh: () async {
-                        ref.invalidate(homeLotteryProvider(normalizedDate));
+                        ref.invalidate(homeLotteryProvider(homeQuery));
                         await ref.read(
-                          homeLotteryProvider(normalizedDate).future,
+                          homeLotteryProvider(homeQuery).future,
                         );
                       },
                     ),

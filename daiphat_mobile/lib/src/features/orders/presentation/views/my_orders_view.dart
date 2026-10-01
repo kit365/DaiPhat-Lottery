@@ -962,8 +962,8 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         );
       case 'CANCELLED':
         return (
-          surface: AppColors.statusNeutralSurface,
-          text: AppColors.statusNeutralForeground,
+          surface: AppColors.statusErrorSurface,
+          text: AppColors.statusErrorForeground,
           label: 'Đã hủy',
         );
       default:

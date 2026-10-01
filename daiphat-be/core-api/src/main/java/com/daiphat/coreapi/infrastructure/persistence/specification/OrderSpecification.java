@@ -8,6 +8,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity_;
 import org.springframework.data.jpa.domain.Specification;
 
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -53,6 +54,24 @@ public final class OrderSpecification {
             if (search != null && !search.isBlank()) {
                 String likePattern = "%" + search.trim().toLowerCase() + "%";
                 predicates.add(cb.like(cb.lower(root.get(OrderEntity_.ORDER_CODE)), likePattern));
+            }
+
+            if (query != null && Long.class != query.getResultType() && long.class != query.getResultType()) {
+                Expression<Integer> statusPriority = cb.<Integer>selectCase()
+                        .when(root.get(OrderEntity_.STATUS).in(
+                                OrderStatus.PENDING_PICKUP,
+                                OrderStatus.PREPARING,
+                                OrderStatus.PAID,
+                                OrderStatus.PENDING_PAYMENT,
+                                OrderStatus.PAYMENT_COMPLAINT_PENDING
+                        ), 0)
+                        .otherwise(1)
+                        .as(Integer.class);
+
+                query.orderBy(
+                        cb.asc(statusPriority),
+                        cb.desc(root.get(OrderEntity_.CREATED_AT))
+                );
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

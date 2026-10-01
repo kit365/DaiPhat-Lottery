@@ -328,7 +328,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         Map<Long, LotteryTicketSerialModel> representativeByTicketId =
                 lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
         Map<Long, Long> serialQuantityByTicketId =
-                lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
+                lotteryTicketSerialService.countSellableByTicketIds(ticketIds);
         Map<Long, List<LotteryTicketSerialModel>> serialsByTicketId = lotteryTicketSerialService
                 .findAllByTicketIds(ticketIds)
                 .stream()
@@ -402,7 +402,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         Map<Long, LotteryTicketSerialModel> serialsByTicketId =
                 lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
         Map<Long, Long> serialQuantityByTicketId =
-                lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
+                lotteryTicketSerialService.countSellableByTicketIds(ticketIds);
         List<LotteryTicketResponse> responses = ticketPage.getContent().stream()
                 .map(ticket -> mapToResponse(
                         ticket,
@@ -827,7 +827,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         resolveBatchCode(serial)
                 ))
                 .toList();
-        int serialQuantity = serials.size();
+        int serialQuantity = (int) serials.stream().filter(LotteryTicketSerialModel::isAvailableForSale).count();
         return lotteryTicketApplicationMapper.toResponseDetail(
                 model,
                 serialResponses,

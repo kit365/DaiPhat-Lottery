@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,8 +26,10 @@ class PrizePayoutDetailView extends ConsumerStatefulWidget {
       _PrizePayoutDetailViewState();
 }
 
-class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
+class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView>
+    with WidgetsBindingObserver {
   late final PrizePayoutDetailViewModel _viewModel;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
@@ -36,10 +39,42 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
       ref.read(cancelPrizePayoutProvider),
       widget.requestId,
     );
+    _viewModel.addListener(_onViewModelUpdated);
+    WidgetsBinding.instance.addObserver(this);
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted &&
+          (_viewModel.payout?.status == PrizePayoutRequestStatus.pending ||
+              _viewModel.payout?.status == PrizePayoutRequestStatus.approved)) {
+        _viewModel.load();
+      }
+    });
+  }
+
+  void _onViewModelUpdated() {
+    if (_viewModel.payout?.status == PrizePayoutRequestStatus.completed ||
+        _viewModel.payout?.status == PrizePayoutRequestStatus.rejected ||
+        _viewModel.payout?.status == PrizePayoutRequestStatus.cancelled) {
+      _pollingTimer?.cancel();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _viewModel.load();
+    }
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _viewModel.removeListener(_onViewModelUpdated);
     _viewModel.dispose();
     super.dispose();
   }
@@ -144,15 +179,15 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
                 _buildInfoCard(payout),
                 const SizedBox(height: 16),
                 _buildBankCard(payout),
-                if (_canShowComplaint(payout)) ...[
-                  const SizedBox(height: 16),
-                  _buildComplaintButton(payout),
-                ],
                 if (payout.status == PrizePayoutRequestStatus.completed &&
                     payout.transferEvidenceUrl != null &&
                     payout.transferEvidenceUrl!.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _buildEvidenceCard(payout),
+                ],
+                if (_canShowComplaint(payout)) ...[
+                  const SizedBox(height: 16),
+                  _buildComplaintButton(payout),
                 ],
                 if (payout.status == PrizePayoutRequestStatus.rejected) ...[
                   const SizedBox(height: 16),

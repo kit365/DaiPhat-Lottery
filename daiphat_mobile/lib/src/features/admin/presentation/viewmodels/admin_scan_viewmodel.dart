@@ -306,6 +306,21 @@ class AdminScanViewModel extends ChangeNotifier {
     }
   }
 
+  Future<XFile?> pickSinglePhoto(ImageSource source) async {
+    try {
+      return await _picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1080,
+      );
+    } catch (e) {
+      _errorMessage = 'Không thể mở camera: $e';
+      _notify();
+      return null;
+    }
+  }
+
   Future<List<XFile>> pickPhotos(ImageSource source) async {
     try {
       if (source == ImageSource.camera) {
