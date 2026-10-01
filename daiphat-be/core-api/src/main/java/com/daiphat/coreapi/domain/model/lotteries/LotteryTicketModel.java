@@ -171,8 +171,8 @@ public class LotteryTicketModel {
             LocalTime cutoffTime,
             String allFaultyReason
     ) {
-        // Display quantity = every non-deleted, non-VOIDED serial linked to this lottery number.
-        this.quantity = totalSerialCount;
+        // Inventory quantity tracks serials still available for sale.
+        this.quantity = availableSerialCount;
         // IMPORTING belongs to the import-batch flow and cannot be derived from serials,
         // so only the draw cutoff is allowed to move a ticket out of it.
         if (this.status == LotteryTicketStatus.IMPORTING && !isExpired(cutoffTime)) {
@@ -204,7 +204,7 @@ public class LotteryTicketModel {
             int faultySerialCount,
             String allFaultyReason
     ) {
-        this.quantity = totalSerialCount;
+        this.quantity = availableSerialCount;
         if (this.status == LotteryTicketStatus.IMPORTING) {
             return;
         }

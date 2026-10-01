@@ -90,7 +90,7 @@ const CANCEL_TYPE_OPTIONS: {
     value: StaffCancelType;
     title: string;
     description: string;
-    preparingOnly?: boolean;
+    incidentOnly?: boolean;
 }[] = [
     {
         value: 'ADMIN_FORCE_CANCEL',
@@ -100,10 +100,10 @@ const CANCEL_TYPE_OPTIONS: {
     },
     {
         value: 'OUT_OF_STOCK_INCIDENT',
-        title: 'Báo lỗi vé và hủy đơn',
+        title: 'Sự cố kho - Hủy toàn bộ đơn',
         description:
             'Dùng khi tất cả vé trong đơn bị hư hỏng hoặc thất lạc và không còn vé thay thế. Cần ghi nhận sự cố cho từng vé.',
-        preparingOnly: true,
+        incidentOnly: true,
     },
 ];
 
@@ -239,6 +239,25 @@ export function OrderCancelWithRefundPage() {
     const { data: orderRes, isLoading } = useOrderDetail(orderId || '');
     const order = orderRes?.data;
     const cancelMutation = useCancelOrderWithRefund();
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, []);
+    const canReportStockIncident = order?.status === OrderStatus.PAID
+        || order?.status === OrderStatus.PREPARING
+        || order?.status === OrderStatus.PENDING_PICKUP;
+    const canCancelForCustomer = !!order?.preparationCutoffAt
+        && dayjs(order.preparationCutoffAt).isValid()
+        && now < dayjs(order.preparationCutoffAt).valueOf()
+        && [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP].includes(order.status as OrderStatus);
+    useEffect(() => {
+        if (!order) return;
+        if ((cancelType === 'ADMIN_FORCE_CANCEL' && !canCancelForCustomer)
+            || (cancelType === 'OUT_OF_STOCK_INCIDENT' && !canReportStockIncident)) {
+            setCancelType(null);
+        }
+    }, [order, cancelType, canCancelForCustomer, canReportStockIncident]);
 
     const tickets = useMemo(() => {
         if (!order?.orderDetails) return [];
@@ -248,7 +267,7 @@ export function OrderCancelWithRefundPage() {
                 lineSubtotal: Number(d.lineSubtotal ?? d.price ?? 10000),
                 raw: d,
             }))
-            .filter((t) => t.id != null && t.isIncidentEligible);
+            .filter((t) => t.id != null && ['ACTIVE', 'PROXY_HOLDING', 'HANDOVER_IN_PROGRESS'].includes(t.status || ''));
     }, [order]);
 
     const refundAmount = useMemo(
@@ -890,16 +909,17 @@ export function OrderCancelWithRefundPage() {
     const canSubmit = useMemo(() => {
         if (!cancelType || !cancelReason.trim() || cancelMutation.isPending || isAnyImageUploading) return false;
         if (cancelType === 'OUT_OF_STOCK_INCIDENT') {
-            return allIncidentsValid;
+            return canReportStockIncident && allIncidentsValid;
         }
-        return true;
-    }, [cancelType, cancelReason, cancelMutation.isPending, isAnyImageUploading, allIncidentsValid]);
+        return canCancelForCustomer;
+    }, [cancelType, cancelReason, cancelMutation.isPending, isAnyImageUploading, allIncidentsValid, canReportStockIncident, canCancelForCustomer]);
 
     const handleSelectType = (type: StaffCancelType) => {
-        if (type === 'OUT_OF_STOCK_INCIDENT' && order?.status !== OrderStatus.PREPARING) {
-            toast.error('Hủy do sự cố kho chỉ áp dụng khi đơn đang ở trạng thái Đang chuẩn bị.');
+        if (type === 'OUT_OF_STOCK_INCIDENT' && !canReportStockIncident) {
+            toast.error('Hủy do sự cố kho chỉ áp dụng khi đơn đã thanh toán, đang chuẩn bị hoặc chờ nhận vé.');
             return;
         }
+        if (type === 'ADMIN_FORCE_CANCEL' && !canCancelForCustomer) return;
         setCancelType(type);
     };
 
@@ -969,17 +989,11 @@ export function OrderCancelWithRefundPage() {
         );
     }
 
-    const allowedStatuses: string[] = [
-        OrderStatus.PAID,
-        OrderStatus.PREPARING,
-        OrderStatus.PENDING_PICKUP,
-    ];
-    if (!allowedStatuses.includes(order.status)) {
+    if ([OrderStatus.COMPLETED, OrderStatus.CANCELLED].includes(order.status as OrderStatus)) {
         return (
             <Box sx={{ p: 5, textAlign: 'center' }}>
                 <Typography>
-                    Chỉ có thể báo lỗi & hủy đơn khi đơn ở trạng thái Đã thanh toán / Đang chuẩn bị /
-                    Chờ nhận vé.
+                    Không thể báo lỗi & hủy đơn đã hoàn thành hoặc đã hủy.
                 </Typography>
                 <Button
                     onClick={() => router.push(`/${prefixAdmin}/order/detail/${order.id}`)}
@@ -992,7 +1006,7 @@ export function OrderCancelWithRefundPage() {
     }
 
     const visibleTypeOptions = CANCEL_TYPE_OPTIONS.filter(
-        (opt) => !opt.preparingOnly || order.status === OrderStatus.PREPARING
+        (opt) => opt.incidentOnly ? canReportStockIncident : canCancelForCustomer
     );
 
     return (
@@ -1524,6 +1538,11 @@ export function OrderCancelWithRefundPage() {
                 </Collapse>
             </Stack>
 
+            {visibleTypeOptions.length === 0 && (
+                <Typography sx={{ mt: 2 }} color="text.secondary">
+                    Không có thao tác hủy kèm hoàn tiền phù hợp với trạng thái đơn và giờ chốt bán vé hiện tại.
+                </Typography>
+            )}
             {!cancelType && <Divider sx={{ my: 2 }} />}
         </Box>
     );

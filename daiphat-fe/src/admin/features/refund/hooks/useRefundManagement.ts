@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { refundAdminApi } from "@/admin/features/refund/services/refundService";
 import { QUERY_KEYS } from '@/admin/features/refund/constants/queryKeys';
+import { QUERY_KEYS as TICKET_QUERY_KEYS } from '@/admin/features/ticket/inventory/constants/queryKeys';
 import { QUERY_KEYS as ORDER_QUERY_KEYS } from '@/admin/features/orders/constants/queryKeys';
 import {
     CompleteCounterRefundRequest,
@@ -176,6 +177,8 @@ export const useCancelOrderWithRefund = () => {
                 queryClient.invalidateQueries({ queryKey: [ORDER_QUERY_KEYS.ORDERS] });
                 invalidateAdminBadgeCounts(queryClient);
                 queryClient.invalidateQueries({ queryKey: [ORDER_QUERY_KEYS.ORDER_DETAIL] });
+                queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKETS] });
+                queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKET_DETAIL] });
             } else {
                 toast.error(response.message || 'Không thể hủy đơn với hoàn tiền');
             }

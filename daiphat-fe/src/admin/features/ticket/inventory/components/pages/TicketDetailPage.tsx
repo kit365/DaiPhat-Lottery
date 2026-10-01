@@ -56,7 +56,7 @@ import { prefixAdmin } from "../../../../../constants/routes";
 import { useTicketDetail } from "../../hooks/useTicket";
 import { useStations } from "../../../../station/hooks/useStation";
 import { formatImportBatchCode } from "../../../import-batch/utils/importBatchCode";
-import { resolveAvailableTicketQuantity } from "../../utils/ticketQuantity";
+import { resolveAvailableTicketQuantity, resolveTicketSerialQuantity, isAvailableTicketSerial } from "../../utils/ticketQuantity";
 import { getTicketStatusLabel, normalizeTicketStatus } from "../../constants/ticket-status.config";
 import {
     buildSerialStatusFilterOptions,
@@ -127,13 +127,9 @@ export const TicketDetailPage = () => {
     }, [ticketDetail?.serials]);
 
     // Summary counts
-    const totalCount = ticketSerials.length || resolveAvailableTicketQuantity(ticketDetail);
+    const totalCount = resolveTicketSerialQuantity(ticketDetail);
     const inStockCount = useMemo(() => {
-        return ticketSerials.filter((s: any) => {
-            const st = (s.status || "").toUpperCase();
-            const cond = (s.ticketCondition || "").toUpperCase();
-            return (st === "IN_STOCK" || st === "AVAILABLE" || !st) && !["DAMAGED", "LOST", "VOIDED"].includes(cond);
-        }).length;
+        return ticketSerials.filter(isAvailableTicketSerial).length;
     }, [ticketSerials]);
 
     const soldCount = useMemo(() => {
@@ -241,7 +237,7 @@ export const TicketDetailPage = () => {
         (ticketDetail.status || "").toUpperCase() === "IN_STOCK" &&
         !ticketSerials.some((serial: any) => ["RESERVED", "SOLD"].includes((serial.status || "").toUpperCase()));
 
-    const availableQuantity = inStockCount > 0 ? inStockCount : resolveAvailableTicketQuantity(ticketDetail);
+    const availableQuantity = resolveAvailableTicketQuantity(ticketDetail);
     const unitPrice = ticketDetail.priceSnapshot || ticketDetail.price || ticketDetail.ticketPrice || 10000;
     const totalInventoryValue = availableQuantity * unitPrice;
 

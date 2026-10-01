@@ -104,6 +104,8 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final EkycVerificationService ekycVerificationService;
     private final UserBankAccountServicePort userBankAccountServicePort;
     private final OrderCancellationRefundService orderCancellationRefundService;
+    private final com.daiphat.coreapi.application.service.lotteries.TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
+    private final com.daiphat.coreapi.shared.time.VietnamClock vietnamClock;
 
     @Override
     @Transactional(readOnly = true)
@@ -286,6 +288,14 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             throw new DomainException(ErrorCode.INVALID_INPUT, "Đơn hàng không có khách hàng liên kết.");
         }
 
+        if (cancelType == OrderCancelType.ADMIN_FORCE_CANCEL
+                && !ticketSalesCutoffPolicy.resolveEarliestCutoff(order)
+                        .map(cutoff -> vietnamClock.now().isBefore(cutoff))
+                        .orElse(false)) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Chỉ được hủy hộ khách hàng trước giờ chốt bán vé online.");
+        }
+
         if (cancelType == OrderCancelType.OUT_OF_STOCK_INCIDENT) {
             applyOutOfStockIncidents(orderId, staffId, order, request.incidents());
             order = orderRepositoryPort.findByIdWithLock(orderId)
@@ -309,11 +319,12 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             OrderModel order,
             List<com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest> incidents
     ) {
-        if (order.getStatus() != OrderStatus.PREPARING
+        if (order.getStatus() != OrderStatus.PAID
+                && order.getStatus() != OrderStatus.PREPARING
                 && order.getStatus() != OrderStatus.PENDING_PICKUP) {
             throw new DomainException(
                     ErrorCode.ORDER_INVALID_STATUS,
-                    "Hủy do sự cố kho chỉ áp dụng khi đơn đang PREPARING hoặc PENDING_PICKUP.");
+                    "Hủy do sự cố kho chỉ áp dụng khi đơn đã thanh toán, đang chuẩn bị hoặc chờ nhận vé.");
         }
         if (incidents == null || incidents.isEmpty()) {
             throw new DomainException(
@@ -344,6 +355,13 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             if (incident.reason() != TicketIncidentReason.DAMAGED
                     && incident.reason() != TicketIncidentReason.LOST) {
                 throw new DomainException(ErrorCode.INVALID_INPUT, "Mỗi vé phải được báo DAMAGED hoặc LOST.");
+            }
+            if (incident.damagedReason() == null || incident.damagedReason().isBlank()) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Mỗi vé phải có lý do báo lỗi.");
+            }
+            if (incident.reason() == TicketIncidentReason.DAMAGED
+                    && (incident.damagedEvidenceUrl() == null || incident.damagedEvidenceUrl().isBlank())) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Vé hư hỏng phải có ảnh minh chứng.");
             }
             if (byDetailId.put(incident.orderDetailId(), incident) != null) {
                 throw new DomainException(ErrorCode.INVALID_INPUT, "Trùng báo lỗi cho cùng một vé.");
@@ -896,7 +914,8 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (order.getStatus() != OrderStatus.PREPARING
+        if (order.getStatus() != OrderStatus.PAID
+                && order.getStatus() != OrderStatus.PREPARING
                 && order.getStatus() != OrderStatus.PENDING_PICKUP) {
             throw new DomainException(
                     ErrorCode.ORDER_INVALID_STATUS,

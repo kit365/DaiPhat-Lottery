@@ -172,19 +172,22 @@ export const OrderList = () => {
         if (row.status === 'PAID') {
             items.push({
                 id: 'preparing',
-                label: 'Đang chuẩn bị',
+                label: 'Tiến hành kiểm tra',
                 icon: <Icon icon="solar:box-bold" width={18} />,
-                onClick: () => handleStatusUpdate(row.id, 'PREPARING'),
+                onClick: () => updateStatus({ id: row.id, status: 'PREPARING' }, {
+                    onSuccess: () => router.push(`/${prefixAdmin}/order/detail/${row.id}?inspection=start`),
+                    onError: () => toast.error('Không thể bắt đầu kiểm tra đơn hàng. Vui lòng thử lại.'),
+                }),
                 sx: { color: 'var(--palette-info-main)' },
             });
         }
 
         if (row.status === 'PREPARING') {
             items.push({
-                id: 'pending-pickup',
-                label: 'Chờ nhận vé',
+                id: 'start-inspection',
+                label: 'Tiến hành kiểm tra',
                 icon: <Icon icon="solar:shop-2-bold" width={18} />,
-                onClick: () => handleStatusUpdate(row.id, 'PENDING_PICKUP'),
+                onClick: () => router.push(`/${prefixAdmin}/order/detail/${row.id}?inspection=start`),
                 sx: { color: 'var(--palette-primary-main)' },
             });
         }
