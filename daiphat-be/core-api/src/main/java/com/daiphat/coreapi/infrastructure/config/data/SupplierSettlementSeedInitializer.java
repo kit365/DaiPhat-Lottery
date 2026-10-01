@@ -7,6 +7,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBat
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotterySupplierEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SupplierSettlementEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ReturnBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.SupplierSettlementRepository;
@@ -19,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Ensures one supplier settlement per seeded supplier + draw date (yesterday /
@@ -54,7 +57,7 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
             SYSTEM_ACTOR,
             "return-batch-seed",
             "import-batch-seed",
-            SupplierSettlementScenarioSeedInitializer.SYSTEM_ACTOR
+            "settlement-scenario-seed"
     );
     private static final String RETURN_NOTE_PREFIX = SeedDocumentCodes.RETURN_NOTE_PREFIX;
 
@@ -65,7 +68,11 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
     private final SupplierSettlementCodeGenerator supplierSettlementCodeGenerator;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
     private final SupplierPaymentCutOffCalculator supplierPaymentCutOffCalculator;
+    private final SeedAccountResolver seedAccountResolver;
     private final Clock clock;
+
+    @Value("${daiphat.official-demo.seed.enabled:false}")
+    private boolean officialDemoEnabled;
 
     @Override
     @Transactional
@@ -235,12 +242,17 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
                 );
         if (existing.isPresent()) {
             SupplierSettlementEntity settlement = existing.get();
+            UserEntity executor = resolveOfficialExecutor(drawDate, now.toLocalDate());
             SupplierSettlementStatus openingStatus = supplierPaymentCutOffCalculator.resolveOpeningStatus(
                     drawDate,
                     supplier.getPaymentCutOffTime(),
                     now
             );
             boolean changed = false;
+            if (executor != null && settlement.getMatchingConfirmedBy() == null) {
+                settlement.setMatchingConfirmedBy(executor.getId());
+                changed = true;
+            }
             if (settlement.getStatus() == SupplierSettlementStatus.OPEN
                     || settlement.getStatus() == SupplierSettlementStatus.NOT_OPEN) {
                 changed = settlement.getStatus() != openingStatus;
@@ -269,6 +281,7 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
             termDays = 0;
         }
         String code = supplierSettlementCodeGenerator.generateCode(drawDate);
+        UserEntity executor = resolveOfficialExecutor(drawDate, now.toLocalDate());
         try {
             SupplierSettlementEntity created = supplierSettlementRepository.save(
                     SupplierSettlementEntity.builder()
@@ -285,6 +298,7 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
                                     supplier.getPaymentCutOffTime(),
                                     now
                             ))
+                            .matchingConfirmedBy(executor != null ? executor.getId() : null)
                             .createdAt(now)
                             .updatedAt(now)
                             .createdBy(SYSTEM_ACTOR)
@@ -309,6 +323,17 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
             );
             throw ex;
         }
+    }
+
+    private UserEntity resolveOfficialExecutor(LocalDate drawDate, LocalDate today) {
+        if (!officialDemoEnabled || drawDate == null) {
+            return null;
+        }
+        long index = ChronoUnit.DAYS.between(today.minusDays(1), drawDate);
+        if (index < 0 || index > 2) {
+            return seedAccountResolver.findOperator();
+        }
+        return seedAccountResolver.findOfficialDemoStaff((int) index);
     }
 
     private boolean applyPaymentOverdueIfDue(
