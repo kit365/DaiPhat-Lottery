@@ -340,14 +340,7 @@ export const StreetAgentCreatePage = () => {
                             profile = verifyRes.data;
                             toast.success(verifyRes.message || "Đã đọc và kiểm tra thông tin CCCD.");
                         }
-                    } catch (error: any) {
-                        toast.error(
-                            error?.response?.data?.message ||
-                                error?.message ||
-                                "Chưa đọc đủ thông tin CCCD — có thể thử lại sau khi lưu."
-                        );
-                    } finally {
-                        setIsVerifyingEkyc(false);
+                        toast.error(failReason);
                     }
                 } catch (error: any) {
                     toast.error(
