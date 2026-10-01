@@ -49,6 +49,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SouthernLotteryStationSeedInitializer implements ApplicationRunner {
 
+    @org.springframework.beans.factory.annotation.Value("${daiphat.official-demo.seed.enabled:false}")
+    private boolean officialDemoEnabled;
+
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryRegionRepositoryPort lotteryRegionRepositoryPort;
@@ -135,7 +138,9 @@ public class SouthernLotteryStationSeedInitializer implements ApplicationRunner 
             }
         }
 
-        int deactivated = deactivateNonCatalogStations(byName.values());
+        // Official demo upserts its catalog; it must not deactivate stations
+        // entered by a real user simply because they are outside this catalog.
+        int deactivated = officialDemoEnabled ? 0 : deactivateNonCatalogStations(byName.values());
 
         log.info(
                 "Southern lottery station seed finished: {} created, {} refreshed, {} skipped, {} non-catalog deactivated (catalog size={}).",
@@ -188,7 +193,7 @@ public class SouthernLotteryStationSeedInitializer implements ApplicationRunner 
                         .commissionRate(SouthernLotteryStationCatalog.DEFAULT_COMMISSION_RATE)
                         .drawDays(seed.drawDays())
                         .drawTime(SouthernLotteryStationCatalog.DRAW_TIME)
-                        .description("Seed lịch quay Xổ số Kiến thiết Miền Nam.")
+                        .description(description(seed))
                         .build()
         );
         return createdStation.id();
@@ -207,6 +212,7 @@ public class SouthernLotteryStationSeedInitializer implements ApplicationRunner 
                 .commissionRate(SouthernLotteryStationCatalog.DEFAULT_COMMISSION_RATE)
                 .drawDays(seed.drawDays())
                 .drawTime(SouthernLotteryStationCatalog.DRAW_TIME)
+                .description(description(seed))
                 .isActive(true)
                 .build();
     }
@@ -224,7 +230,15 @@ public class SouthernLotteryStationSeedInitializer implements ApplicationRunner 
         if (!Objects.equals(existing.getDrawTime(), SouthernLotteryStationCatalog.DRAW_TIME)) {
             return true;
         }
+        if (!Objects.equals(existing.getDescription(), description(seed))) {
+            return true;
+        }
         return !sameDrawDays(existing.getDrawDays(), seed.drawDays());
+    }
+
+    private static String description(SouthernLotteryStationCatalog.StationSeed seed) {
+        return "Đài Xổ số kiến thiết " + seed.name()
+                + " thuộc khu vực miền Nam; mở thưởng lúc 16:15 theo lịch quay hằng tuần.";
     }
 
     private static boolean sameDrawDays(List<DayOfWeek> left, List<DayOfWeek> right) {

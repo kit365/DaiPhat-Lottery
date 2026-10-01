@@ -43,6 +43,29 @@ public class SeedAccountResolver {
                 .orElse(null);
     }
 
+    /** Yesterday, today and tomorrow are owned by three distinct official-demo operators. */
+    public UserEntity findOfficialDemoStaff(int dayIndex) {
+        List<String> usernames = List.of("nguyenhoangan1", "tranthiminhchau2", "lequocbao3");
+        if (dayIndex < 0 || dayIndex >= usernames.size()) {
+            throw new IllegalArgumentException("dayIndex must be 0, 1 or 2");
+        }
+        return userRepository.findByUsername(usernames.get(dayIndex))
+                .filter(user -> user.getRole() != null
+                        && RoleConstants.ROLE_STAFF_OPERATOR.equals(user.getRole().getCode()))
+                .orElse(null);
+    }
+
+    public UserEntity findOfficialDemoMember(int memberIndex) {
+        List<String> usernames = List.of("phamngoclinh1", "vominhquan2", "dangthikimngan3");
+        if (memberIndex < 0 || memberIndex >= usernames.size()) {
+            throw new IllegalArgumentException("memberIndex must be 0, 1 or 2");
+        }
+        return userRepository.findByUsername(usernames.get(memberIndex))
+                .filter(user -> user.getRole() != null
+                        && RoleConstants.ROLE_MEMBER.equals(user.getRole().getCode()))
+                .orElse(null);
+    }
+
     public UserEntity findStreetAgent() {
         return userRepository.findByUsername(streetAgentUsername)
                 .or(() -> userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ROLE_STREET_AGENT)).stream().findFirst())

@@ -21,7 +21,7 @@ import java.util.List;
  * {@code LOTTERY_SEED_WIN50_PAYOUT_ENABLED}, {@code VENDOR_TEST_SEED_ENABLED} (see application-*.yml).
  * Document codes (mã phiếu) use {@link SeedDocumentCodes} — production PN/LO/PT/DS shape.
  * <p>
- * Suppliers visible in UI: only {@link #SUPPLIER_MINH_CHINH_CODE} and {@link #SUPPLIER_MINH_NGOC_CODE}.
+ * Official supplier visible in the seeded UI: {@link #SUPPLIER_MINH_CHINH_CODE}.
  */
 public final class SharedSeedConstants {
 
@@ -30,9 +30,7 @@ public final class SharedSeedConstants {
 
     /** Canonical suppliers (real names only — no test/demo/QA labels in UI). */
     public static final String SUPPLIER_MINH_CHINH_CODE = "MINH_CHINH";
-    public static final String SUPPLIER_MINH_CHINH_NAME = "Minh Chính";
-    public static final String SUPPLIER_MINH_NGOC_CODE = "MINH_NGOC";
-    public static final String SUPPLIER_MINH_NGOC_NAME = "Minh Ngọc";
+    public static final String SUPPLIER_MINH_CHINH_NAME = "Tổng nhà đài Minh Chính";
 
     /** Legacy import code prefixes (cleanup only — UI codes use {@link SeedDocumentCodes}). */
     public static final String IMPORT_BATCH_PREFIX = "PN-SEED-";
@@ -53,7 +51,7 @@ public final class SharedSeedConstants {
     public static final String ORDER_AVAILABLE_BATCH_PREFIX = "PN-SEED-AVAILABLE-";
     public static final String ORDER_AVAILABLE_LINE_PREFIX = "LO-SEED-AVAILABLE-";
 
-    /** Vendor allocation inventory under Minh Ngọc. */
+    /** Legacy vendor allocation inventory markers (cleanup compatibility only). */
     public static final String VENDOR_BATCH_PREFIX = "PN-SEED-VN-";
     public static final String VENDOR_SERIAL_PREFIX = "IBVN-";
     public static final String VENDOR_SEED_MARKER = "VENDOR_ALLOC_SEED";
@@ -61,7 +59,7 @@ public final class SharedSeedConstants {
     public static final String LEGACY_VENDOR_BATCH_PREFIX = "LOCAL-VENDOR-";
     public static final String LEGACY_VENDOR_SERIAL_PREFIX = "VENDOR-TEST-";
 
-    /** Lucky-pattern inventory under Minh Ngọc. */
+    /** Legacy lucky-pattern inventory markers (cleanup compatibility only). */
     public static final String LUCKY_BATCH_PREFIX = "PN-SEED-LP-";
     public static final String LUCKY_SERIAL_PREFIX = "IBLP-";
     public static final String LUCKY_SEED_MARKER = "LUCKY_PATTERN_SEED";

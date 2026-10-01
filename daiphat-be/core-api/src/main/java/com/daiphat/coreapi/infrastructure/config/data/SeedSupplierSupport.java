@@ -14,10 +14,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Keeps the supplier master list to real names only:
- * {@link SharedSeedConstants#SUPPLIER_MINH_CHINH_NAME} and
- * {@link SharedSeedConstants#SUPPLIER_MINH_NGOC_NAME}.
- * Retires leftover test/demo/QA supplier codes so they never appear in UI.
+ * Keeps the supplier master list free of retired test/demo/QA records.
+ * Official-demo mode keeps only the current official Minh Chính supplier.
  */
 @Component
 @RequiredArgsConstructor
@@ -40,31 +38,19 @@ public class SeedSupplierSupport {
         return upsert(
                 SharedSeedConstants.SUPPLIER_MINH_CHINH_CODE,
                 SharedSeedConstants.SUPPLIER_MINH_CHINH_NAME,
+                "Nguyễn Văn Minh",
                 "0909123456",
                 "minhchinh@daiphat.com",
-                "123 Nguyen Hue, Quan 1, TP.HCM",
+                "123 Nguyễn Huệ, phường Sài Gòn, Thành phố Hồ Chí Minh",
                 "0312345678",
                 0,
                 now
         );
     }
 
-    public LotterySupplierEntity ensureMinhNgoc(LocalDateTime now) {
-        return upsert(
-                SharedSeedConstants.SUPPLIER_MINH_NGOC_CODE,
-                SharedSeedConstants.SUPPLIER_MINH_NGOC_NAME,
-                "0909000111",
-                "minhngoc@daiphat.com",
-                "1 Nguyen Hue, Quan 1, TP.HCM",
-                "0311111111",
-                1,
-                now
-        );
-    }
-
     /**
      * Soft-delete + deactivate retired demo suppliers so the picker only shows
-     * Minh Chính / Minh Ngọc after seed.
+     * the current official Minh Chính supplier after seed.
      */
     public int retireDemoSuppliers(LocalDateTime now) {
         int retired = 0;
@@ -76,8 +62,9 @@ public class SeedSupplierSupport {
             String code = supplier.getCode() == null ? "" : supplier.getCode().trim();
             boolean retiredCode = RETIRED_CODES.stream().anyMatch(c -> c.equalsIgnoreCase(code));
             boolean looksDemo = looksLikeDemoLabel(supplier.getName()) || looksLikeDemoLabel(code);
-            boolean keepCanonical = SharedSeedConstants.SUPPLIER_MINH_CHINH_CODE.equalsIgnoreCase(code)
-                    || SharedSeedConstants.SUPPLIER_MINH_NGOC_CODE.equalsIgnoreCase(code);
+            boolean legacyMinhNgoc = "MINH_NGOC".equalsIgnoreCase(code);
+            boolean keepCanonical = SharedSeedConstants.SUPPLIER_MINH_CHINH_CODE.equalsIgnoreCase(code);
+            retiredCode = retiredCode || legacyMinhNgoc;
             if (keepCanonical || (!retiredCode && !looksDemo)) {
                 continue;
             }
@@ -95,6 +82,7 @@ public class SeedSupplierSupport {
     private LotterySupplierEntity upsert(
             String code,
             String name,
+            String contactName,
             String phone,
             String email,
             String address,
@@ -106,7 +94,7 @@ public class SeedSupplierSupport {
                 .map(existing -> {
                     existing.setName(name);
                     existing.setType(LotterySupplierType.DISTRIBUTOR);
-                    existing.setContactName(name);
+                    existing.setContactName(contactName);
                     existing.setContactPhone(phone);
                     existing.setContactEmail(email);
                     existing.setAddress(address);
@@ -126,7 +114,7 @@ public class SeedSupplierSupport {
                                 .name(name)
                                 .code(code)
                                 .type(LotterySupplierType.DISTRIBUTOR)
-                                .contactName(name)
+                                .contactName(contactName)
                                 .contactPhone(phone)
                                 .contactEmail(email)
                                 .address(address)
