@@ -1,5 +1,8 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
+import com.daiphat.coreapi.application.dto.response.lotteries.TicketInventoryResponse;
+import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
+
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
@@ -25,6 +28,8 @@ public interface LotteryTicketServicePort {
     BulkCreateLotteryTicketsResponse createBulk(BulkCreateLotteryTicketsRequest request, UUID importedById);
 
     LotteryTicketResponse getById(Long id);
+
+    List<TicketInventoryResponse> validateInventory(List<OrderTicketItemRequest> items);
 
     default PageResponse<LotteryTicketResponse> getAll(
             int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,

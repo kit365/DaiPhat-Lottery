@@ -2073,6 +2073,104 @@ export const OcrTicketImportDialog = ({
                                 }}
                             />
 
+                            {/* Live Mobile Connection Banner for Step 1 Upload */}
+                            {mobileScanSession.sessionCode && mobileScanSession.status === 'CONNECTED' && (
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        p: 1.5,
+                                        px: 2,
+                                        bgcolor: '#f0fdf4',
+                                        border: '1.5px solid #86efac',
+                                        borderRadius: '12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        flexWrap: 'wrap',
+                                        gap: 1.5,
+                                    }}
+                                >
+                                    <Stack direction="row" spacing={1.5} alignItems="center">
+                                        <Box
+                                            sx={{
+                                                width: 10,
+                                                height: 10,
+                                                borderRadius: '50%',
+                                                bgcolor: '#22c55e',
+                                                boxShadow: '0 0 0 3px rgba(34, 197, 94, 0.25)',
+                                            }}
+                                        />
+                                        <Typography variant="body2" fontWeight="bold" color="#166534">
+                                            Đang kết nối Mobile: {mobileScanSession.connectedDevice || 'Điện thoại'} ({mobileScanSession.connectedStaff || 'Nhân viên'}) • Mã PIN: #{mobileScanSession.sessionCode} • Ảnh chụp từ app sẽ tự động thêm vào đây
+                                        </Typography>
+                                    </Stack>
+                                    <Stack direction="row" spacing={1}>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            color="success"
+                                            onClick={() => setMobileScanDialogOpen(true)}
+                                            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                                        >
+                                            Xem lại mã QR / PIN
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            color="error"
+                                            variant="text"
+                                            onClick={() => setConfirmDisconnectMobileOpen(true)}
+                                            sx={{ textTransform: 'none', fontWeight: 600 }}
+                                        >
+                                            Ngắt kết nối
+                                        </Button>
+                                    </Stack>
+                                </Paper>
+                            )}
+                            {mobileScanSession.sessionCode && mobileScanSession.status === 'WAITING_FOR_MOBILE' && (
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        p: 1.5,
+                                        px: 2,
+                                        bgcolor: '#eff6ff',
+                                        border: '1.5px solid #bfdbfe',
+                                        borderRadius: '12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        flexWrap: 'wrap',
+                                        gap: 1.5,
+                                    }}
+                                >
+                                    <Stack direction="row" spacing={1.5} alignItems="center">
+                                        <CircularProgress size={14} color="primary" />
+                                        <Typography variant="body2" fontWeight="bold" color="#1e40af">
+                                            Đang chờ kết nối từ Mobile App (Mã PIN: #{mobileScanSession.sessionCode}) • Mở app Daiphat quét QR hoặc nhập PIN
+                                        </Typography>
+                                    </Stack>
+                                    <Stack direction="row" spacing={1}>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            color="primary"
+                                            onClick={() => setMobileScanDialogOpen(true)}
+                                            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                                        >
+                                            Mở mã QR / PIN
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            color="inherit"
+                                            variant="text"
+                                            onClick={handleEndMobileSession}
+                                            sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
+                                        >
+                                            Hủy phiên
+                                        </Button>
+                                    </Stack>
+                                </Paper>
+                            )}
+
                             {wizard.images.length === 0 ? (
                                 <Stack spacing={2}>
                                     <Box
@@ -2300,6 +2398,30 @@ export const OcrTicketImportDialog = ({
                                         </Stack>
 
                                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ gap: 1 }}>
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                startIcon={<PhoneIphoneIcon />}
+                                                onClick={handleOpenMobileScan}
+                                                sx={{
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    borderRadius: '8px',
+                                                    bgcolor: mobileScanSession.status === 'CONNECTED' ? '#f0fdf4' : '#ffffff',
+                                                    borderColor: mobileScanSession.status === 'CONNECTED' ? '#86efac' : '#cbd5e1',
+                                                    color: mobileScanSession.status === 'CONNECTED' ? '#15803d' : '#334155',
+                                                    '&:hover': {
+                                                        bgcolor: mobileScanSession.status === 'CONNECTED' ? '#dcfce7' : '#f8fafc',
+                                                        borderColor: mobileScanSession.status === 'CONNECTED' ? '#4ade80' : '#94a3b8',
+                                                    },
+                                                }}
+                                            >
+                                                {mobileScanSession.status === 'CONNECTED'
+                                                    ? `Mobile: ${mobileScanSession.connectedDevice || 'Đã kết nối'}`
+                                                    : mobileScanSession.sessionCode && mobileScanSession.status === 'WAITING_FOR_MOBILE'
+                                                    ? `Mã PIN: ${mobileScanSession.sessionCode}`
+                                                    : 'Quét từ Mobile'}
+                                            </Button>
                                             <Button
                                                 size="small"
                                                 variant="outlined"
@@ -2678,7 +2800,7 @@ export const OcrTicketImportDialog = ({
 
                 {wizard.step === 'review' && (
                     <Stack spacing={2.5}>
-                        {mobileScanSession.status === 'CONNECTED' && (
+                        {mobileScanSession.sessionCode && mobileScanSession.status === 'CONNECTED' && (
                             <Paper
                                 elevation={0}
                                 sx={{
@@ -2690,6 +2812,8 @@ export const OcrTicketImportDialog = ({
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: 1.5,
                                 }}
                             >
                                 <Stack direction="row" spacing={1.5} alignItems="center">
@@ -2703,7 +2827,7 @@ export const OcrTicketImportDialog = ({
                                         }}
                                     />
                                     <Typography variant="body2" fontWeight="bold" color="#166534">
-                                        Đang kết nối Mobile: {mobileScanSession.connectedDevice || 'Điện thoại'} (Mã #{mobileScanSession.sessionCode}) • Ảnh mới sẽ chờ bạn bấm Bắt đầu quét
+                                        Đang kết nối Mobile: {mobileScanSession.connectedDevice || 'Điện thoại'} ({mobileScanSession.connectedStaff || 'Nhân viên'}) • Mã #{mobileScanSession.sessionCode} • Ảnh mới sẽ chờ bạn bấm Bắt đầu quét
                                     </Typography>
                                 </Stack>
                                 <Stack direction="row" spacing={1}>
@@ -2724,6 +2848,50 @@ export const OcrTicketImportDialog = ({
                                         sx={{ textTransform: 'none', fontWeight: 600 }}
                                     >
                                         Ngắt kết nối
+                                    </Button>
+                                </Stack>
+                            </Paper>
+                        )}
+                        {mobileScanSession.sessionCode && mobileScanSession.status === 'WAITING_FOR_MOBILE' && (
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 1.5,
+                                    px: 2,
+                                    bgcolor: '#eff6ff',
+                                    border: '1.5px solid #bfdbfe',
+                                    borderRadius: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: 1.5,
+                                }}
+                            >
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                    <CircularProgress size={14} color="primary" />
+                                    <Typography variant="body2" fontWeight="bold" color="#1e40af">
+                                        Đang chờ kết nối từ Mobile App (Mã PIN: #{mobileScanSession.sessionCode}) • Mở app Daiphat quét QR hoặc nhập PIN
+                                    </Typography>
+                                </Stack>
+                                <Stack direction="row" spacing={1}>
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        color="primary"
+                                        onClick={() => setMobileScanDialogOpen(true)}
+                                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                                    >
+                                        Mở mã QR / PIN
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        color="inherit"
+                                        variant="text"
+                                        onClick={handleEndMobileSession}
+                                        sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
+                                    >
+                                        Hủy phiên
                                     </Button>
                                 </Stack>
                             </Paper>

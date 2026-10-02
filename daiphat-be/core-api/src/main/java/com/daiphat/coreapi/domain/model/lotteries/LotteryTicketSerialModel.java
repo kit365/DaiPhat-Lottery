@@ -102,7 +102,7 @@ public class LotteryTicketSerialModel {
     /** Sellable inventory: in stock, good condition, not linked to a return batch line. */
     public boolean isAvailableForSale() {
         return this.status == LotteryTicketSerialStatus.IN_STOCK
-                && (this.ticketCondition == null || this.ticketCondition == TicketCondition.GOOD)
+                && this.ticketCondition == TicketCondition.GOOD
                 && this.returnBatchLineId == null
                 && this.deletedAt == null
                 && !isVoided();

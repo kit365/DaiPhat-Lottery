@@ -96,7 +96,7 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     BuildContext context,
     LotteryTicketListItem ticket, {
     bool openCheckout = false,
-  }) {
+  }) async {
     if (!readIsAuthenticated(ref)) {
       goToLogin(
         context,
@@ -115,7 +115,25 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
       return;
     }
 
-    final maxStock = ticket.quantity > 0 ? ticket.quantity : 1;
+    try {
+      final requested = openCheckout
+          ? 1
+          : ref.read(cartProvider.notifier).quantityForTicket(ticket.id) + 1;
+      final latest = (await ref.read(cartProvider.notifier).validateInventory({
+        ticket.id: requested,
+      })).single;
+      if (!context.mounted) return;
+      if (!latest.valid) {
+        AppToast.error(latest.message ?? 'Vé không còn khả dụng.');
+        return;
+      }
+      ticket = ticket.withInventory(latest);
+    } catch (_) {
+      if (context.mounted)
+        AppToast.error('Không thể kiểm tra tồn kho. Vui lòng thử lại.');
+      return;
+    }
+    final maxStock = ticket.quantity;
     final currentQty = ref
         .read(cartProvider.notifier)
         .quantityForTicket(ticket.id);
@@ -803,7 +821,9 @@ class _DaySegmentedControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final todayDateStr = DateFormat('dd/MM').format(SellableDrawDate.todayVn());
-    final tomorrowDateStr = DateFormat('dd/MM').format(SellableDrawDate.tomorrowVn());
+    final tomorrowDateStr = DateFormat(
+      'dd/MM',
+    ).format(SellableDrawDate.tomorrowVn());
 
     return Container(
       decoration: const BoxDecoration(
@@ -1460,90 +1480,140 @@ class TicketDetailModalSheet extends ConsumerStatefulWidget {
 class _TicketDetailModalSheetState
     extends ConsumerState<TicketDetailModalSheet> {
   late int _quantity;
+  late LotteryTicketListItem _ticket;
+  bool _loadingInventory = true;
+  bool _checkingInventory = false;
+  String? _inventoryError;
 
   @override
   void initState() {
     super.initState();
+    _ticket = widget.ticket;
     _quantity = widget.initialQuantity > 0 ? widget.initialQuantity : 1;
-    final max = _maxStock;
-    if (_quantity > max) {
-      _quantity = max;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadInventory());
+  }
+
+  Future<void> _loadInventory() async {
+    try {
+      final latest = (await ref.read(cartProvider.notifier).validateInventory({
+        _ticket.id: 1,
+      })).single;
+      if (!mounted) return;
+      if (!latest.purchasable) {
+        AppToast.error(latest.message ?? 'Vé không còn khả dụng.');
+        Navigator.of(context).pop();
+        return;
+      }
+      setState(() {
+        _ticket = _ticket.withInventory(latest);
+        if (_quantity > _maxStock) _quantity = _maxStock;
+        _loadingInventory = false;
+        _inventoryError = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingInventory = false;
+        _inventoryError = 'Không thể kiểm tra tồn kho. Vui lòng thử lại.';
+      });
     }
   }
 
-  int get _maxStock => widget.ticket.quantity > 0 ? widget.ticket.quantity : 1;
+  Future<bool> _validateAction({required bool addingToCart}) async {
+    if (_checkingInventory || _loadingInventory) return false;
+    setState(() => _checkingInventory = true);
+    try {
+      final requested =
+          _quantity +
+          (addingToCart
+              ? ref.read(cartProvider.notifier).quantityForTicket(_ticket.id)
+              : 0);
+      final latest = (await ref.read(cartProvider.notifier).validateInventory({
+        _ticket.id: requested,
+      })).single;
+      if (!mounted) return false;
+      setState(() => _ticket = _ticket.withInventory(latest));
+      if (!latest.valid) {
+        AppToast.error(latest.message ?? 'Vé không còn khả dụng.');
+        if (!latest.purchasable) {
+          Navigator.of(context).pop();
+        } else if (_quantity > _maxStock) {
+          setState(() => _quantity = _maxStock);
+        }
+        return false;
+      }
+      return true;
+    } catch (_) {
+      if (mounted)
+        AppToast.error('Không thể kiểm tra tồn kho. Vui lòng thử lại.');
+      return false;
+    } finally {
+      if (mounted) setState(() => _checkingInventory = false);
+    }
+  }
 
-  int get _unitPrice => widget.ticket.effectivePrice;
+  int get _maxStock => _ticket.quantity;
+
+  int get _unitPrice => _ticket.effectivePrice;
 
   int get _totalPrice => _unitPrice * _quantity;
 
   String get _formattedTotalPrice => AppFormatters.formatCurrency(_totalPrice);
 
   String get _dateText {
-    final weekday = _kVnWeekdayLabels[widget.ticket.drawDate.weekday] ?? '';
-    final label = widget.ticket.dayFilter == TicketDayFilter.today
+    final weekday = _kVnWeekdayLabels[_ticket.drawDate.weekday] ?? '';
+    final label = _ticket.dayFilter == TicketDayFilter.today
         ? 'Hôm nay'
         : 'Ngày mai';
-    final dateStr = DateFormat('dd/MM/yyyy').format(widget.ticket.drawDate);
+    final dateStr = DateFormat('dd/MM/yyyy').format(_ticket.drawDate);
     return '$weekday, $dateStr ($label)';
   }
 
   void _increase() {
-    if (_quantity < _maxStock) {
+    if (!_checkingInventory && _quantity < _maxStock) {
       setState(() => _quantity++);
       widget.onQuantityChanged?.call(_quantity);
     }
   }
 
   void _decrease() {
-    if (_quantity > 1) {
+    if (!_checkingInventory && _quantity > 1) {
       setState(() => _quantity--);
       widget.onQuantityChanged?.call(_quantity);
     }
   }
 
-  bool _blockTodaySaleIfClosed() {
-    if (widget.ticket.dayFilter == TicketDayFilter.today &&
-        SellableDrawDate.isTodayDrawPassed()) {
-      AppToast.error(
-        'Đã quá 16:15, không thể mua vé cho hôm nay. Vui lòng chọn vé ngày mai.',
-      );
-      return true;
-    }
-    return false;
-  }
-
   CartItemData _buildCartItem() {
     return CartItemData(
-      lotteryTicketId: widget.ticket.id,
-      province: widget.ticket.stationDisplayText,
+      lotteryTicketId: _ticket.id,
+      province: _ticket.stationDisplayText,
       dateLabel: _dateText,
       drawTime: '',
-      kyHieu: widget.ticket.batchCode ?? '',
-      number: widget.ticket.code,
+      kyHieu: _ticket.batchCode ?? '',
+      number: _ticket.code,
       quantity: _quantity,
       unitPrice: _unitPrice,
-      logoText: widget.ticket.shortName,
-      ticketImageUrl: widget.ticket.imageUrl,
-      drawDateIso: SellableDrawDate.toIsoDate(widget.ticket.drawDate),
+      logoText: _ticket.shortName,
+      ticketImageUrl: _ticket.imageUrl,
+      drawDateIso: SellableDrawDate.toIsoDate(_ticket.drawDate),
       maxStock: _maxStock,
     );
   }
 
-  void _addToCart() {
+  void _addToCart() async {
     if (!readIsAuthenticated(ref)) {
       Navigator.of(context).pop();
       goToLogin(context, redirectPath: AppRoute.buyTicket.path);
       return;
     }
-    if (_blockTodaySaleIfClosed()) return;
+    if (!await _validateAction(addingToCart: true) || !mounted) return;
 
     final currentQtyInCart = ref
         .read(cartProvider.notifier)
-        .quantityForTicket(widget.ticket.id);
+        .quantityForTicket(_ticket.id);
     if (currentQtyInCart + _quantity > _maxStock) {
       AppToast.error(
-        'Vé số ${widget.ticket.code} chỉ còn $_maxStock vé (bạn đã có $currentQtyInCart vé trong giỏ)',
+        'Vé số ${_ticket.code} chỉ còn $_maxStock vé (bạn đã có $currentQtyInCart vé trong giỏ)',
       );
       return;
     }
@@ -1553,7 +1623,7 @@ class _TicketDetailModalSheetState
     Navigator.of(context).pop();
 
     AppToast.show(
-      'Đã thêm $_quantity vé ${widget.ticket.code} vào giỏ hàng.',
+      'Đã thêm $_quantity vé ${_ticket.code} vào giỏ hàng.',
       actionLabel: 'Xem giỏ hàng',
       onAction: () {
         router.push(AppRoute.cart.path);
@@ -1561,21 +1631,51 @@ class _TicketDetailModalSheetState
     );
   }
 
-  void _buyNow() {
+  void _buyNow() async {
     if (!readIsAuthenticated(ref)) {
       Navigator.of(context).pop();
       goToLogin(context, redirectPath: AppRoute.checkout.path);
       return;
     }
-    if (_blockTodaySaleIfClosed()) return;
+    if (!await _validateAction(addingToCart: false) || !mounted) return;
 
-    Navigator.of(context).pop();
+    final router = GoRouter.of(context);
     ref.read(buyNowItemsProvider.notifier).start([_buildCartItem()]);
-    context.pushNamed(AppRoute.checkout.name);
+    Navigator.of(context).pop();
+    router.pushNamed(AppRoute.checkout.name);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingInventory || _inventoryError != null) {
+      return SafeArea(
+        child: Container(
+          color: AppColors.surfacePrimary,
+          padding: const EdgeInsets.all(24),
+          child: _loadingInventory
+              ? const Center(
+                  heightFactor: 2,
+                  child: CircularProgressIndicator(),
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_inventoryError!),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _loadingInventory = true;
+                          _inventoryError = null;
+                        });
+                        _loadInventory();
+                      },
+                      child: const Text('Thử lại'),
+                    ),
+                  ],
+                ),
+        ),
+      );
+    }
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surfacePrimary,
@@ -1659,7 +1759,7 @@ class _TicketDetailModalSheetState
                       children: [
                         Expanded(
                           child: Text(
-                            widget.ticket.productTitle,
+                            _ticket.productTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppTypography.subtitle1(
@@ -1697,7 +1797,7 @@ class _TicketDetailModalSheetState
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
-                        widget.ticket.code,
+                        _ticket.code,
                         textAlign: TextAlign.center,
                         style: AppTypography.lotteryDigit(
                           color: AppColors.contentPrimary,
@@ -1928,7 +2028,7 @@ class _TicketDetailModalSheetState
                       child: SizedBox(
                         height: 48,
                         child: OutlinedButton.icon(
-                          onPressed: _addToCart,
+                          onPressed: _checkingInventory ? null : _addToCart,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.primary,
                             side: const BorderSide(
@@ -1958,7 +2058,7 @@ class _TicketDetailModalSheetState
                       child: SizedBox(
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: _buyNow,
+                          onPressed: _checkingInventory ? null : _buyNow,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.surfacePrimary,

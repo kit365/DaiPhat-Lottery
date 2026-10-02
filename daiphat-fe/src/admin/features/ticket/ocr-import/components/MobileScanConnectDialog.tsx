@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import QRCode from 'react-qr-code';
 import {
     Alert,
     Box,
@@ -86,41 +85,16 @@ export const MobileScanConnectDialog: React.FC<MobileScanConnectDialogProps> = (
                             </Typography>
                         </Stack>
                     ) : (
-                        <Stack spacing={2} alignItems="center" sx={{ py: 1, textAlign: 'center' }}>
+                        <Stack spacing={2.5} alignItems="center" sx={{ py: 1.5, textAlign: 'center' }}>
                             <Typography variant="body2" color="text.secondary">
-                                Mở ứng dụng Mobile Đại Phát, chọn <b>Quét vé OCR</b> và nhập mã PIN hoặc quét mã QR dưới đây:
+                                Mở ứng dụng Mobile Đại Phát, chọn <b>Quét vé OCR</b> và nhập mã PIN dưới đây:
                             </Typography>
-
-                            {/* QR Code */}
-                            <Paper
-                                variant="outlined"
-                                sx={{
-                                    p: 2,
-                                    bgcolor: '#ffffff',
-                                    borderRadius: 3,
-                                    display: 'inline-block',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                                }}
-                            >
-                                {qrToken ? (
-                                    <QRCode
-                                        value={qrToken}
-                                        size={160}
-                                        style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
-                                        viewBox="0 0 160 160"
-                                    />
-                                ) : (
-                                    <Box sx={{ width: 160, height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <CircularProgress size={24} />
-                                    </Box>
-                                )}
-                            </Paper>
 
                             {/* PIN Code Box */}
                             <Paper
                                 variant="outlined"
                                 sx={{
-                                    p: 1.5,
+                                    p: 2,
                                     width: '100%',
                                     bgcolor: isConnected ? '#f0fdf4' : 'action.hover',
                                     borderColor: isConnected ? '#86efac' : 'primary.main',
@@ -201,7 +175,7 @@ export const MobileScanConnectDialog: React.FC<MobileScanConnectDialogProps> = (
                     )}
                 </DialogContent>
 
-                <DialogActions sx={{ px: 2.5, py: 1.5, display: 'flex', justifyContent: isConnected && onEndSession ? 'space-between' : 'flex-end', gap: 1 }}>
+                <DialogActions sx={{ px: 2.5, py: 1.5, display: 'flex', justifyContent: onEndSession ? 'space-between' : 'flex-end', gap: 1 }}>
                     {isConnected && onEndSession && (
                         <Button
                             onClick={() => setConfirmDisconnectOpen(true)}
@@ -210,6 +184,16 @@ export const MobileScanConnectDialog: React.FC<MobileScanConnectDialogProps> = (
                             sx={{ py: 1, px: 2, fontWeight: 600, textTransform: 'none' }}
                         >
                             Ngắt kết nối
+                        </Button>
+                    )}
+                    {!isConnected && onEndSession && sessionCode && (
+                        <Button
+                            onClick={onEndSession}
+                            color="inherit"
+                            variant="text"
+                            sx={{ py: 1, px: 2, fontWeight: 600, textTransform: 'none', color: '#64748b' }}
+                        >
+                            Hủy phiên kết nối
                         </Button>
                     )}
                     <Button
@@ -221,8 +205,8 @@ export const MobileScanConnectDialog: React.FC<MobileScanConnectDialogProps> = (
                             px: 2.5,
                             fontWeight: 'bold',
                             textTransform: 'none',
-                            flex: isConnected && onEndSession ? 1 : 'none',
-                            width: isConnected && onEndSession ? 'auto' : '100%',
+                            flex: onEndSession ? 1 : 'none',
+                            width: onEndSession ? 'auto' : '100%',
                         }}
                     >
                         {scannedCount > 0 ? `Xem ảnh chờ quét (${scannedCount} ảnh)` : (isConnected ? 'Về danh sách ảnh' : 'Đóng')}

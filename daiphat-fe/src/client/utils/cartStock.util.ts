@@ -1,110 +1,71 @@
-import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
-
+import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { apiApp } from '../../api';
 import { useCartStore, type CartItem } from '../../stores/useCartStore';
 import { AppToast as toast } from '../../utils/toast.util';
+import { buyTicketQueryKeys } from '../features/buy-ticket/constants/queryKeys';
+import type { PublicBuyTicketPage } from '../features/buy-ticket/services/buyTicketService';
 
-dayjs.extend(customParseFormat);
-
-const PUBLIC_STOCK_REQUEST = { skipGlobalErrorToast: true } as const;
-
-function parseCartDrawDate(label: string): string | undefined {
-    const parsed = dayjs(label, 'DD/MM/YYYY', true);
-    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : undefined;
+export interface TicketInventory {
+    lotteryTicketId: number;
+    availableQuantity: number;
+    status: string | null;
+    ticketCondition: string | null;
+    purchasable: boolean;
+    valid: boolean;
+    message: string | null;
 }
 
-/** Gom vé theo ngày quay để gọi API public theo lô, tránh N request riêng lẻ. */
-function groupItemsByDrawDate(items: CartItem[]): Map<string, CartItem[]> {
-    const groups = new Map<string, CartItem[]>();
-
+/** Uncached preflight; actual allocation still rechecks inventory in the order transaction. */
+export async function validateTicketInventory(
+    items: { id: string; quantity: number }[],
+    queryClient?: QueryClient,
+): Promise<TicketInventory[]> {
+    const quantities = new Map<string, number>();
     for (const item of items) {
-        const drawDate = parseCartDrawDate(item.date) ?? 'unknown';
-        const bucket = groups.get(drawDate);
-        if (bucket) {
-            bucket.push(item);
-        } else {
-            groups.set(drawDate, [item]);
-        }
+        quantities.set(item.id, (quantities.get(item.id) ?? 0) + item.quantity);
     }
-
-    return groups;
+    if (!quantities.size) return [];
+    const response = await apiApp.post('/lottery-tickets/public/validate-inventory',
+        [...quantities].map(([id, quantity]) => ({ lotteryTicketId: Number(id), quantity })),
+        { skipGlobalErrorToast: true } as Parameters<typeof apiApp.post>[2]);
+    const inventory: TicketInventory[] = response.data?.data;
+    if (!Array.isArray(inventory) || inventory.length !== quantities.size ||
+        new Set(inventory.map(item => String(item.lotteryTicketId))).size !== quantities.size ||
+        inventory.some(item => !quantities.has(String(item.lotteryTicketId)))) {
+        throw new Error('Không thể kiểm tra tồn kho.');
+    }
+    const byId = new Map(inventory.map(item => [String(item.lotteryTicketId), item]));
+    const sync = (items: CartItem[]) => items.flatMap(item => {
+        const latest = byId.get(item.id);
+        if (!latest) return [item];
+        if (!latest.purchasable) return [];
+        return [{ ...item, maxStock: latest.availableQuantity,
+            quantity: Math.min(item.quantity, latest.availableQuantity) }];
+    });
+    useCartStore.setState(state => ({
+        items: sync(state.items),
+        buyNowItems: state.buyNowItems === null ? null : sync(state.buyNowItems),
+    }));
+    queryClient?.setQueriesData<InfiniteData<PublicBuyTicketPage>>(
+        { queryKey: buyTicketQueryKeys.lists() }, data => !data ? data : ({
+            ...data,
+            pages: data.pages.map(page => ({ ...page, recordList: page.recordList.flatMap(ticket => {
+                const latest = byId.get(String(ticket._id));
+                if (!latest) return [ticket];
+                return latest.purchasable
+                    ? [{ ...ticket, quantity: latest.availableQuantity, status: 'in_stock' }] : [];
+            }) })),
+        }));
+    return inventory;
 }
 
-async function fetchPublicStockByIds(items: CartItem[]): Promise<Map<string, number>> {
-    const stockById = new Map<string, number>();
-    const groups = groupItemsByDrawDate(items);
-
-    for (const [drawDate, groupItems] of groups) {
-        try {
-            const searches = [...new Set(groupItems.map((item) => item.numbers))];
-            const params: Record<string, unknown> = {
-                page: 1,
-                size: Math.max(searches.length * 2, 20),
-                searches,
-            };
-
-            if (drawDate !== 'unknown') {
-                params.drawDate = drawDate;
-            }
-
-            const response = await apiApp.get('/lottery-tickets/public', {
-                params,
-                paramsSerializer: { indexes: null },
-                ...PUBLIC_STOCK_REQUEST,
-            });
-
-            for (const ticket of response.data?.data?.recordList ?? []) {
-                stockById.set(String(ticket.id), Number(ticket.quantity ?? 0));
-            }
-        } catch {
-            // API lỗi / mạng — giữ tồn trong giỏ, không chặn trang.
-        }
-    }
-
-    return stockById;
-}
-
-/**
- * Đồng bộ maxStock từ API public và kẹp số lượng về tồn thực tế.
- * Trả về true nếu có item bị chỉnh/xóa do vượt tồn.
- */
-export const validateAndSyncCartStock = async (): Promise<boolean> => {
-    const { items, removeItem, syncItemStock } = useCartStore.getState();
-    if (items.length === 0) return false;
-
-    let hasAdjustment = false;
-    let stockById: Map<string, number>;
-
-    try {
-        stockById = await fetchPublicStockByIds(items);
-    } catch {
-        return false;
-    }
-
-    for (const item of items) {
-        const maxStock = stockById.get(item.id);
-        if (maxStock === undefined) {
-            continue;
-        }
-
-        if (maxStock <= 0) {
-            toast.error(`Vé số ${item.numbers} đã hết hàng. Vui lòng chọn vé khác.`);
-            removeItem(item.id);
-            hasAdjustment = true;
-            continue;
-        }
-
-        const previousQty = item.quantity;
-        syncItemStock(item.id, maxStock);
-
-        if (previousQty > maxStock) {
-            toast.error(
-                `Vé số ${item.numbers} chỉ còn ${maxStock} vé. Hệ thống đã tự cập nhật lại giỏ hàng.`
-            );
-            hasAdjustment = true;
-        }
-    }
-
-    return hasAdjustment;
+/** Returns true when inventory blocks the requested purchase; network failures throw. */
+export const validateAndSyncCartStock = async (
+    items = useCartStore.getState().items,
+    queryClient?: QueryClient,
+): Promise<boolean> => {
+    const inventory = await validateTicketInventory(items.filter(item => item.quantity > 0), queryClient);
+    const invalid = inventory.filter(item => !item.valid);
+    if (invalid.length) toast.error(invalid[0].message ?? 'Tồn kho đã thay đổi. Vui lòng chọn lại vé.');
+    return invalid.length > 0;
 };

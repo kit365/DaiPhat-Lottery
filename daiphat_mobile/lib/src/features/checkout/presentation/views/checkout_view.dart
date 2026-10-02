@@ -172,9 +172,14 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     final checkoutState = ref.watch(checkoutProvider);
     final receiveTypesAsync = ref.watch(receiveTypesProvider);
     final transactionTypesAsync = ref.watch(transactionTypesProvider);
-    _lockedCheckoutItems ??= List<CartItemData>.from(
-      ref.read(checkoutItemsProvider),
-    );
+    final currentItems = ref.watch(checkoutItemsProvider);
+    // Keep preflight adjustments visible; freeze the snapshot only once an order exists.
+    if (_lockedCheckoutItems == null ||
+        (checkoutState.orderId == null &&
+            checkoutState.pendingPaymentOrderId == null &&
+            !checkoutState.creationOutcomeUnknown)) {
+      _lockedCheckoutItems = List<CartItemData>.from(currentItems);
+    }
     final cartItems = _lockedCheckoutItems!;
     final cartSubtotal = cartItems.fold<int>(
       0,
