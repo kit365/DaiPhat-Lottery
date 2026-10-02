@@ -173,7 +173,7 @@ services:
       # Served by the managed CCCD OCR gateway (legacy hostname ekyc-vision) in docker-compose.ai.yml.
       DAIPHAT_EKYC_AI_BASE_URL: ${DAIPHAT_EKYC_AI_BASE_URL:-http://ekyc-vision:8000}
       DAIPHAT_EKYC_AI_API_KEY: ${KYC_AI_API_KEY:-}
-      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms256m -Xmx640m -XX:+UseContainerSupport}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms512m -Xmx1536m -XX:+UseContainerSupport}
       TZ: Asia/Ho_Chi_Minh
     depends_on:
       postgres:
@@ -188,7 +188,7 @@ services:
       timeout: 5s
       start_period: 90s
       retries: 12
-    mem_limit: 1g
+    mem_limit: 2g
 
   frontend:
     image: ${FRONTEND_IMAGE:-docker.io/kitops365/daiphat-fe:prod}

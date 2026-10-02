@@ -155,7 +155,7 @@ class BlogDetailScreen extends ConsumerWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 66),
+            padding: const EdgeInsets.symmetric(horizontal: 56),
             child: Text(
               'Chi tiết bài viết',
               textAlign: TextAlign.center,
@@ -164,13 +164,6 @@ class BlogDetailScreen extends ConsumerWidget {
                 fontWeight: FontWeight.w900,
                 color: _primary,
               ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: _CircleHeaderButton(
-              icon: Icons.share_outlined,
-              onPressed: () {},
             ),
           ),
         ],
