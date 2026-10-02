@@ -822,7 +822,7 @@ public class OrderService implements OrderServicePort {
     }
 
     private void validateTicketIds(List<Long> ticketIds) {
-        if (ticketIds == null || ticketIds.isEmpty() || ticketIds.size() > 10) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
         }
     }

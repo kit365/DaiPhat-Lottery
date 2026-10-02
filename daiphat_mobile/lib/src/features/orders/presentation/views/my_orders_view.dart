@@ -891,6 +891,8 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         ),
       );
     } else if (order.status == 'CANCELLED') {
+      final hasRefundInfo = order.cancelType == 'STAFF_CANCEL_REFUND' ||
+          (order.transactions?.any((t) => t.type == 'REFUND' || t.status == 'REFUNDED') ?? false);
       buttons.add(
         OutlinedButton(
           onPressed: () => context.pushNamed(
@@ -908,7 +910,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           child: Text(
-            'Xem thông tin hoàn tiền',
+            hasRefundInfo ? 'Xem thông tin hoàn tiền' : 'Xem chi tiết',
             style: AppTypography.buttonSmall(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,

@@ -292,6 +292,7 @@ export const VendorSettlementBreakdown = ({
     commissionRate,
     depositRate,
     depositHeld,
+    isSettled,
 }: {
     allocatedQuantity?: number | null;
     returnedQuantity?: number | null;
@@ -315,6 +316,7 @@ export const VendorSettlementBreakdown = ({
     commissionRate?: number | null;
     depositRate?: number | null;
     depositHeld?: number | null;
+    isSettled?: boolean;
 }) => {
     const [helpOpen, setHelpOpen] = useState(false);
     const netCashDue = netCashDueFromVendor ?? 0;
@@ -531,28 +533,51 @@ export const VendorSettlementBreakdown = ({
             </TableContainer>
 
                 {/* Khung tổng kết thanh toán */}
-                <Box
-                    sx={{
-                        p: 2,
-                        bgcolor: headline.type === "due"
-                            ? "rgba(255, 56, 56, 0.08)"
-                            : headline.type === "payable"
-                                ? "rgba(34, 197, 94, 0.08)"
-                                : "#F4F6F8",
-                        borderTop: "2px solid",
-                        borderColor: headline.type === "due"
-                            ? "#FF3030"
-                            : headline.type === "payable"
-                                ? "#22C55E"
-                                : "#DFE3E8",
-                    }}
-                >
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Box>
+                {!isSettled && (
+                    <Box
+                        sx={{
+                            p: 2,
+                            bgcolor: headline.type === "due"
+                                ? "rgba(255, 56, 56, 0.08)"
+                                : headline.type === "payable"
+                                    ? "rgba(34, 197, 94, 0.08)"
+                                    : "#F4F6F8",
+                            borderTop: "2px solid",
+                            borderColor: headline.type === "due"
+                                ? "#FF3030"
+                                : headline.type === "payable"
+                                    ? "#22C55E"
+                                    : "#DFE3E8",
+                        }}
+                    >
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Box>
+                                <Typography
+                                    variant="subtitle1"
+                                    sx={{
+                                        fontWeight: 700,
+                                        color: headline.type === "due"
+                                            ? "#B71D18"
+                                            : headline.type === "payable"
+                                                ? "#118D57"
+                                                : "text.primary",
+                                    }}
+                                >
+                                    {headline.label}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    {headline.type === "due"
+                                        ? "Số tiền thu ngân cần thu bổ sung từ người bán vé số."
+                                        : headline.type === "payable"
+                                            ? "Số tiền thu ngân cần chi trả hoàn lại cho người bán vé số."
+                                            : "Không có chênh lệch dòng tiền phát sinh."}
+                                </Typography>
+                            </Box>
                             <Typography
-                                variant="subtitle1"
+                                variant="h5"
                                 sx={{
-                                    fontWeight: 700,
+                                    fontWeight: 800,
+                                    fontVariantNumeric: "tabular-nums",
                                     color: headline.type === "due"
                                         ? "#B71D18"
                                         : headline.type === "payable"
@@ -560,32 +585,11 @@ export const VendorSettlementBreakdown = ({
                                             : "text.primary",
                                 }}
                             >
-                                {headline.label}
+                                {formatCurrency(headline.amount)}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {headline.type === "due"
-                                    ? "Số tiền thu ngân cần thu bổ sung từ người bán vé số."
-                                    : headline.type === "payable"
-                                        ? "Số tiền thu ngân cần chi trả hoàn lại cho người bán vé số."
-                                        : "Không có chênh lệch dòng tiền phát sinh."}
-                            </Typography>
-                        </Box>
-                        <Typography
-                            variant="h5"
-                            sx={{
-                                fontWeight: 800,
-                                fontVariantNumeric: "tabular-nums",
-                                color: headline.type === "due"
-                                    ? "#B71D18"
-                                    : headline.type === "payable"
-                                        ? "#118D57"
-                                        : "text.primary",
-                            }}
-                        >
-                            {formatCurrency(headline.amount)}
-                        </Typography>
-                    </Stack>
-                </Box>
+                        </Stack>
+                    </Box>
+                )}
 
             <AdminDialog
                 open={helpOpen}
@@ -674,6 +678,7 @@ export const mapPreviewToBreakdown = (preview: VendorSettlementPreview, batch?: 
     commissionRate: preview.commissionRateSnapshot ?? batch?.commissionRateSnapshot,
     depositRate: batch?.depositRateSnapshot,
     depositHeld: batch?.depositReceivedAmount,
+    isSettled: batch?.returnWorkflow?.stage === "SETTLED" || batch?.status === "SETTLED" || batch?.status === "LATE_SETTLED",
 });
 
 export const VendorSettlementConfirmationSummary = ({
@@ -1245,6 +1250,7 @@ export const VendorBatchSettlementSection = ({
                     commissionRate={batch.commissionRateSnapshot}
                     depositRate={batch.depositRateSnapshot}
                     depositHeld={batch.depositReceivedAmount}
+                    isSettled={isSettled}
                     {...settledNet}
                 />
             ) : (

@@ -32,13 +32,15 @@ export const CartPage = () => {
     const queryClient = useQueryClient();
     const { items, updateQuantity, removeItem, clearBuyNow } = useCartStore();
     const { token, openLoginModal } = useAuthStore();
+    const [checkingInventory, setCheckingInventory] = useState(false);
+    const inventoryBusy = React.useRef(false);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // Đồng bộ tồn kho thực tế từ DB khi vào giỏ
     useEffect(() => {
         // Rời phiên mua ngay (nếu còn) — giỏ chính phải hiển thị đầy đủ.
         clearBuyNow();
-        validateAndSyncCartStock();
+        void validateAndSyncCartStock(undefined, queryClient).catch(() => toast.error('Không thể kiểm tra tồn kho. Vui lòng thử lại.'));
     }, [clearBuyNow]);
 
     // Auto-select new items
@@ -262,14 +264,26 @@ export const CartPage = () => {
                             totalAmount={totalAmount}
                             actions={
                                 <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                         if (!token) {
                                             openLoginModal();
                                             return;
                                         }
-                                        router.push('/checkout');
+                                        if (inventoryBusy.current) return;
+                                        inventoryBusy.current = true;
+                                        setCheckingInventory(true);
+                                        try {
+                                            if (await validateAndSyncCartStock(selectedItems, queryClient)) return;
+                                            useCartStore.getState().startBuyNow(selectedItems);
+                                            router.push('/checkout');
+                                        } catch {
+                                            toast.error('Không thể kiểm tra tồn kho. Vui lòng thử lại.');
+                                        } finally {
+                                            inventoryBusy.current = false;
+                                            setCheckingInventory(false);
+                                        }
                                     }}
-                                    disabled={selectedItems.length === 0}
+                                    disabled={selectedItems.length === 0 || checkingInventory}
                                     className="w-full h-[48px] bg-[#ee1314] text-white font-bold rounded-lg hover:bg-[#d00f10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-[#ee1314]/20"
                                 >
                                     <i className="fa-solid fa-lock"></i> Thanh toán

@@ -25,6 +25,7 @@ class CartView extends ConsumerStatefulWidget {
 
 class _CartViewState extends ConsumerState<CartView> {
   bool _isSelectionMode = false;
+  bool _checkingInventory = false;
   final Set<int> _selectedIndexes = <int>{};
   final Set<int> _checkoutSelectedIndexes = <int>{};
   bool _hasNotifiedExpiredItems = false;
@@ -37,10 +38,30 @@ class _CartViewState extends ConsumerState<CartView> {
       if (!mounted) return;
       ref.read(buyNowItemsProvider.notifier).clear();
       _notifyExpiredItems();
+      _refreshInventory();
     });
   }
 
-  void _openDetail(BuildContext context, CartItemData item, int index) {
+  Future<void> _refreshInventory() async {
+    final items = ref.read(cartProvider);
+    if (items.isEmpty) return;
+    setState(() => _checkingInventory = true);
+    try {
+      await ref.read(cartProvider.notifier).validateCheckout(items);
+    } catch (_) {
+      if (mounted)
+        AppToast.error('Không thể kiểm tra tồn kho. Vui lòng thử lại.');
+    } finally {
+      if (mounted)
+        setState(() {
+          _checkingInventory = false;
+          _checkoutSelectedIndexes.clear();
+          _selectedIndexes.clear();
+        });
+    }
+  }
+
+  void _openDetail(BuildContext context, CartItemData item, int index) async {
     final drawDate =
         DateTime.tryParse(item.drawDateIso ?? '') ?? DateTime.now();
     final station =
@@ -67,7 +88,7 @@ class _CartViewState extends ConsumerState<CartView> {
       price: item.unitPrice,
       quantity: item.maxStock > 0 ? item.maxStock : 1,
     );
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
@@ -77,10 +98,23 @@ class _CartViewState extends ConsumerState<CartView> {
         initialQuantity: item.quantity,
         isCartMode: true,
         onQuantityChanged: (qty) {
-          ref.read(cartProvider.notifier).updateQuantityAtIndex(index, qty);
+          final currentIndex = ref
+              .read(cartProvider)
+              .indexWhere(
+                (entry) => entry.lotteryTicketId == item.lotteryTicketId,
+              );
+          if (currentIndex >= 0)
+            ref
+                .read(cartProvider.notifier)
+                .updateQuantityAtIndex(currentIndex, qty);
         },
       ),
     );
+    if (mounted)
+      setState(() {
+        _checkoutSelectedIndexes.clear();
+        _selectedIndexes.clear();
+      });
   }
 
   void _removeItem(CartItemData item, int index) {
@@ -152,8 +186,9 @@ class _CartViewState extends ConsumerState<CartView> {
     }
     if (validIndexes.isEmpty) return;
 
-    final isAllValidSelected =
-        validIndexes.every(_checkoutSelectedIndexes.contains);
+    final isAllValidSelected = validIndexes.every(
+      _checkoutSelectedIndexes.contains,
+    );
 
     setState(() {
       if (isAllValidSelected) {
@@ -342,7 +377,8 @@ class _CartViewState extends ConsumerState<CartView> {
       for (var i = 0; i < items.length; i++)
         if (!_isPurchaseExpired(items[i])) i,
     ];
-    final isAllCheckoutSelected = validCheckoutIndexes.isNotEmpty &&
+    final isAllCheckoutSelected =
+        validCheckoutIndexes.isNotEmpty &&
         validCheckoutIndexes.every(_checkoutSelectedIndexes.contains);
 
     return Scaffold(
@@ -463,7 +499,7 @@ class _CartViewState extends ConsumerState<CartView> {
                           totalTicketCount: ticketCount,
                           subtotal: selectedSubtotal,
                           total: selectedSubtotal,
-                          enabled: canCheckout,
+                          enabled: canCheckout && !_checkingInventory,
                           allSelected: isAllCheckoutSelected,
                           onToggleSelectAll: _toggleCheckoutSelectAll,
                           disabledReason: selectedCheckoutItems.isEmpty
@@ -471,11 +507,38 @@ class _CartViewState extends ConsumerState<CartView> {
                               : hasSelectedExpiredItems
                               ? 'Bỏ chọn hoặc xóa $selectedExpiredCount vé hết hạn để tiếp tục thanh toán'
                               : null,
-                          onCheckout: () {
-                            ref
-                                .read(buyNowItemsProvider.notifier)
-                                .start(selectedCheckoutItems);
-                            context.pushNamed(AppRoute.checkout.name);
+                          onCheckout: () async {
+                            if (_checkingInventory) return;
+                            setState(() => _checkingInventory = true);
+                            try {
+                              final valid = await ref
+                                  .read(cartProvider.notifier)
+                                  .validateCheckout(selectedCheckoutItems);
+                              if (!mounted) return;
+                              // Inventory synchronization can remove rows; indexes must not select a different ticket.
+                              setState(() {
+                                _checkoutSelectedIndexes.clear();
+                                _selectedIndexes.clear();
+                              });
+                              if (!valid) {
+                                AppToast.error(
+                                  'Tồn kho đã thay đổi. Giỏ hàng đã cập nhật, vui lòng chọn lại vé.',
+                                );
+                                return;
+                              }
+                              ref
+                                  .read(buyNowItemsProvider.notifier)
+                                  .start(selectedCheckoutItems);
+                              context.pushNamed(AppRoute.checkout.name);
+                            } catch (_) {
+                              if (mounted)
+                                AppToast.error(
+                                  'Không thể kiểm tra tồn kho. Vui lòng thử lại.',
+                                );
+                            } finally {
+                              if (mounted)
+                                setState(() => _checkingInventory = false);
+                            }
                           },
                         ),
               ],
@@ -1214,9 +1277,7 @@ class _CartBottomBar extends StatelessWidget {
                 children: [
                   Semantics(
                     button: true,
-                    label: allSelected
-                        ? 'Bỏ chọn tất cả vé'
-                        : 'Chọn tất cả vé',
+                    label: allSelected ? 'Bỏ chọn tất cả vé' : 'Chọn tất cả vé',
                     child: GestureDetector(
                       onTap: onToggleSelectAll,
                       behavior: HitTestBehavior.opaque,

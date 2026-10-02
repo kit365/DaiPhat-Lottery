@@ -117,7 +117,9 @@ class RefundRequestStaffServiceTest {
                         refundRequestRepositoryPort,
                         orderDetailSerialRepositoryPort,
                         lotteryTicketServicePort,
-                        eventPublisher));
+                        eventPublisher),
+                mock(com.daiphat.coreapi.application.service.lotteries.TicketSalesCutoffPolicy.class),
+                new com.daiphat.coreapi.shared.time.VietnamClock());
 
         when(refundProcessingDeadlineService.evaluate(any())).thenReturn(
                 new RefundProcessingDeadlineService.ProcessingEvaluation(
