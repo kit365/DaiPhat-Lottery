@@ -36,22 +36,35 @@ wait_for_health() {
     local service=$1
     local timeout_seconds=${2:-300}
     local elapsed=0
-    local container_id status
+    local container_id="" state health restarts
 
+    echo "Waiting for $service health (timeout ${timeout_seconds}s)"
     while (( elapsed < timeout_seconds )); do
-        container_id=$(compose ps -q "$service")
+        container_id=$(compose ps -a -q "$service")
+        state=missing
+        health=none
+        restarts=0
         if [[ -n "$container_id" ]]; then
-            status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id")
-            if [[ "$status" == "healthy" ]]; then
+            read -r state health restarts < <(docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} {{.RestartCount}}' "$container_id")
+            if [[ "$state" == "running" && "$health" == "healthy" ]]; then
+                echo "$service is healthy after ${elapsed}s"
                 return 0
             fi
-            if [[ "$status" == "unhealthy" || "$status" == "exited" ]]; then
-                return 1
+            if [[ "$health" == "unhealthy" || "$state" == "exited" || "$state" == "dead" ]]; then
+                echo "$service health failed: state=$state health=$health restarts=$restarts" >&2
+                break
             fi
+        fi
+        if (( elapsed % 30 == 0 )); then
+            echo "$service: state=$state health=$health restarts=$restarts; waited ${elapsed}/${timeout_seconds}s"
         fi
         sleep 5
         elapsed=$((elapsed + 5))
     done
+    echo "$service did not become healthy after ${elapsed}s" >&2
+    if [[ -n "$container_id" ]]; then
+        docker inspect --format 'State={{.State.Status}} OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}} Restarts={{.RestartCount}} Health={{json .State.Health}}' "$container_id" >&2 || true
+    fi
     return 1
 }
 
