@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
@@ -53,6 +54,9 @@ import java.util.stream.IntStream;
 @Slf4j
 public class SampleOrderTransactionSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String SEED_ACTOR = "sample-order-seed";
     private static final String TICKET_SERIAL_PREFIX = "SAMPLE-SEED-SERIAL-";
     private static final int TICKET_COUNT = 10;
@@ -83,6 +87,7 @@ public class SampleOrderTransactionSeedInitializer implements ApplicationRunner 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         UserEntity member = seedAccountResolver.findMember();
         UserEntity operator = seedAccountResolver.findOperator();
         if (member == null || operator == null) {

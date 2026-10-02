@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
@@ -50,6 +51,9 @@ import java.util.Map;
 @Order(113)
 public class StatusCoverageOrderSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String SYSTEM_ACTOR = "status-coverage-order-seed";
     private static final String ORDER_CODE_PREFIX = StatusCoverageSeedCleanup.ORDER_CODE_PREFIX;
     private static final String PAYMENT_REF_PREFIX = StatusCoverageSeedCleanup.PAYMENT_REF_PREFIX;
@@ -65,6 +69,7 @@ public class StatusCoverageOrderSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         UserEntity member = seedAccountResolver.findMember();
         UserEntity operator = seedAccountResolver.findOperator();
         if (member == null || operator == null) {

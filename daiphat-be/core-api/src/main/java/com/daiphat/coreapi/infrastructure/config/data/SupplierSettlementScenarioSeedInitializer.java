@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBatchEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBatchLineEntity;
@@ -47,6 +48,9 @@ import java.util.Set;
 @ConditionalOnProperty(value = "daiphat.official-demo.seed.enabled", havingValue = "true")
 public class SupplierSettlementScenarioSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String LEGACY_ACTOR = "settlement-scenario-seed";
     private static final String LEGACY_SUPPLIER_CODE = "MINH_NGOC";
     private static final String LEGACY_SERIAL_PREFIX = "IBSETTLE-";
@@ -65,6 +69,7 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         Set<Long> settlementIds = new LinkedHashSet<>();
         int removedReturns = removeLegacyReturns(settlementIds);
         int removedImports = removeLegacyImports(settlementIds);

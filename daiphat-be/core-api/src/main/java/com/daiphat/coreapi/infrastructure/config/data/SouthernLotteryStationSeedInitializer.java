@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SouthernLotteryStationSeedInitializer implements ApplicationRunner {
 
-    @org.springframework.beans.factory.annotation.Value("${daiphat.official-demo.seed.enabled:false}")
+    @Value("${daiphat.official-demo.seed.enabled:false}")
     private boolean officialDemoEnabled;
 
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;

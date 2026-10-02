@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogCategoryRequest;
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogTagRequest;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
@@ -35,6 +36,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @ConditionalOnProperty(value = "daiphat.official-demo.seed.enabled", havingValue = "true")
 public class OfficialDemoBlogSeedInitializer implements ApplicationRunner {
+
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
 
     private static final String ACTOR = "official-demo-seed";
     private static final String SLUG_PREFIX = "official-demo-xo-so-";
@@ -82,6 +86,7 @@ public class OfficialDemoBlogSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         List<BlogPostEntity> oldPosts = postRepository.findAll().stream()
                 .filter(post -> post.getSlug() != null && post.getSlug().startsWith(SLUG_PREFIX))
                 .toList();

@@ -6,9 +6,11 @@ import {
     Box,
     Card,
     CircularProgress,
+    Divider,
     Stack,
     Tab,
     Tabs,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
@@ -218,9 +220,63 @@ export const StreetAgentReportPage = () => {
         { field: 'allocatedQuantity', headerName: 'Đã giao', flex: 1, minWidth: 96, align: 'center', headerAlign: 'center' },
         { field: 'soldQuantity', headerName: 'Đã bán', flex: 1, minWidth: 92, align: 'center', headerAlign: 'center' },
         { field: 'returnedQuantity', headerName: 'Đã trả', flex: 1, minWidth: 92, align: 'center', headerAlign: 'center' },
-        { field: 'grossSales', headerName: 'Doanh thu', flex: 1, minWidth: 128, align: 'center', headerAlign: 'center', valueFormatter: (value) => formatCurrency(value) },
-        { field: 'commissionPayable', headerName: 'Hoa hồng phải trả', flex: 1, minWidth: 148, align: 'center', headerAlign: 'center', valueFormatter: (value) => formatCurrency(value) },
-        { field: 'agentCashRemitted', headerName: 'Tiền người bán giao lại', flex: 1, minWidth: 168, align: 'center', headerAlign: 'center', valueFormatter: (value) => formatCurrency(value) },
+        {
+            field: 'grossSales',
+            headerName: 'Doanh thu',
+            flex: 1,
+            minWidth: 136,
+            align: 'center',
+            headerAlign: 'center',
+            renderCell: (params) => {
+                const row = params.row;
+                const net = row.agentCashRemitted ?? (Number(row.grossSales || 0) - Number(row.commissionPayable || 0));
+                return (
+                    <Tooltip
+                        arrow
+                        placement="top"
+                        slotProps={{
+                            tooltip: {
+                                sx: {
+                                    bgcolor: '#1C252E',
+                                    color: '#FFFFFF',
+                                    p: 1.25,
+                                    borderRadius: '8px',
+                                    boxShadow: '0 8px 16px 0 rgba(0, 0, 0, 0.24)',
+                                    maxWidth: 280,
+                                },
+                            },
+                            arrow: { sx: { color: '#1C252E' } },
+                        }}
+                        title={
+                            <Box sx={{ p: 0.25, minWidth: 180 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, color: '#919EAB', display: 'block', mb: 0.5 }}>
+                                    CHI TIẾT DOANH THU
+                                </Typography>
+                                <Stack spacing={0.35} sx={{ fontSize: '0.75rem' }}>
+                                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                                        <Typography variant="caption" sx={{ color: '#C4CDD5' }}>• Bán vé:</Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 600, color: '#FFFFFF' }}>{formatCurrency(row.grossSales)}</Typography>
+                                    </Stack>
+                                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                                        <Typography variant="caption" sx={{ color: '#FFAB00' }}>• Hoa hồng trả:</Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 600, color: '#FFAB00' }}>- {formatCurrency(row.commissionPayable)}</Typography>
+                                    </Stack>
+                                    <Divider sx={{ my: 0.35, borderColor: 'rgba(255, 255, 255, 0.16)', borderStyle: 'dashed' }} />
+                                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#22C55E' }}>👉 Thực nhận:</Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#22C55E' }}>{formatCurrency(net)}</Typography>
+                                    </Stack>
+                                </Stack>
+                            </Box>
+                        }
+                    >
+                        <span style={{ cursor: 'pointer', textDecoration: 'underline dotted 1px #919EAB', textUnderlineOffset: '3px' }}>
+                            {formatCurrency(params.value)}
+                        </span>
+                    </Tooltip>
+                );
+            },
+        },
         { field: 'sellThroughRate', headerName: 'Tỷ lệ bán', flex: 1, minWidth: 108, align: 'center', headerAlign: 'center', valueFormatter: (value) => formatPercent(value, 2) },
     ], []);
     const stationColumns = useMemo<GridColDef<StreetAgentReportStation>[]>(() => [
@@ -257,6 +313,31 @@ export const StreetAgentReportPage = () => {
 
     const quantityOrDash = (value: number | null | undefined) =>
         value == null ? '—' : value.toLocaleString('vi-VN');
+
+    const revenueTooltip = summary ? (
+        <Box sx={{ p: 0.5, minWidth: 220 }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: '#919EAB', display: 'block', mb: 0.75, letterSpacing: 0.5 }}>
+                CHI TIẾT DOANH THU
+            </Typography>
+            <Stack spacing={0.5} sx={{ fontSize: '0.8125rem' }}>
+                <Stack direction="row" justifyContent="space-between" spacing={2}>
+                    <Typography variant="caption" sx={{ color: '#C4CDD5' }}>• Tổng tiền bán vé:</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#FFFFFF' }}>{formatCurrency(summary.grossSales)}</Typography>
+                </Stack>
+                <Stack direction="row" justifyContent="space-between" spacing={2}>
+                    <Typography variant="caption" sx={{ color: '#FFAB00' }}>• Hoa hồng trả người bán:</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#FFAB00' }}>- {formatCurrency(summary.commissionPayable)}</Typography>
+                </Stack>
+                <Divider sx={{ my: 0.5, borderColor: 'rgba(255, 255, 255, 0.16)', borderStyle: 'dashed' }} />
+                <Stack direction="row" justifyContent="space-between" spacing={2}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#22C55E' }}>👉 Thực nhận (giao lại):</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#22C55E' }}>
+                        {formatCurrency(summary.agentCashRemitted ?? (Number(summary.grossSales || 0) - Number(summary.commissionPayable || 0)))}
+                    </Typography>
+                </Stack>
+            </Stack>
+        </Box>
+    ) : undefined;
 
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
@@ -308,7 +389,7 @@ export const StreetAgentReportPage = () => {
                 ) : null}
             </Stack>
 
-            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3, xl: 4 }}>
+            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3, lg: 5 }}>
                 <AdminKpiCard
                     label="Đã giao"
                     value={quantityOrDash(summary?.allocatedQuantity)}
@@ -331,24 +412,9 @@ export const StreetAgentReportPage = () => {
                     label="Doanh thu"
                     value={formatKpiAmount(summary?.grossSales)}
                     valueTitle={formatCurrency(summary?.grossSales)}
+                    tooltip={revenueTooltip}
                     icon={<PaidOutlinedIcon fontSize="small" />}
                     accent
-                    valueSize="compact"
-                />
-                <AdminKpiCard
-                    label="Hoa hồng phải trả"
-                    value={formatKpiAmount(summary?.commissionPayable)}
-                    valueTitle={formatCurrency(summary?.commissionPayable)}
-                    icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />}
-                    tone="orange"
-                    valueSize="compact"
-                />
-                <AdminKpiCard
-                    label="Tiền người bán giao lại"
-                    value={formatKpiAmount(summary?.agentCashRemitted)}
-                    valueTitle={formatCurrency(summary?.agentCashRemitted)}
-                    icon={<PaidOutlinedIcon fontSize="small" />}
-                    tone="cyan"
                     valueSize="compact"
                 />
                 <AdminKpiCard
