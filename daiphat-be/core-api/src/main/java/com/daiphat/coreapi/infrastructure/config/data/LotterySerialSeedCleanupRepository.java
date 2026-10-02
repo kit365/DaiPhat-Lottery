@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -13,6 +14,10 @@ import java.util.List;
 @Repository
 @RequiredArgsConstructor
 class LotterySerialSeedCleanupRepository {
+
+    // PostgreSQL supports at most 65,535 bind parameters per statement. The most
+    // parameter-heavy cleanup query expands every serial ID four times.
+    private static final int SERIAL_CLEANUP_BATCH_SIZE = 10_000;
 
     private final EntityManager entityManager;
 
@@ -94,8 +99,14 @@ class LotterySerialSeedCleanupRepository {
         if (serialIds == null || serialIds.isEmpty()) {
             return;
         }
-        List<Long> ids = List.copyOf(serialIds);
+        List<Long> ids = new ArrayList<>(serialIds);
+        for (int offset = 0; offset < ids.size(); offset += SERIAL_CLEANUP_BATCH_SIZE) {
+            int end = Math.min(offset + SERIAL_CLEANUP_BATCH_SIZE, ids.size());
+            clearOrderAndPayoutDependentsBatch(ids.subList(offset, end));
+        }
+    }
 
+    private void clearOrderAndPayoutDependentsBatch(List<Long> ids) {
         entityManager.createNativeQuery("""
                         UPDATE transactions t
                            SET prize_payout_request_id = NULL

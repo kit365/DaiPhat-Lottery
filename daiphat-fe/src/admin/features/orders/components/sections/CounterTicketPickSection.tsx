@@ -52,11 +52,16 @@ const isLuckyTicket = (ticket: any) =>
 const isInStockSerial = (serial: any) => {
     const st = String(serial?.status || "").toUpperCase();
     const cond = String(serial?.ticketCondition || "").toUpperCase();
-    return (st === "IN_STOCK" || st === "AVAILABLE" || !st) && !["DAMAGED", "LOST", "VOIDED"].includes(cond);
+    return st === "IN_STOCK" && cond === "GOOD" && serial.returnBatchLineId == null;
 };
 
 const serialsFromTicket = (ticket: any): any[] =>
     Array.isArray(ticket?.serials) ? ticket.serials.filter(isInStockSerial) : [];
+
+export const getOrderTicketStock = (ticket: any): number =>
+    Array.isArray(ticket?.serials)
+        ? serialsFromTicket(ticket).length
+        : Math.max(0, Number(ticket?.quantity) || 0);
 
 const slotsFromSerials = (serials: any[]): SerialSlot[] =>
     serials.map((serial) => ({
@@ -122,7 +127,7 @@ export const CounterTicketPickSection = ({
     const activeTicket = tickets.find((ticket) => ticketIdOf(ticket) === activeTicketId) ?? tickets[0] ?? null;
     const activeId = activeTicket ? ticketIdOf(activeTicket) : "";
     const listSerials = activeTicket ? serialsFromTicket(activeTicket) : [];
-    const shouldFetchDetail = Boolean(activeId) && listSerials.length === 0;
+    const shouldFetchDetail = Boolean(activeId) && !Array.isArray(activeTicket?.serials);
 
     const { data: ticketDetail, isFetching: isFetchingSerials } = useTicketDetail(
         shouldFetchDetail ? activeId : undefined
@@ -130,11 +135,11 @@ export const CounterTicketPickSection = ({
 
     const activeSlots = useMemo(() => {
         if (!activeTicket || !activeId) return [];
-        const fromList = slotsFromSerials(listSerials);
-        if (fromList.length > 0) return fromList;
-        const fromDetail = slotsFromSerials(serialsFromTicket(ticketDetail));
-        if (fromDetail.length > 0) return fromDetail;
-        return slotsFromQuantity(activeId, activeTicket.quantity || 0);
+        if (Array.isArray(activeTicket.serials)) return slotsFromSerials(listSerials);
+        if (ticketIdOf(ticketDetail) === activeId && Array.isArray(ticketDetail?.serials)) {
+            return slotsFromSerials(serialsFromTicket(ticketDetail));
+        }
+        return slotsFromQuantity(activeId, getOrderTicketStock(activeTicket));
     }, [activeTicket, activeId, listSerials, ticketDetail]);
 
     const selectedKeys = selectedTickets[activeId]?.serialKeys || [];
@@ -228,7 +233,7 @@ export const CounterTicketPickSection = ({
                                 {group.tickets.map((ticket, index) => {
                                     const id = ticketIdOf(ticket);
                                     const qty = selectedTickets[id]?.qty || 0;
-                                    const maxQty = ticket.quantity || 0;
+                                    const maxQty = getOrderTicketStock(ticket);
                                     const lucky = isLuckyTicket(ticket);
                                     const isActive = activeId === id;
 
