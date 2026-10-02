@@ -52,6 +52,9 @@ import java.time.temporal.ChronoUnit;
 @Order(118)
 public class SupplierSettlementSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String SYSTEM_ACTOR = "supplier-settlement-seed";
     private static final List<String> SEED_ACTORS = List.of(
             SYSTEM_ACTOR,
@@ -77,6 +80,7 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         LocalDateTime now = LocalDateTime.now(clock);
 
         List<ImportBatchEntity> importBatches = loadSeedImportBatches();

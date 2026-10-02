@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Box, Card, SxProps, Theme, Typography } from "@mui/material";
+import { Box, Card, SxProps, Theme, Tooltip, Typography } from "@mui/material";
 import { Icon } from "./AdminIcon";
 
 export type AdminKpiTone = "blue" | "amber" | "green" | "cyan" | "orange" | "rose" | "slate";
@@ -35,6 +35,8 @@ export interface AdminKpiCardProps {
     valueSize?: "default" | "compact";
     /** Full value shown on hover (e.g. exact VNĐ when display uses compact k). */
     valueTitle?: string;
+    /** Custom rich tooltip content shown on hover */
+    tooltip?: ReactNode;
     sx?: SxProps<Theme>;
 }
 
@@ -46,6 +48,7 @@ export const AdminKpiCard = ({
     accent = false,
     valueSize,
     valueTitle,
+    tooltip,
     sx,
 }: AdminKpiCardProps) => {
     const theme = accent ? ACCENT_THEME : TONE_THEMES[tone];
@@ -67,7 +70,7 @@ export const AdminKpiCard = ({
             </Box>
         );
 
-    return (
+    const cardContent = (
         <Card
             elevation={0}
             sx={{
@@ -79,6 +82,7 @@ export const AdminKpiCard = ({
                     "var(--customShadows-card, 0 0 2px rgba(145, 158, 171, 0.2), 0 12px 24px -4px rgba(145, 158, 171, 0.12))",
                 minHeight: 96,
                 height: "100%",
+                cursor: tooltip ? "pointer" : "default",
                 ...sx,
             }}
         >
@@ -124,7 +128,7 @@ export const AdminKpiCard = ({
                 }}
             >
                 <Typography
-                    title={valueTitle ?? value}
+                    title={tooltip ? undefined : (valueTitle ?? value)}
                     sx={{
                         fontSize: isCompactValue
                             ? { xs: "1.125rem", sm: "1.25rem" }
@@ -156,6 +160,38 @@ export const AdminKpiCard = ({
             </Box>
         </Card>
     );
+
+    if (tooltip) {
+        return (
+            <Tooltip
+                title={tooltip}
+                arrow
+                placement="top"
+                enterDelay={150}
+                slotProps={{
+                    tooltip: {
+                        sx: {
+                            bgcolor: '#1C252E',
+                            color: '#FFFFFF',
+                            p: 1.5,
+                            borderRadius: '10px',
+                            boxShadow: '0 8px 16px 0 rgba(0, 0, 0, 0.24)',
+                            maxWidth: 340,
+                        },
+                    },
+                    arrow: {
+                        sx: {
+                            color: '#1C252E',
+                        },
+                    },
+                }}
+            >
+                {cardContent}
+            </Tooltip>
+        );
+    }
+
+    return cardContent;
 };
 
 export interface AdminKpiCardsGridProps {

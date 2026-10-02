@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
@@ -59,6 +60,9 @@ import java.util.Set;
 @Order(112)
 public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String SYSTEM_ACTOR = "status-coverage-seed";
     private static final String SUPPLIER_CODE = SharedSeedConstants.SUPPLIER_MINH_CHINH_CODE;
     private static final String SERIAL_PREFIX = "IBSTATUS-";
@@ -93,6 +97,7 @@ public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunn
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         UserEntity operator = findSeedOperator();
         if (operator == null) {
             log.warn("Skip status-coverage import-batch seed: no staff operator account found.");

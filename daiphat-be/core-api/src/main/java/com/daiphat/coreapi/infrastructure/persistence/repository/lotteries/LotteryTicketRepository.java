@@ -22,6 +22,10 @@ public interface LotteryTicketRepository
             """)
     long countActiveProducts();
 
+    boolean existsByStation_IdAndNumbersAndDrawDate(Long stationId, String numbers, LocalDate drawDate);
+
+    boolean existsByStation_IdAndDrawDateAndDeletedAtIsNull(Long stationId, LocalDate drawDate);
+
     boolean existsByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
             Long productId,
             String numbers,

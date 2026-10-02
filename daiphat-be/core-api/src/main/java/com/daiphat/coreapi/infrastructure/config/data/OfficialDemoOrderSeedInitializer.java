@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
@@ -46,6 +47,9 @@ import java.util.List;
 @ConditionalOnProperty(value = "daiphat.official-demo.seed.enabled", havingValue = "true")
 public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String ACTOR = "official-demo-seed";
     private static final String CODE_MARKER = "-DO";
     private static final BigDecimal TICKET_PRICE = BigDecimal.valueOf(10_000);
@@ -60,6 +64,7 @@ public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate tomorrow = now.toLocalDate().plusDays(1);
         clearPreviousOrders();

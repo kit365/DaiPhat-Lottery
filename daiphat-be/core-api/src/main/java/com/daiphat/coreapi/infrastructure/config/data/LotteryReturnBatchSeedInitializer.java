@@ -67,6 +67,9 @@ import java.util.stream.Collectors;
 @Order(115)
 public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String SYSTEM_ACTOR = "return-batch-seed";
     private static final String NOTE_PREFIX = SeedDocumentCodes.RETURN_NOTE_PREFIX;
 
@@ -88,6 +91,7 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         LocalDateTime now = LocalDateTime.now(clock);
 
         resetPreviousSeedReturnBatches();
