@@ -10,7 +10,10 @@ export const useBlogTags = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.BLOG_TAGS],
         queryFn: getAllBlogTags,
-        select: (res: ApiResponse<BlogTagResponse[]>) => res.data || []
+        select: (res: ApiResponse<BlogTagResponse[]>) => {
+            const data = res?.data ?? res;
+            return Array.isArray(data) ? data : [];
+        }
     });
 };
 
@@ -18,19 +21,22 @@ export const useBlogTagsPaged = (params?: BlogTagQueryParams) => {
     return useQuery({
         queryKey: [QUERY_KEYS.BLOG_TAGS_PAGED, params],
         queryFn: () => getBlogTags(params),
-        select: (res: ApiResponse<PageResponse<BlogTagResponse>>) => {
-            const data = res.data;
+        select: (res: any) => {
+            const data = res?.data ?? res;
             let records: BlogTagResponse[] = [];
-            let pagination: any = { totalRecords: 0 };
+            let pagination: any = { totalRecords: 0, totalPages: 0, currentPage: 1, limit: 10 };
 
             if (data && typeof data === 'object' && 'recordList' in data) {
-                records = data.recordList || [];
+                records = Array.isArray(data.recordList) ? data.recordList : [];
                 pagination = {
-                    totalRecords: data.pagination?.totalRecords || 0,
+                    totalRecords: data.pagination?.totalRecords || records.length,
                     totalPages: data.pagination?.totalPages || 0,
                     currentPage: data.pagination?.currentPage || 1,
                     limit: data.pagination?.limit || 10
                 };
+            } else if (Array.isArray(data)) {
+                records = data;
+                pagination.totalRecords = data.length;
             }
 
             return {

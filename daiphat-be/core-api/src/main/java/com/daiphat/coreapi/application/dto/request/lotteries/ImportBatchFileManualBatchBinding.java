@@ -8,6 +8,7 @@ import java.time.LocalDate;
 @Builder
 public record ImportBatchFileManualBatchBinding(
         @NotNull LocalDate drawDate,
-        @NotNull Long importBatchId
+        @NotNull Long importBatchId,
+        @NotNull @jakarta.validation.Valid ImportBatchSelectionSnapshotRequest selectionSnapshot
 ) {
 }

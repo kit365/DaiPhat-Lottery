@@ -12,6 +12,7 @@ export const useBlogCategoryStatuses = () => {
         queryKey: [QUERY_KEYS.BLOG_CATEGORIES, 'statuses'],
         queryFn: getCategoryStatuses,
         staleTime: 5 * 60 * 1000,
+        select: (data) => (Array.isArray(data) ? data : []),
     });
 };
 
@@ -26,7 +27,10 @@ export const useNestedBlogCategories = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.BLOG_CATEGORIES, 'nested'],
         queryFn: getNestedCategories,
-        select: (res) => res.data,
+        select: (res) => {
+            const data = res?.data ?? res;
+            return Array.isArray(data) ? data : [];
+        },
     });
 };
 

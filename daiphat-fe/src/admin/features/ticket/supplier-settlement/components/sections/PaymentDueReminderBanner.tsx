@@ -239,7 +239,9 @@ export const PaymentDueReminderBanner = ({ settlements }: PaymentDueReminderBann
                             </TableHead>
                             <TableBody>
                                 {dueSoonItems.map((item) => {
-                                    const periodStr = `${formatDate(item.periodFrom)} → ${formatDate(item.periodTo)}`;
+                                    const fromStr = formatDate(item.periodFrom);
+                                    const toStr = formatDate(item.periodTo);
+                                    const periodStr = !toStr || fromStr === toStr ? fromStr : `${fromStr} → ${toStr}`;
                                     return (
                                         <TableRow key={item.id}>
                                             <TableCell>

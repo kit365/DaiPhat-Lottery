@@ -2,6 +2,7 @@
 
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import {
     Box,
     Button,
@@ -18,7 +19,7 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import type { ImportBatch, ImportBatchFileGroup, ImportBatchLine } from '../../types/importBatch.type';
-import { getImportBatchStatusLabel, getImportModeLabel } from '../../utils/batchTypeLabels';
+import { getImportBatchStatusLabel } from '../../utils/batchTypeLabels';
 import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
 
 export type FileAllocationRow = {
@@ -92,35 +93,89 @@ export const ImportBatchFileAllocationSummary = ({
     onExport: () => void;
 }) => {
     const issueCount = rows.filter((row) => row.issue).length;
+    const activeLinesCount = (batch.lines ?? []).filter((line) => line.status !== 'CANCELLED').length;
 
     return (
-        <Paper elevation={0} sx={{ border: '1px solid #dbe4f0', borderRadius: 2, overflow: 'hidden', bgcolor: '#fff' }}>
+        <Paper
+            elevation={0}
+            sx={{
+                border: '1px solid #e2e8f0',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                bgcolor: '#ffffff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            }}
+        >
             <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                direction={{ xs: 'column', md: 'row' }}
+                alignItems={{ xs: 'flex-start', md: 'center' }}
                 justifyContent="space-between"
-                gap={1.5}
-                sx={{ px: 2.5, py: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
+                gap={2}
+                sx={{ px: 2.5, py: 1.75, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
             >
-                <Box>
-                    <Stack direction="row" alignItems="center" flexWrap="wrap" gap={1}>
-                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                            Phiếu nhập lô · {formatImportBatchHeaderCode(batch.batchCode, batch.id)}
+                <Stack direction="row" alignItems="center" flexWrap="wrap" gap={1.25}>
+                    <Chip
+                        size="small"
+                        label={formatImportBatchHeaderCode(batch.batchCode, batch.id)}
+                        sx={{
+                            fontWeight: 800,
+                            fontSize: '0.8rem',
+                            bgcolor: '#2563eb',
+                            color: '#ffffff',
+                            borderRadius: '6px',
+                        }}
+                    />
+                    <Chip
+                        size="small"
+                        color="info"
+                        variant="outlined"
+                        label={getImportBatchStatusLabel(batch.status)}
+                        sx={{ height: 24, fontWeight: 700, fontSize: '0.75rem' }}
+                    />
+                    <Typography variant="body2" fontWeight={700} color="#0f172a">
+                        {supplierName}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748b' }}>
+                        <CalendarTodayOutlinedIcon sx={{ fontSize: '0.875rem' }} />
+                        <Typography variant="body2" color="#475569" fontWeight={600}>
+                            {dayjs(batch.drawDate).format('DD/MM/YYYY')}
                         </Typography>
-                        <Chip size="small" color="info" variant="outlined" label={getImportBatchStatusLabel(batch.status)} />
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                        {supplierName} · Ngày quay sẽ nhập: {dayjs(batch.drawDate).format('DD/MM/YYYY')} · {getImportModeLabel(batch.importMode)} · {(batch.lines ?? []).filter((line) => line.status !== 'CANCELLED').length} dòng nhà đài
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                        Chỉ vé hợp lệ của ngày quay này được nhập vào phiếu. Các ngày khác trong tệp chỉ dùng để đối chiếu.
-                    </Typography>
-                </Box>
+                    </Box>
+                    <Chip
+                        size="small"
+                        label={`${activeLinesCount} dòng đài`}
+                        sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600, bgcolor: '#f1f5f9', color: '#475569' }}
+                    />
+                </Stack>
+
                 <Stack direction="row" flexWrap="wrap" gap={1}>
-                    <Button size="small" variant="outlined" startIcon={<FactCheckOutlinedIcon />} onClick={onExport} sx={{ textTransform: 'none', fontWeight: 700 }}>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<FactCheckOutlinedIcon />}
+                        onClick={onExport}
+                        sx={{
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            borderRadius: '8px',
+                            borderColor: '#cbd5e1',
+                            color: '#334155',
+                            bgcolor: '#ffffff',
+                        }}
+                    >
                         Xuất đối chiếu
                     </Button>
-                    <Button size="small" variant="contained" startIcon={<EditOutlinedIcon />} onClick={onEdit} sx={{ textTransform: 'none', fontWeight: 700 }}>
+                    <Button
+                        size="small"
+                        variant="contained"
+                        startIcon={<EditOutlinedIcon />}
+                        onClick={onEdit}
+                        sx={{
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            borderRadius: '8px',
+                        }}
+                    >
                         Chỉnh sửa phân bổ
                     </Button>
                 </Stack>
@@ -129,44 +184,80 @@ export const ImportBatchFileAllocationSummary = ({
             {issueCount > 0 && (
                 <Box sx={{ px: 2.5, py: 1.25, bgcolor: '#fff7ed', borderBottom: '1px solid #fed7aa' }}>
                     <Typography variant="body2" fontWeight={700} color="#9a3412">
-                        {issueCount} nhà đài chưa đủ điều kiện nhập vé. Chỉnh sửa phân bổ trước khi tiếp tục.
+                        {issueCount} nhà đài chưa đủ điều kiện nhập vé. Vui lòng chỉnh sửa phân bổ trước khi nạp vé.
                     </Typography>
                 </Box>
             )}
 
-            <TableContainer sx={{ maxHeight: 300 }}>
-                <Table size="small" stickyHeader aria-label="Đối chiếu số vé trong tệp với dòng phiếu nhập" sx={{ '--TableCell-stickyHeader-background': '#f8fafc' }}>
-                    <TableHead
-                        sx={{
-                            position: 'sticky',
-                            top: 0,
-                            zIndex: 10,
-                            '& .MuiTableCell-head, & .MuiTableCell-stickyHeader': {
-                                backgroundColor: '#f8fafc !important',
-                                bgcolor: '#f8fafc !important',
-                                zIndex: 10,
-                                fontWeight: 800,
-                            },
-                        }}
-                    >
+            <TableContainer sx={{ maxHeight: 280 }}>
+                <Table
+                    size="small"
+                    stickyHeader
+                    aria-label="Đối chiếu số vé trong tệp với dòng phiếu nhập"
+                    sx={{
+                        '& .MuiTableCell-root': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.8125rem',
+                            borderColor: '#f1f5f9',
+                        },
+                        '& .MuiTableHead-root .MuiTableCell-root': {
+                            py: 0.85,
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                            color: '#64748b',
+                            bgcolor: '#f8fafc',
+                        },
+                    }}
+                >
+                    <TableHead>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 800 }}>Nhà đài</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 800 }}>Sê-ri trong tệp</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 800 }}>Đã nhập</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 800 }}>Phân bổ</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 800 }}>Còn nhận</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Đối chiếu</TableCell>
+                            <TableCell>Nhà đài</TableCell>
+                            <TableCell align="right">Sê-ri trong tệp</TableCell>
+                            <TableCell align="right">Đã nhập</TableCell>
+                            <TableCell align="right">Phân bổ</TableCell>
+                            <TableCell align="right">Còn nhận</TableCell>
+                            <TableCell align="center">Đối chiếu</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {rows.map((row) => (
-                            <TableRow key={row.stationId} sx={row.issue ? { bgcolor: '#fffaf5' } : undefined}>
-                                <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{row.stationName}</TableCell>
-                                <TableCell align="right">{formatQuantity(row.fileSerials)}</TableCell>
-                                <TableCell align="right">{formatQuantity(row.line?.totalQuantity ?? 0)}</TableCell>
-                                <TableCell align="right">{row.line ? formatQuantity(row.line.declareQuantity) : '—'}</TableCell>
-                                <TableCell align="right">{formatQuantity(row.remaining)}</TableCell>
-                                <TableCell>
+                            <TableRow key={row.stationId} hover sx={row.issue ? { bgcolor: '#fffaf5' } : undefined}>
+                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                    <Box
+                                        sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 0.5,
+                                            px: 1,
+                                            py: 0.35,
+                                            borderRadius: '6px',
+                                            bgcolor: 'rgba(37, 99, 235, 0.08)',
+                                            border: '1px solid rgba(37, 99, 235, 0.2)',
+                                            color: '#1d4ed8',
+                                            fontWeight: 700,
+                                            fontSize: '0.75rem',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {row.stationName}
+                                    </Box>
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                                    {formatQuantity(row.fileSerials)}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 600, color: '#475569' }}>
+                                    {formatQuantity(row.line?.totalQuantity ?? 0)}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 600, color: '#475569' }}>
+                                    {row.line ? formatQuantity(row.line.declareQuantity) : '—'}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: row.remaining > 0 ? '#16a34a' : '#64748b' }}>
+                                    {formatQuantity(row.remaining)}
+                                </TableCell>
+                                <TableCell align="center">
                                     <Chip
                                         size="small"
                                         color={row.issue ? 'warning' : row.fileSerials > 0 ? 'success' : 'default'}
@@ -176,6 +267,7 @@ export const ImportBatchFileAllocationSummary = ({
                                                     : row.issue === 'EXCEEDED' ? `Vượt ${formatQuantity(row.fileSerials - row.remaining)} vé`
                                                         : row.fileSerials > 0 ? 'Đủ chỗ' : 'Không có vé trong tệp'
                                         }
+                                        sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }}
                                     />
                                 </TableCell>
                             </TableRow>

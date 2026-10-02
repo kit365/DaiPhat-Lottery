@@ -185,6 +185,13 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
     }
 
     @Override
+    public Optional<ImportBatchModel> findUnfinishedBatchByDrawDate(LocalDate drawDate, Long excludeBatchId) {
+        return importBatchRepository.findUnfinishedBatchesByDrawDate(drawDate, excludeBatchId).stream()
+                .findFirst()
+                .map(this::toDomainWithActiveLines);
+    }
+
+    @Override
     public Page<ImportBatchModel> findAll(
             Pageable pageable,
             Long lotteryStationId,

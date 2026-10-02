@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateReturnBatchRe
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLineStatusRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
@@ -37,6 +38,14 @@ public interface ReturnBatchServicePort {
     );
 
     List<InspectableReturnSerialResponse> listInspectableSerials(Long batchId);
+
+    InspectableReturnTicketsResponse listInspectableTickets(
+            Long batchId,
+            int page,
+            int size,
+            String search,
+            Long lotteryStationId
+    );
 
     /**
      * Start ticket inspection: {@code PENDING_INSPECTION} → {@code INSPECTING}.

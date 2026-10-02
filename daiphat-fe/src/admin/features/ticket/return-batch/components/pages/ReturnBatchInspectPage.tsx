@@ -9,8 +9,9 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
-import { Alert, Box, Card, Checkbox, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Paper, Radio, RadioGroup, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
+import { Alert, Box, Card, Checkbox, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, Paper, Radio, RadioGroup, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography } from '@mui/material';
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
@@ -20,13 +21,13 @@ import { ROUTES } from '../../../../../constants/routes';
 import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';
 import type { CancelSelectedSerial } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
-import { normalizeSerialStatus } from '../../../import-batch/utils/serialIncidentWorkflow';
+import { isSerialIncidentEligible, normalizeSerialStatus } from '../../../import-batch/utils/serialIncidentWorkflow';
 import {
     useConfirmReturnInspection,
-    useInspectableReturnSerials,
+    useInspectableReturnTickets,
     useReturnBatchDetail,
 } from '../../hooks/useReturnBatch';
-import type { InspectableReturnSerial, ReturnDeliveryMode } from '../../types/returnBatch.type';
+import type { InspectableReturnSerial, InspectableReturnTicket, ReturnDeliveryMode } from '../../types/returnBatch.type';
 import { RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE } from '../../types/returnBatch.type';
 import { getInspectableTicketConditionLabel, isReturnSelectableSerial } from '../../utils/returnInspectableSerial';
 
@@ -61,16 +62,19 @@ const CollapsibleInspectTicketRow = ({
         lotteryStationName: string;
         ticketNumbers: string;
         ticketPrice: number;
-        importCost: number;
-        serials: any[];
+        serials: InspectableReturnSerial[];
     };
     selectedSerialIds: Set<number>;
-    onToggleGroup: (groupSerials: any[], checked: boolean) => void;
-    onToggleSingle: (sId: number) => void;
+    onToggleGroup: (groupSerials: InspectableReturnSerial[], checked: boolean) => void;
+    onToggleSingle: (serial: InspectableReturnSerial) => void;
 }) => {
     const [open, setOpen] = useState(false);
 
-    const groupSerialIds = useMemo(() => ticketGroup.serials.map((s) => s.serialId), [ticketGroup.serials]);
+    const reportableSerials = useMemo(
+        () => ticketGroup.serials.filter((serial) => isSerialIncidentEligible(serial)),
+        [ticketGroup.serials]
+    );
+    const groupSerialIds = useMemo(() => reportableSerials.map((s) => s.serialId), [reportableSerials]);
     const selectedCountInGroup = useMemo(
         () => groupSerialIds.filter((sId) => selectedSerialIds.has(sId)).length,
         [groupSerialIds, selectedSerialIds]
@@ -99,7 +103,8 @@ const CollapsibleInspectTicketRow = ({
                         size="small"
                         checked={isGroupChecked}
                         indeterminate={isGroupIndeterminate}
-                        onChange={(e) => onToggleGroup(ticketGroup.serials, e.target.checked)}
+                        onChange={(e) => onToggleGroup(reportableSerials, e.target.checked)}
+                        disabled={reportableSerials.length === 0}
                     />
                 </TableCell>
                 <TableCell sx={{ width: 40, py: 1.5 }}>
@@ -158,37 +163,39 @@ const CollapsibleInspectTicketRow = ({
                         {formatImportCost(ticketGroup.ticketPrice)} VNĐ
                     </Typography>
                 </TableCell>
-                <TableCell align="right" sx={{ py: 1.5 }}>
-                    <Typography variant="body2" fontWeight={600} color="#0F172A">
-                        {formatImportCost(ticketGroup.importCost)} VNĐ
-                    </Typography>
-                </TableCell>
             </TableRow>
 
             {open &&
                 ticketGroup.serials.map((s: any) => {
                     const isChecked = selectedSerialIds.has(s.serialId);
                     const normStat = normalizeSerialStatus(s.status);
+                    const incidentEligible = isSerialIncidentEligible(s);
 
                     return (
                         <TableRow
                             key={s.serialId}
                             hover
                             selected={isChecked}
-                            onClick={() => onToggleSingle(s.serialId)}
+                            onClick={() => incidentEligible && onToggleSingle(s)}
                             sx={{
                                 bgcolor: '#F8FAFC',
                                 '&:hover': { bgcolor: '#F1F5F9' },
                                 transition: 'background-color 0.15s ease',
                                 cursor: 'pointer',
+                                opacity: incidentEligible ? 1 : 0.72,
                             }}
                         >
                             <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-                                <Checkbox
-                                    size="small"
-                                    checked={isChecked}
-                                    onChange={() => onToggleSingle(s.serialId)}
-                                />
+                                <Tooltip title={incidentEligible ? '' : 'Sê-ri này được phép trả NCC nhưng không được phép báo sự cố.'}>
+                                    <span>
+                                        <Checkbox
+                                            size="small"
+                                            checked={isChecked}
+                                            disabled={!incidentEligible}
+                                            onChange={() => onToggleSingle(s)}
+                                        />
+                                    </span>
+                                </Tooltip>
                             </TableCell>
                             <TableCell sx={{ width: 40, py: 1 }} />
                             <TableCell sx={{ py: 1 }}>
@@ -242,11 +249,6 @@ const CollapsibleInspectTicketRow = ({
                                     {formatImportCost(s.ticketPrice ?? ticketGroup.ticketPrice)} VNĐ
                                 </Typography>
                             </TableCell>
-                            <TableCell align="right" sx={{ py: 1 }}>
-                                <Typography variant="body2" fontWeight={600} color="#0F172A">
-                                    {formatImportCost(s.importCost ?? ticketGroup.importCost)} VNĐ
-                                </Typography>
-                            </TableCell>
                         </TableRow>
                     );
                 })}
@@ -259,8 +261,7 @@ export const ReturnBatchInspectPage = () => {
     const { id } = useRouteParams();
     const batchId = id ? String(id) : '';
 
-    const { data: batch, isLoading: isBatchLoading } = useReturnBatchDetail(batchId);
-    const { data: serials = [], isLoading: isSerialsLoading, refetch } = useInspectableReturnSerials(batchId, true);
+    const { data: batch, isLoading: isBatchLoading, refetch: refetchBatch } = useReturnBatchDetail(batchId);
     const confirmInspection = useConfirmReturnInspection();
 
     const inspectionExpired = Boolean(batch?.inspectionExpired || batch?.status === 'CANCELLED');
@@ -284,107 +285,67 @@ export const ReturnBatchInspectPage = () => {
 
     const [deliveryMode, setDeliveryMode] = useState<ReturnDeliveryMode>('RETAILER_DELIVERS');
     const [selectedSerialIds, setSelectedSerialIds] = useState<Set<number>>(new Set());
-    const [activeStep, setActiveStep] = useState<'INSPECT' | 'REPORT'>('INSPECT');
-    const [selectedStationTab, setSelectedStationTab] = useState<string>('ALL');
+    const [selectedSerialCache, setSelectedSerialCache] = useState<Map<number, InspectableReturnSerial>>(new Map());
+    const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+    const [isCancelReportConfirmOpen, setIsCancelReportConfirmOpen] = useState(false);
+    const [selectedStationId, setSelectedStationId] = useState<number | ''>('');
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [showStationDetails, setShowStationDetails] = useState<boolean>(true);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
 
-    const inStockSerials = useMemo(
-        () => serials.filter(isReturnSelectableSerial),
-        [serials]
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setDebouncedSearch(searchQuery.trim());
+            setPage(0);
+        }, 350);
+        return () => window.clearTimeout(timer);
+    }, [searchQuery]);
+
+    const inspectableParams = useMemo(
+        () => ({
+            page: page + 1,
+            size: rowsPerPage,
+            search: debouncedSearch || undefined,
+            lotteryStationId: selectedStationId || undefined,
+        }),
+        [page, rowsPerPage, debouncedSearch, selectedStationId]
     );
+    const {
+        data: inspectableData,
+        isLoading: isSerialsLoading,
+        isFetching: isSerialsFetching,
+        refetch,
+    } = useInspectableReturnTickets(batchId, inspectableParams, true);
+
+    const displayTickets = useMemo(
+        () => (inspectableData?.recordList ?? []).map((ticket: InspectableReturnTicket) => ({
+            ticketKey: String(ticket.ticketId),
+            lotteryStationName: ticket.lotteryStationName || '—',
+            ticketNumbers: ticket.ticketNumbers || '—',
+            ticketPrice: Number(ticket.ticketPrice) || 10000,
+            serials: (ticket.serials || []).filter(isReturnSelectableSerial),
+        })),
+        [inspectableData?.recordList]
+    );
+    const displaySerials = useMemo(
+        () => displayTickets.flatMap((ticket) => ticket.serials),
+        [displayTickets]
+    );
+    const inStockCount = Number(inspectableData?.eligibleSerialCount || 0);
+    const inStockValue = Number(inspectableData?.eligibleReturnValue || 0);
+    const pagination = inspectableData?.pagination;
+    const stationSummaries = inspectableData?.stationSummaries ?? [];
 
     useEffect(() => {
-        const validIds = new Set(inStockSerials.map((s) => s.serialId));
-        setSelectedSerialIds((prev) => {
-            const next = new Set([...prev].filter((validId) => validIds.has(validId)));
-            return next.size === prev.size ? prev : next;
-        });
-    }, [inStockSerials]);
-
-    const inStockCount = inStockSerials.length;
-    const inStockValue = useMemo(
-        () => inStockSerials.reduce((sum, s) => sum + Number(s.importCost || 0), 0),
-        [inStockSerials]
-    );
-
-    const stationNames = useMemo(() => {
-        const names = new Set<string>();
-        inStockSerials.forEach((s) => {
-            if (s.lotteryStationName) names.add(s.lotteryStationName);
-        });
-        return Array.from(names);
-    }, [inStockSerials]);
-
-    const stationSummaries = useMemo(() => {
-        const map = new Map<string, { count: number; totalCost: number; totalPrice: number }>();
-        inStockSerials.forEach((s) => {
-            const station = s.lotteryStationName || 'Không xác định';
-            const cost = Number(s.importCost || 0);
-            const price = Number(s.ticketPrice ?? 10000);
-            const current = map.get(station) || { count: 0, totalCost: 0, totalPrice: 0 };
-            map.set(station, {
-                count: current.count + 1,
-                totalCost: current.totalCost + cost,
-                totalPrice: current.totalPrice + price,
-            });
-        });
-        return Array.from(map.entries()).map(([stationName, stats]) => ({
-            stationName,
-            ...stats,
-        }));
-    }, [inStockSerials]);
-
-    const displaySerials = useMemo(() => {
-        let result = inStockSerials;
-        if (selectedStationTab !== 'ALL') {
-            result = result.filter((s) => s.lotteryStationName === selectedStationTab);
+        if (pagination && pagination.totalPages > 0 && page >= pagination.totalPages) {
+            setPage(Math.max(0, pagination.totalPages - 1));
         }
-        if (searchQuery.trim()) {
-            const q = searchQuery.trim().toLowerCase();
-            result = result.filter(
-                (s) =>
-                    (s.serialNumber && s.serialNumber.toLowerCase().includes(q)) ||
-                    (s.ticketNumbers && s.ticketNumbers.toLowerCase().includes(q)) ||
-                    (s.lotteryStationName && s.lotteryStationName.toLowerCase().includes(q))
-            );
-        }
-        return result;
-    }, [inStockSerials, selectedStationTab, searchQuery]);
+    }, [page, pagination]);
 
-    const displayTickets = useMemo(() => {
-        const groupMap = new Map<
-            string,
-            {
-                ticketKey: string;
-                lotteryStationName: string;
-                ticketNumbers: string;
-                ticketPrice: number;
-                importCost: number;
-                serials: typeof displaySerials;
-            }
-        >();
-
-        displaySerials.forEach((item) => {
-            const key = `${item.lotteryStationName || '—'}_${item.ticketNumbers || '—'}`;
-            if (!groupMap.has(key)) {
-                groupMap.set(key, {
-                    ticketKey: key,
-                    lotteryStationName: item.lotteryStationName || '—',
-                    ticketNumbers: item.ticketNumbers || '—',
-                    ticketPrice: Number(item.ticketPrice) || 10000,
-                    importCost: Number(item.importCost) || 10000,
-                    serials: [],
-                });
-            }
-            groupMap.get(key)!.serials.push(item);
-        });
-
-        return Array.from(groupMap.values());
-    }, [displaySerials]);
-
-    const handleToggleGroup = (groupSerials: any[], checked: boolean) => {
+    const handleToggleGroup = (groupSerials: InspectableReturnSerial[], checked: boolean) => {
         setSelectedSerialIds((prev) => {
             const next = new Set(prev);
             groupSerials.forEach((s) => {
@@ -396,10 +357,18 @@ export const ReturnBatchInspectPage = () => {
             });
             return next;
         });
+        setSelectedSerialCache((prev) => {
+            const next = new Map(prev);
+            groupSerials.forEach((serial) => {
+                if (checked) next.set(serial.serialId, serial);
+                else next.delete(serial.serialId);
+            });
+            return next;
+        });
     };
 
     const displaySelectableIds = useMemo(
-        () => displaySerials.map((s) => s.serialId),
+        () => displaySerials.filter((serial) => isSerialIncidentEligible(serial)).map((s) => s.serialId),
         [displaySerials]
     );
 
@@ -414,10 +383,8 @@ export const ReturnBatchInspectPage = () => {
         selectedOnPageCount > 0 && selectedOnPageCount < displaySelectableIds.length;
 
     const selectedSerialsForReport = useMemo((): CancelSelectedSerial[] => {
-        return inStockSerials
-            .filter((s) => selectedSerialIds.has(s.serialId))
-            .map(toCancelSelectedSerial);
-    }, [inStockSerials, selectedSerialIds]);
+        return Array.from(selectedSerialCache.values()).map(toCancelSelectedSerial);
+    }, [selectedSerialCache]);
 
     const reportDialogProps = useMemo(() => {
         const first = selectedSerialsForReport[0];
@@ -425,24 +392,20 @@ export const ReturnBatchInspectPage = () => {
             ticketNumbers: first?.ticketNumbers || '',
             ticketId: first?.ticketId,
             importBatchLineId: first?.importBatchLineId || 0,
-            stationId: inStockSerials.find((s) => s.serialId === first?.id)?.lotteryStationId ?? undefined,
-            drawDate: inStockSerials.find((s) => s.serialId === first?.id)?.drawDate || undefined,
+            stationId: selectedSerialCache.get(Number(first?.id))?.lotteryStationId ?? undefined,
+            drawDate: selectedSerialCache.get(Number(first?.id))?.drawDate || undefined,
         };
-    }, [selectedSerialsForReport, inStockSerials]);
+    }, [selectedSerialsForReport, selectedSerialCache]);
 
     const handleToggleSelectAllDisplay = (checked: boolean) => {
-        setSelectedSerialIds((prev) => {
-            const next = new Set(prev);
-            if (checked) {
-                displaySelectableIds.forEach((sId) => next.add(sId));
-            } else {
-                displaySelectableIds.forEach((sId) => next.delete(sId));
-            }
-            return next;
-        });
+        handleToggleGroup(
+            displaySerials.filter((serial) => isSerialIncidentEligible(serial)),
+            checked
+        );
     };
 
-    const handleToggleSingle = (sId: number) => {
+    const handleToggleSingle = (serial: InspectableReturnSerial) => {
+        const sId = serial.serialId;
         setSelectedSerialIds((prev) => {
             const next = new Set(prev);
             if (next.has(sId)) {
@@ -452,12 +415,38 @@ export const ReturnBatchInspectPage = () => {
             }
             return next;
         });
+        setSelectedSerialCache((prev) => {
+            const next = new Map(prev);
+            if (next.has(sId)) next.delete(sId);
+            else next.set(sId, serial);
+            return next;
+        });
+    };
+
+    const clearSelectedSerials = () => {
+        setSelectedSerialIds(new Set());
+        setSelectedSerialCache(new Map());
     };
 
     const handleReportSuccess = () => {
         refetch();
-        setSelectedSerialIds(new Set());
-        setActiveStep('INSPECT');
+        refetchBatch();
+        clearSelectedSerials();
+        setIsReportDialogOpen(false);
+    };
+
+    const handleReload = async () => {
+        clearSelectedSerials();
+        await Promise.all([refetch(), refetchBatch()]);
+        toast.success('Đã tải lại trạng thái vé mới nhất.');
+    };
+
+    const requestCloseReportDialog = () => setIsCancelReportConfirmOpen(true);
+
+    const confirmCloseReportDialog = () => {
+        setIsCancelReportConfirmOpen(false);
+        setIsReportDialogOpen(false);
+        clearSelectedSerials();
     };
 
     const executeConfirmSubmit = async () => {
@@ -466,7 +455,7 @@ export const ReturnBatchInspectPage = () => {
                 id: Number(batchId),
                 payload: {
                     deliveryMode,
-                    serialIds: inStockSerials.map((s) => s.serialId),
+                    allEligible: true,
                 },
             });
             toast.success('Đã xác nhận kiểm tra vé — phiếu hoàn tất kiểm tra.');
@@ -489,6 +478,10 @@ export const ReturnBatchInspectPage = () => {
     };
 
     const handleConfirmInspectionSubmit = () => {
+        if (selectedSerialIds.size > 0) {
+            toast.warning('Cần xử lý sự cố cho vé được chọn trước.');
+            return;
+        }
         if (mutationsBlocked) {
             showInspectionExpiredPopup();
             return;
@@ -516,6 +509,25 @@ export const ReturnBatchInspectPage = () => {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
                 <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (!batch) {
+        return (
+            <Box sx={{ width: '100%', pb: 5 }}>
+                <PageHeader
+                    title="Kiểm tra vé trả NCC"
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                        { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                        { label: `Phiếu #${batchId}`, to: ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId) },
+                        { label: 'Kiểm tra vé' },
+                    ]}
+                />
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
+                    <Typography color="text.secondary">Không tìm thấy thông tin phiếu trả vé hoặc đã xảy ra lỗi.</Typography>
+                </Box>
             </Box>
         );
     }
@@ -571,7 +583,7 @@ export const ReturnBatchInspectPage = () => {
                 }}
             >
                 <Box sx={{ p: 3 }}>
-                    {mutationsBlocked && activeStep === 'INSPECT' && (
+                    {mutationsBlocked && (
                         <Box
                             sx={{
                                 mb: 2.5,
@@ -610,30 +622,7 @@ export const ReturnBatchInspectPage = () => {
                         </Box>
                     )}
 
-                    {activeStep === 'REPORT' && (
-                        <LazyReportSerialFaultPane
-                            serials={selectedSerialsForReport}
-                            ticketNumbers={reportDialogProps.ticketNumbers}
-                            ticketId={reportDialogProps.ticketId}
-                            importBatchLineId={reportDialogProps.importBatchLineId}
-                            stationId={reportDialogProps.stationId}
-                            drawDate={reportDialogProps.drawDate}
-                            defaultCancelMode="TICKET"
-                            cancelButtonText="Quay lại Kiểm tra vé trả NCC"
-                            hideFaultedBySelector={true}
-                            beforeConfirm={() => {
-                                if (mutationsBlocked) {
-                                    showInspectionExpiredPopup();
-                                    return false;
-                                }
-                                return true;
-                            }}
-                            onCancel={() => setActiveStep('INSPECT')}
-                            onSuccess={handleReportSuccess}
-                        />
-                    )}
-
-                    {activeStep === 'INSPECT' && (
+                    {(
                         <Stack spacing={3}>
                             {/* Step 1: Hình thức giao trả */}
                             <Paper
@@ -761,7 +750,7 @@ export const ReturnBatchInspectPage = () => {
                                     <Stack direction="row" spacing={2} alignItems="center">
                                         <Typography variant="body2" color="text.secondary">
                                             Tổng giá trị vốn ước tính:{' '}
-                                            <strong style={{ color: '#0F172A' }}>
+                                             <strong style={{ color: '#0F172A' }}>
                                                 {formatImportCost(inStockValue)} VNĐ
                                             </strong>
                                         </Typography>
@@ -790,7 +779,7 @@ export const ReturnBatchInspectPage = () => {
                                         <Stack spacing={1.5}>
                                             {stationSummaries.map((summary) => (
                                                 <Box
-                                                    key={summary.stationName}
+                                                    key={summary.lotteryStationId}
                                                     sx={{
                                                         p: 1.5,
                                                         borderRadius: '8px',
@@ -803,17 +792,17 @@ export const ReturnBatchInspectPage = () => {
                                                 >
                                                     <Box>
                                                         <Typography variant="subtitle2" fontWeight={700} color="#0F172A">
-                                                            {summary.stationName}
+                                                            {summary.lotteryStationName || 'Không xác định'}
                                                         </Typography>
                                                         <Typography variant="caption" color="text.secondary">
                                                             Tổng giá vốn:{' '}
                                                             <strong style={{ color: '#0F172A' }}>
-                                                                {formatImportCost(summary.totalCost)} VNĐ
+                                                                {formatImportCost(summary.totalImportCost)} VNĐ
                                                             </strong>
                                                         </Typography>
                                                     </Box>
                                                     <Chip
-                                                        label={`${summary.count} vé`}
+                                                        label={`${summary.eligibleSerialCount} vé`}
                                                         size="small"
                                                         sx={{
                                                             bgcolor: '#EFF6FF',
@@ -838,44 +827,51 @@ export const ReturnBatchInspectPage = () => {
                                     spacing={2}
                                     sx={{ mb: 2 }}
                                 >
-                                    <Tabs
-                                        value={selectedStationTab}
-                                        onChange={(_, newVal) => setSelectedStationTab(newVal)}
-                                        variant="scrollable"
-                                        scrollButtons="auto"
-                                        sx={{
-                                            minHeight: 38,
-                                            '& .MuiTab-root': {
-                                                minHeight: 38,
-                                                py: 0.5,
-                                                px: 2,
-                                                textTransform: 'none',
-                                                fontWeight: 600,
-                                                fontSize: '0.875rem',
-                                            },
-                                        }}
-                                    >
-                                        <Tab label={`Tất cả (${inStockCount})`} value="ALL" />
-                                        {stationNames.map((name) => {
-                                            const count = inStockSerials.filter((s) => s.lotteryStationName === name).length;
-                                            return <Tab key={name} label={`${name} (${count})`} value={name} />;
-                                        })}
-                                    </Tabs>
-
-                                    <TextField
-                                        size="small"
-                                        placeholder="Tìm mã sê-ri, số vé, nhà đài..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <SearchIcon fontSize="small" sx={{ color: '#94A3B8' }} />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                        sx={{ minWidth: { xs: '100%', md: 280 } }}
-                                    />
+                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ width: '100%' }}>
+                                        <TextField
+                                            size="small"
+                                            placeholder="Tìm mã sê-ri, số vé, nhà đài..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            InputProps={{
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <SearchIcon fontSize="small" sx={{ color: '#94A3B8' }} />
+                                                    </InputAdornment>
+                                                ),
+                                            }}
+                                            sx={{ flex: 1, minWidth: { xs: '100%', md: 300 } }}
+                                        />
+                                        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 230 } }}>
+                                            <InputLabel id="return-station-filter-label">Nhà đài</InputLabel>
+                                            <Select
+                                                labelId="return-station-filter-label"
+                                                value={selectedStationId}
+                                                label="Nhà đài"
+                                                onChange={(event) => {
+                                                    const value = event.target.value as number | string;
+                                                    setSelectedStationId(value === '' ? '' : Number(value));
+                                                    setPage(0);
+                                                }}
+                                            >
+                                                <MenuItem value="">Tất cả nhà đài ({inStockCount})</MenuItem>
+                                                {stationSummaries.map((summary) => (
+                                                    <MenuItem key={summary.lotteryStationId} value={summary.lotteryStationId}>
+                                                        {summary.lotteryStationName || 'Không xác định'} ({summary.eligibleSerialCount})
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<RefreshIcon />}
+                                            onClick={handleReload}
+                                            disabled={isSerialsFetching}
+                                            sx={{ minWidth: 120, textTransform: 'none', fontWeight: 700 }}
+                                        >
+                                            Tải lại
+                                        </Button>
+                                    </Stack>
                                 </Stack>
 
                                 {/* Action bar cho các dòng đã chọn */}
@@ -901,7 +897,7 @@ export const ReturnBatchInspectPage = () => {
                                             color="error"
                                             size="small"
                                             startIcon={<ReportProblemIcon fontSize="small" />}
-                                            onClick={() => setActiveStep('REPORT')}
+                                            onClick={() => setIsReportDialogOpen(true)}
                                             disabled={mutationsBlocked}
                                             sx={{ textTransform: 'none', fontWeight: 700 }}
                                         >
@@ -939,7 +935,6 @@ export const ReturnBatchInspectPage = () => {
                                                 <TableCell align="center">Trạng thái</TableCell>
                                                 <TableCell align="center">Tình trạng vé</TableCell>
                                                 <TableCell align="right">Giá bán</TableCell>
-                                                <TableCell align="right">Giá vốn</TableCell>
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -955,7 +950,7 @@ export const ReturnBatchInspectPage = () => {
 
                                             {displaySerials.length === 0 && (
                                                 <TableRow>
-                                                    <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                                                    <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                                                         <Typography color="text.secondary">
                                                             {searchQuery
                                                                 ? 'Không tìm thấy sê-ri khớp từ khóa.'
@@ -967,13 +962,27 @@ export const ReturnBatchInspectPage = () => {
                                         </TableBody>
                                     </Table>
                                 </TableContainer>
+                                <TablePagination
+                                    component="div"
+                                    count={pagination?.totalRecords || 0}
+                                    page={page}
+                                    rowsPerPage={rowsPerPage}
+                                    onPageChange={(_, nextPage) => setPage(nextPage)}
+                                    onRowsPerPageChange={(event) => {
+                                        setRowsPerPage(Number(event.target.value));
+                                        setPage(0);
+                                    }}
+                                    rowsPerPageOptions={[5, 10, 20, 50]}
+                                    labelRowsPerPage="Số dòng mỗi trang:"
+                                    labelDisplayedRows={({ from, to, count }) => `${from}-${to} của ${count}`}
+                                />
                             </Box>
                         </Stack>
                     )}
                 </Box>
 
                 {/* Footer buttons */}
-                {activeStep === 'INSPECT' && (
+                {(
                     <Box
                         sx={{
                             p: 2.5,
@@ -999,23 +1008,104 @@ export const ReturnBatchInspectPage = () => {
                             Đóng / Quay lại
                         </Button>
 
-                        <Button
-                            variant="contained"
-                            loading={confirmInspection.isPending}
-                            onClick={handleConfirmInspectionSubmit}
-                            disabled={mutationsBlocked || inStockCount === 0}
-                            label="Xác nhận kiểm tra"
-                            sx={{
-                                bgcolor: '#0F172A',
-                                textTransform: 'none',
-                                fontWeight: 700,
-                                px: 3,
-                                '&:hover': { bgcolor: '#1E293B' },
-                            }}
-                        />
+                        <Tooltip
+                            title={
+                                selectedSerialIds.size > 0
+                                    ? 'Cần xử lý sự cố cho vé được chọn trước'
+                                    : ''
+                            }
+                            arrow
+                            placement="top"
+                            disableHoverListener={selectedSerialIds.size === 0}
+                        >
+                            <span>
+                                <Button
+                                    variant="contained"
+                                    loading={confirmInspection.isPending}
+                                    onClick={handleConfirmInspectionSubmit}
+                                    disabled={mutationsBlocked || inStockCount === 0 || selectedSerialIds.size > 0}
+                                    label="Xác nhận kiểm tra"
+                                    sx={{
+                                        bgcolor: '#0F172A',
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        px: 3,
+                                        '&:hover': { bgcolor: '#1E293B' },
+                                        '&.Mui-disabled': {
+                                            bgcolor: selectedSerialIds.size > 0 ? 'rgba(15, 23, 42, 0.45)' : undefined,
+                                            color: selectedSerialIds.size > 0 ? 'rgba(255, 255, 255, 0.7)' : undefined,
+                                            cursor: 'not-allowed',
+                                        },
+                                    }}
+                                />
+                            </span>
+                        </Tooltip>
                     </Box>
                 )}
             </Card>
+
+            <Dialog
+                open={isReportDialogOpen}
+                onClose={requestCloseReportDialog}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '20px',
+                        p: 3,
+                        maxHeight: '90vh',
+                        height: '90vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+                    },
+                }}
+            >
+                <DialogContent sx={{ p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <LazyReportSerialFaultPane
+                        serials={selectedSerialsForReport}
+                        ticketNumbers={reportDialogProps.ticketNumbers}
+                        ticketId={reportDialogProps.ticketId}
+                        importBatchLineId={reportDialogProps.importBatchLineId}
+                        stationId={reportDialogProps.stationId}
+                        drawDate={reportDialogProps.drawDate}
+                        defaultCancelMode="TICKET"
+                        cancelButtonText="Hủy bỏ"
+                        hideFaultedBySelector
+                        beforeConfirm={() => {
+                            if (mutationsBlocked) {
+                                showInspectionExpiredPopup();
+                                return false;
+                            }
+                            return true;
+                        }}
+                        onCancel={requestCloseReportDialog}
+                        onSuccess={handleReportSuccess}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={isCancelReportConfirmOpen}
+                onClose={() => setIsCancelReportConfirmOpen(false)}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle sx={{ fontWeight: 800 }}>Hủy báo sự cố?</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary">
+                        Thông tin đang nhập sẽ không được lưu và toàn bộ sê-ri đã chọn sẽ được bỏ chọn.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button variant="outlined" onClick={() => setIsCancelReportConfirmOpen(false)}>
+                        Tiếp tục chỉnh sửa
+                    </Button>
+                    <Button variant="contained" color="error" onClick={confirmCloseReportDialog}>
+                        Xác nhận hủy
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Confirmation Modal Pop-up */}
             <Dialog
@@ -1032,7 +1122,7 @@ export const ReturnBatchInspectPage = () => {
                         m: 0,
                         p: 2.5,
                         display: 'flex',
-                        justify: 'space-between',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
                         background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
                         color: '#fff',
@@ -1133,15 +1223,15 @@ export const ReturnBatchInspectPage = () => {
                                     </TableHead>
                                     <TableBody>
                                         {stationSummaries.map((st) => (
-                                            <TableRow key={st.stationName} sx={{ '& td': { borderBottom: '1px solid #F1F5F9' } }}>
+                                            <TableRow key={st.lotteryStationId} sx={{ '& td': { borderBottom: '1px solid #F1F5F9' } }}>
                                                 <TableCell sx={{ py: 1, pl: 0, fontWeight: 600, color: '#334155' }}>
-                                                    {st.stationName}
+                                                    {st.lotteryStationName || 'Không xác định'}
                                                 </TableCell>
                                                 <TableCell align="center" sx={{ py: 1, color: '#0284C7', fontWeight: 600 }}>
-                                                    {st.count} vé
+                                                    {st.eligibleSerialCount} vé
                                                 </TableCell>
                                                 <TableCell align="right" sx={{ py: 1, pr: 0, fontWeight: 700, color: '#FF3030' }}>
-                                                    {formatImportCost(st.totalCost)} VNĐ
+                                                    {formatImportCost(st.totalImportCost)} VNĐ
                                                 </TableCell>
                                             </TableRow>
                                         ))}

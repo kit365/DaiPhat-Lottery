@@ -112,6 +112,31 @@ public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, 
             @Param("importMode") ImportBatchImportMode importMode
     );
 
+    @Query("""
+            SELECT b FROM ImportBatchEntity b
+            WHERE b.deletedAt IS NULL
+              AND b.drawDate = :drawDate
+              AND (:excludeBatchId IS NULL OR b.id <> :excludeBatchId)
+              AND (
+                  b.status IN (
+                      com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
+                      com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
+                      com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
+                  )
+                  OR EXISTS (
+                      SELECT 1 FROM ImportBatchLineEntity l
+                      WHERE l.importBatch.id = b.id
+                        AND l.deletedAt IS NULL
+                        AND l.status = com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.IMPORTING
+                  )
+              )
+            ORDER BY b.importedAt ASC, b.id ASC
+            """)
+    List<ImportBatchEntity> findUnfinishedBatchesByDrawDate(
+            @Param("drawDate") LocalDate drawDate,
+            @Param("excludeBatchId") Long excludeBatchId
+    );
+
     Optional<ImportBatchEntity> findFirstByImportedBy_IdAndStatusInOrderByImportedAtDesc(
             UUID importedBy,
             Collection<ImportBatchStatus> statuses

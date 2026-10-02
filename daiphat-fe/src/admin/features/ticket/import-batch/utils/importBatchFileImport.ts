@@ -69,11 +69,19 @@ export const collectAnomalies = (groups: ImportBatchFileGroup[]): ImportBatchFil
             .map((row) => ({ drawDate: group.drawDate, row }))
     );
 
+/**
+ * How a row reads on screen. Wider than the row's own status because a row can
+ * be faultless in itself and still not be importable — the whole draw date may
+ * be blocked, and calling such a row "Hợp lệ" tells the operator the opposite of
+ * what will happen when they press the button.
+ */
+export type PreviewDisplayStatus = ImportBatchFileRow['status'] | 'BLOCKED';
+
 export interface PreviewSerialEntry {
     serial: string;
     image: string | null;
     stationName?: string | null;
-    status: ImportBatchFileRow['status'];
+    status: PreviewDisplayStatus;
     issues: ImportBatchFileIssue[];
     sourceRowNumber: number;
     sourceRow: ImportBatchFileRow;
@@ -337,29 +345,6 @@ const NOTES_HIDDEN_ON_GROUPED_ROW = new Set<ImportBatchFileIssueCode>([
     'NUMBERS_DUPLICATED_IN_GROUP',
 ]);
 
-export const listPreviewSerials = (line: PreviewTicketLine): PreviewSerialEntry[] => {
-    const fromRow = (source: ImportBatchFileRow): PreviewSerialEntry[] =>
-        (source.serialNumbers ?? []).map((serial, index) => ({
-            serial,
-            image: source.ticketImages?.[index] ?? null,
-            stationName: source.stationName,
-            status: source.status,
-            issues: source.issues.filter((issue) => !NOTES_HIDDEN_ON_GROUPED_ROW.has(issue.code)),
-            sourceRowNumber: source.rowNumber,
-            sourceRow: source,
-        }));
-
-    return [line.row, ...line.attachedRows].flatMap(fromRow);
-};
-
-/**
- * How a row reads on screen. Wider than the row's own status because a row can
- * be faultless in itself and still not be importable — the whole draw date may
- * be blocked, and calling such a row "Hợp lệ" tells the operator the opposite of
- * what will happen when they press the button.
- */
-export type PreviewDisplayStatus = ImportBatchFileRow['status'] | 'BLOCKED';
-
 /** Group-level rules that stop every row of the draw date, in plain words. */
 const GROUP_BLOCKING_NOTE: Partial<Record<ImportBatchFileIssueCode, string>> = {
     SUPPLIER_RETURN_CUT_OFF_PASSED: 'Quá giờ nhận vé của NCC',
@@ -394,6 +379,39 @@ export const resolveGroupBlockingNote = (
         short: GROUP_BLOCKING_NOTE[blocking.code] as string,
         full: blocking.message,
     };
+};
+
+export const listPreviewSerials = (
+    line: PreviewTicketLine,
+    group?: ImportBatchFileGroup
+): PreviewSerialEntry[] => {
+    const isGroupBlocked = group?.status === 'BLOCKED' || Boolean(resolveGroupBlockingNote(group));
+    const isLineBlocked = isGroupBlocked || (group ? previewTicketDisplayStatus(line, group) === 'BLOCKED' : false);
+    const isLineError = line.row.status === 'ERROR';
+
+    const fromRow = (source: ImportBatchFileRow): PreviewSerialEntry[] =>
+        (source.serialNumbers ?? []).map((serial, index) => {
+            let effectiveStatus: PreviewDisplayStatus = source.status;
+            if (isLineBlocked) {
+                effectiveStatus = 'BLOCKED';
+            } else if (isLineError || source.status === 'ERROR') {
+                effectiveStatus = 'ERROR';
+            } else if (source.status === 'WARNING') {
+                effectiveStatus = 'WARNING';
+            }
+
+            return {
+                serial,
+                image: source.ticketImages?.[index] ?? null,
+                stationName: source.stationName,
+                status: effectiveStatus,
+                issues: source.issues.filter((issue) => !NOTES_HIDDEN_ON_GROUPED_ROW.has(issue.code)),
+                sourceRowNumber: source.rowNumber,
+                sourceRow: source,
+            };
+        });
+
+    return [line.row, ...line.attachedRows].flatMap(fromRow);
 };
 
 export const previewTicketDisplayStatus = (
@@ -500,3 +518,51 @@ export const collectPreviewRowNotes = (
         full: notes.map((note) => note.full).filter(Boolean).join('\n'),
     };
 };
+
+export const collectPreviewSerialNotes = (
+    serial: PreviewSerialEntry,
+    line: PreviewTicketLine,
+    group?: ImportBatchFileGroup
+): { short: string; full: string } => {
+    const notes: Array<{ short: string; full: string }> = [];
+
+    const blocked = resolveGroupBlockingNote(group);
+    if (blocked) {
+        notes.push(blocked);
+    }
+
+    line.row.issues
+        .filter((issue) => !NOTES_HIDDEN_ON_GROUPED_ROW.has(issue.code))
+        .forEach((issue) => {
+            notes.push({
+                short: formatPreviewIssueNote(issue),
+                full: issue.message,
+            });
+        });
+
+    if (line.priceVariance) {
+        notes.push({
+            short: 'Giá/HH lệch giữa các dòng gộp',
+            full: 'Giá nhập, giá bán hoặc hoa hồng trên các dòng cùng dãy số không giống nhau.',
+        });
+    }
+
+    serial.issues.forEach((issue) => {
+        const shortNote = formatPreviewIssueNote(issue);
+        if (!notes.some((n) => n.short === shortNote)) {
+            notes.push({
+                short: shortNote,
+                full: issue.message,
+            });
+        }
+    });
+
+    const uniqueShort = Array.from(new Set(notes.map((n) => n.short).filter(Boolean)));
+    const uniqueFull = Array.from(new Set(notes.map((n) => n.full).filter(Boolean)));
+
+    return {
+        short: uniqueShort.join(' · ') || '',
+        full: uniqueFull.join('\n') || '',
+    };
+};
+

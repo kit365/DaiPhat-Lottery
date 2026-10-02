@@ -260,13 +260,17 @@ export function OrderCancelWithRefundPage() {
     }, [order, cancelType, canCancelForCustomer, canReportStockIncident]);
 
     const tickets = useMemo(() => {
-        if (!order?.orderDetails) return [];
+        if (!order?.orderDetails || !Array.isArray(order.orderDetails)) return [];
         return (order.orderDetails as any[])
-            .map((d) => ({
-                ...resolveOrderDetailTicketDisplay(d),
-                lineSubtotal: Number(d.lineSubtotal ?? d.price ?? 10000),
-                raw: d,
-            }))
+            .map((d, index) => {
+                const display = resolveOrderDetailTicketDisplay(d);
+                return {
+                    ...display,
+                    id: display.id ?? d.id ?? d.ticketId ?? (index + 1),
+                    lineSubtotal: Number(d.lineSubtotal ?? d.price ?? display.price ?? 10000),
+                    raw: d,
+                };
+            })
             .filter((t) => t.id != null && ['ACTIVE', 'PROXY_HOLDING', 'HANDOVER_IN_PROGRESS'].includes(t.status || ''));
     }, [order]);
 

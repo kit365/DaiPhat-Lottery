@@ -7,6 +7,7 @@ public enum OcrTemplateFieldName {
     stationName,
     numbers,
     serialNumber,
+    serialSymbol,
     drawDate,
     ticketType,
     batchCode,

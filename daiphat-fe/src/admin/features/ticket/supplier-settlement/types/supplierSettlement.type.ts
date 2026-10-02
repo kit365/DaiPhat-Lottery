@@ -109,6 +109,8 @@ export interface SupplierSettlement {
     paymentEvidenceUrls?: string[] | null;
     matchingConfirmedAt?: string | null;
     completedAt?: string | null;
+    completedBy?: string | null;
+    completedByDisplayName?: string | null;
     transactionId?: number | null;
     paidAt?: string | null;
     createdAt?: string | null;
@@ -176,6 +178,7 @@ export interface SettlementOverviewImportBatch {
     totalImportedQuantity?: number | null;
     totalImportedCostValue?: number | null;
     totalDeclareQuantity?: number | null;
+    lineCount?: number | null;
     totalDeclaredCostValue?: number | null;
     invoiceEvidenceUrl?: string | null;
     ticketListImageUrls?: string[] | null;
@@ -190,6 +193,17 @@ export interface SettlementOverviewImportBatch {
     completedAt?: string | null;
     createdAt?: string | null;
     note?: string | null;
+    lines?: Array<{
+        id: number;
+        lotteryStationId?: number | null;
+        lotteryStationName?: string | null;
+        batchType?: string | null;
+        declareQuantity?: number | null;
+        totalQuantity?: number | null;
+        importCost?: number | null;
+        totalCostValue?: number | null;
+        status?: string | null;
+    }>;
 }
 
 export interface SettlementOverviewReturnBatch {
@@ -215,6 +229,16 @@ export interface SettlementOverviewReturnBatch {
     inspectionWindowStartAt?: string | null;
     inspectionExpired?: boolean;
     minutesUntilCutoff?: number | null;
+    lines?: Array<{
+        id: number;
+        lotteryStationId?: number | null;
+        lotteryStationName?: string | null;
+        totalQuantity?: number | null;
+        remainingInspectableQuantity?: number | null;
+        totalReturnValue?: number | null;
+        status?: string | null;
+        statusLabel?: string | null;
+    }>;
 }
 
 export interface SupplierSettlementOverview {

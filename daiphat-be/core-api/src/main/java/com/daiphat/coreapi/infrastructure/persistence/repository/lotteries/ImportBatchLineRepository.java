@@ -18,7 +18,7 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
 
     List<ImportBatchLineEntity> findByImportBatch_Id(Long importBatchId);
 
-    Optional<ImportBatchLineEntity> findByImportBatch_IdAndLotteryStation_IdAndDeletedAtIsNotNull(
+    Optional<ImportBatchLineEntity> findFirstByImportBatch_IdAndLotteryStation_IdAndDeletedAtIsNotNullOrderByDeletedAtDescIdDesc(
             Long importBatchId,
             Long lotteryStationId
     );
@@ -52,6 +52,7 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
                   com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
                   com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
               )
+              AND l.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.CANCELLED
               AND l.deletedAt IS NULL
               AND b.deletedAt IS NULL
             """)
@@ -89,6 +90,7 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
                   com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
                   com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
               )
+              AND l.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.CANCELLED
               AND l.deletedAt IS NULL
               AND b.deletedAt IS NULL
             ORDER BY b.id ASC
@@ -110,6 +112,7 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
                   com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
                   com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
               )
+              AND l.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.CANCELLED
               AND l.deletedAt IS NULL
               AND b.deletedAt IS NULL
             """)
@@ -131,6 +134,7 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
                   com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
                   com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
               )
+              AND l.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.CANCELLED
               AND l.deletedAt IS NULL
               AND b.deletedAt IS NULL
             ORDER BY b.id ASC

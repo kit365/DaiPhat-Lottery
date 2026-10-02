@@ -245,7 +245,9 @@ export const ExpiredReturnSettlementBanner = ({
                             </TableHead>
                             <TableBody>
                                 {expiredItems.map((item) => {
-                                    const periodStr = `${formatDate(item.periodFrom)} → ${formatDate(item.periodTo)}`;
+                                    const fromStr = formatDate(item.periodFrom);
+                                    const toStr = formatDate(item.periodTo);
+                                    const periodStr = !toStr || fromStr === toStr ? fromStr : `${fromStr} → ${toStr}`;
                                     const expiredVal = item.expiredReturnValue ?? item.totalReturnValue ?? 0;
                                     const isCurrent = currentSettlementId !== undefined && Number(item.id) === Number(currentSettlementId);
 

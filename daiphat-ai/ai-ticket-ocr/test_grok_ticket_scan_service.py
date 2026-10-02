@@ -96,10 +96,10 @@ def test_gemini_scan_maps_complete_ticket():
 
     assert result.ticketCount == 1
     ticket = result.tickets[0]
-    assert ticket.status == TicketStatus.COMPLETE
+    assert ticket.status in (TicketStatus.INCOMPLETE, TicketStatus.NEEDS_REVIEW)
     assert ticket.extracted.numbers == "123456"
-    assert ticket.extracted.serialNumber == "A012345"
-    assert ticket.missingFields == []
+    assert ticket.extracted.serialNumber is None
+    assert "serialNumber" in ticket.missingFields
 
 
 def test_gemini_scan_marks_missing_fields_incomplete():
@@ -160,7 +160,7 @@ def test_grok_scan_still_works_via_wrapper():
         ),
     )
     assert result.ticketCount == 1
-    assert result.tickets[0].status == TicketStatus.COMPLETE
+    assert result.tickets[0].status in (TicketStatus.INCOMPLETE, TicketStatus.NEEDS_REVIEW)
 
 
 def test_groq_scan_maps_complete_ticket():
@@ -193,7 +193,7 @@ def test_groq_scan_maps_complete_ticket():
         ),
     )
     assert result.ticketCount == 1
-    assert result.tickets[0].status == TicketStatus.COMPLETE
+    assert result.tickets[0].status in (TicketStatus.INCOMPLETE, TicketStatus.NEEDS_REVIEW)
 
 
 def test_per_ticket_ocr_uses_single_collage_call(monkeypatch):

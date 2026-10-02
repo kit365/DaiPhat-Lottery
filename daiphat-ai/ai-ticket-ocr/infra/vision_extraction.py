@@ -199,6 +199,13 @@ def build_ticket_extraction_prompt(
     layout_section = ""
     if field_layouts_hint:
         layout_section = f"\nLayout/crop hints:\n{field_layouts_hint}\n"
+        if "serialSymbol" in field_layouts_hint:
+            layout_section += (
+                "Read the serialNumber region first. If it does not yield a valid serial, "
+                "use only the extracted ticket numbers plus the one-letter serialSymbol "
+                "region, appending that uppercase letter to the numbers. Never use a "
+                "batch code, date, or other text as the fallback number.\n"
+            )
 
     return f"""Vietnamese lottery ticket OCR. Image {image_width}x{image_height}px.
 Extract up to {max_tickets} ticket(s). Only visible values — never invent.

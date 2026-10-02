@@ -41,6 +41,7 @@ GROQ_MAX_EXTRA_IMAGES = GROQ_MAX_TOTAL_IMAGES - 1
 _FIELD_CROP_PRIORITY = {
     "numbers": 10,
     "serialNumber": 20,
+    "serialSymbol": 21,
     "stationName": 30,
     "drawDate": 40,
     "ticketType": 50,
@@ -525,6 +526,15 @@ def limit_vision_extra_images(
         priority = _FIELD_CROP_PRIORITY.get(field_name or "", 100)
         ranked_fields.append((priority, label, data))
 
+    # With a separately tagged serial letter, the two available zooms should
+    # show the numeric serial and its letter together. The full frame still
+    # carries the lottery number.
+    if any(_field_name_from_crop_label(label) == "serialSymbol" for _, label, _ in ranked_fields):
+        serial_priorities = {"serialNumber": 10, "serialSymbol": 11, "numbers": 20}
+        ranked_fields = [
+            (serial_priorities.get(_field_name_from_crop_label(label), priority), label, data)
+            for priority, label, data in ranked_fields
+        ]
     ranked_fields.sort(key=lambda item: (item[0], item[1]))
     use_tickets = (
         prefer_ticket_crops

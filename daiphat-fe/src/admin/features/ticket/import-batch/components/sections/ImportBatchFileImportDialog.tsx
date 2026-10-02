@@ -16,12 +16,18 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import {
     Alert,
+    Badge,
     Box,
     Button,
     Checkbox,
@@ -38,8 +44,10 @@ import {
     FormControlLabel,
     FormHelperText,
     IconButton,
+    InputAdornment,
     MenuItem,
     Paper,
+    Popover,
     Radio,
     RadioGroup,
     Stack,
@@ -47,7 +55,9 @@ import {
     Table,
     TableBody,
     TableCell,
+    TableContainer,
     TableHead,
+    TablePagination,
     TableRow,
     TextField,
     Typography,
@@ -58,6 +68,7 @@ import { useActiveSuppliers } from '../../../../supplier';
 import {
     cancelImportBatchDraft,
     commitImportBatchFile,
+    getImportBatchById,
     inspectImportBatchFile,
     previewImportBatchFile,
     saveImportBatchFileMappingProfile,
@@ -88,6 +99,7 @@ import { ImportBatchFileSupplierDialog } from './ImportBatchFileSupplierDialog';
 import { ImportBatchFileMappingProfilePanel } from './ImportBatchFileMappingProfilePanel';
 import { ImportBatchFileAllocationSummary, buildFileAllocationRows } from './ImportBatchFileAllocationSummary';
 import { ImportBatchQuickAllocationModal } from './ImportBatchQuickAllocationModal';
+import { ImportBatchReceptionLineSummary } from './ImportBatchReceptionLineSummary';
 import {
     downloadImportBatchProgressCsv,
     type ImportBatchProgressStationPricing,
@@ -96,6 +108,7 @@ import { formatImportCost } from '../../utils/importCostCalculator';
 import {
     collectAnomalies,
     collectPreviewRowNotes,
+    collectPreviewSerialNotes,
     fileImportRequestErrorMessage,
     formatPreviewIssueNote,
     groupPreviewTicketRows,
@@ -109,6 +122,7 @@ import {
     type ImportBatchFileAnomaly,
     type PreviewTicketLine,
 } from '../../utils/importBatchFileImport';
+import { ImagePreviewModal } from '@/admin/components/ui/ImagePreview';
 import {
     IMPORT_BATCH_FILE_ACCEPT,
     downloadImportBatchFileTemplate,
@@ -120,7 +134,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useStationsByDrawDate } from '../../../../station/hooks/useStation';
 import {
     useImportBatchTimePolicy,
-    useIncompleteImportBatches,
+    useDraftImportBatches,
 } from '../../hooks/useImportBatch';
 import { evaluateImportBatchIntake } from '../../hooks/useImportBatchIntakeGate';
 import {
@@ -128,6 +142,11 @@ import {
     buildImportIntakeClosedMessage,
 } from '../../utils/importBatchDrawDate';
 import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
+import {
+    canDeleteImportBatch,
+    canShowImportBatchDelete,
+    getImportBatchDeleteDisabledReason,
+} from '../../utils/importBatchDeletion';
 import {
     collectOcrBatchOptions,
     filterEligibleOcrBatches,
@@ -139,6 +158,12 @@ import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import type { Station } from '../../../../station/types/station.type';
 import { ROUTES } from '@/admin/constants/routes';
 import { useRouter } from 'next/navigation';
+import {
+    buildImportBatchSelectionSnapshot,
+    importBatchMatchesSelectionSnapshot,
+    isImportBatchSelectionStaleError,
+} from '../../utils/importBatchSelectionSnapshot';
+import { ImportBatchStateChangedDialog } from './ImportBatchStateChangedDialog';
 
 type ImportBatchFileImportDialogProps = {
     open: boolean;
@@ -365,80 +390,116 @@ const GroupIssuesList = ({
         return null;
     }
 
-    const worst = visible.some((issue) => issue.severity === 'ERROR')
-        ? 'error'
-        : visible.some((issue) => issue.severity === 'WARNING')
-          ? 'warning'
-          : 'info';
-    const tone = NOTICE_TONE[worst];
-
     return (
-        <Paper
-            elevation={0}
-            sx={{
-                mt: 1.5,
-                border: `1px solid ${tone.border}`,
-                borderRadius: '12px',
-                overflow: 'hidden',
-                bgcolor: '#fff',
-            }}
-        >
-            <Stack divider={<Divider />}>
-                {visible.map((issue, index) => {
-                    const itemTone = NOTICE_TONE[
-                        issue.severity === 'ERROR' ? 'error' : issue.severity === 'WARNING' ? 'warning' : 'info'
-                    ];
-                    const action =
-                        issue.code === 'STATION_PRICING_MISMATCH'
-                            ? { label: 'Đối chiếu giá', onClick: onOpenPricing }
-                            : issue.code === 'STATION_SCHEDULE_MISMATCH'
-                              ? { label: 'Sửa lịch quay', onClick: onOpenSchedule }
-                              : undefined;
-                    return (
+        <Stack spacing={1.5}>
+            {visible.map((issue, index) => {
+                const isError = issue.severity === 'ERROR';
+                const isCutoff =
+                    issue.code === 'SUPPLIER_RETURN_CUT_OFF_PASSED' ||
+                    issue.code === 'SUPPLIER_IMPORT_NOT_ALLOWED';
+                const action =
+                    issue.code === 'STATION_PRICING_MISMATCH'
+                        ? { label: 'Đối chiếu giá', onClick: onOpenPricing }
+                        : issue.code === 'STATION_SCHEDULE_MISMATCH'
+                          ? { label: 'Sửa lịch quay', onClick: onOpenSchedule }
+                          : undefined;
+
+                return (
+                    <Paper
+                        key={`${issue.code}-${index}`}
+                        elevation={0}
+                        sx={{
+                            p: 2,
+                            borderRadius: '12px',
+                            bgcolor: isError ? '#fef2f2' : '#fffbeb',
+                            border: `1px solid ${isError ? '#fee2e2' : '#fef3c7'}`,
+                            borderLeft: `4px solid ${isError ? '#ef4444' : '#f59e0b'}`,
+                        }}
+                    >
                         <Stack
-                            key={`${issue.code}-${index}`}
-                            direction="row"
-                            alignItems="flex-start"
+                            direction={{ xs: 'column', sm: 'row' }}
+                            spacing={2}
+                            alignItems={{ xs: 'flex-start', sm: 'center' }}
                             justifyContent="space-between"
-                            gap={1}
-                            sx={{ px: 1.5, py: 1, bgcolor: index === 0 ? itemTone.bg : '#fff' }}
                         >
-                            <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" fontWeight={800} color={itemTone.color} sx={{ lineHeight: 1.3 }}>
-                                    {GROUP_ISSUE_TITLE[issue.code] ?? issue.message}
-                                </Typography>
-                                {GROUP_ISSUE_TITLE[issue.code] && (
+                            <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ flex: 1, minWidth: 0 }}>
+                                <Box
+                                    sx={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: '8px',
+                                        bgcolor: isError ? '#fee2e2' : '#fef3c7',
+                                        color: isError ? '#dc2626' : '#d97706',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                        mt: 0.25,
+                                    }}
+                                >
+                                    {isCutoff ? (
+                                        <AccessTimeIcon sx={{ fontSize: 20 }} />
+                                    ) : isError ? (
+                                        <ErrorOutlineOutlinedIcon sx={{ fontSize: 20 }} />
+                                    ) : (
+                                        <WarningAmberOutlinedIcon sx={{ fontSize: 20 }} />
+                                    )}
+                                </Box>
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={0.5}>
+                                        <Typography
+                                            variant="subtitle2"
+                                            fontWeight={800}
+                                            color={isError ? '#991b1b' : '#92400e'}
+                                            sx={{ fontSize: '0.875rem' }}
+                                        >
+                                            {GROUP_ISSUE_TITLE[issue.code] ?? issue.message}
+                                        </Typography>
+                                        <Chip
+                                            size="small"
+                                            label={isError ? 'Lỗi chặn nhập' : 'Cảnh báo'}
+                                            sx={{
+                                                height: 20,
+                                                fontSize: '0.65rem',
+                                                fontWeight: 800,
+                                                bgcolor: isError ? '#fca5a5' : '#fde68a',
+                                                color: isError ? '#991b1b' : '#78350f',
+                                                borderRadius: '4px',
+                                            }}
+                                        />
+                                    </Stack>
                                     <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                        sx={{
-                                            display: '-webkit-box',
-                                            WebkitLineClamp: 2,
-                                            WebkitBoxOrient: 'vertical',
-                                            overflow: 'hidden',
-                                            lineHeight: 1.35,
-                                        }}
+                                        variant="body2"
+                                        color={isError ? '#7f1d1d' : '#78350f'}
+                                        sx={{ mt: 0.5, fontSize: '0.8125rem', lineHeight: 1.45 }}
                                     >
                                         {issue.message}
                                     </Typography>
-                                )}
-                            </Box>
+                                </Box>
+                            </Stack>
                             {action?.onClick && (
                                 <Button
                                     size="small"
-                                    variant="text"
-                                    color={issue.severity === 'ERROR' ? 'error' : 'warning'}
+                                    variant="contained"
+                                    color={isError ? 'error' : 'warning'}
                                     onClick={action.onClick}
-                                    sx={{ textTransform: 'none', fontWeight: 800, flexShrink: 0, minWidth: 0, px: 0.5 }}
+                                    sx={{
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        borderRadius: '8px',
+                                        flexShrink: 0,
+                                        boxShadow: 'none',
+                                        '&:hover': { boxShadow: 'none' },
+                                    }}
                                 >
                                     {action.label}
                                 </Button>
                             )}
                         </Stack>
-                    );
-                })}
-            </Stack>
-        </Paper>
+                    </Paper>
+                );
+            })}
+        </Stack>
     );
 };
 
@@ -448,7 +509,7 @@ const ROW_STATUS_CHIP: Record<
 > = {
     OK: { label: 'Hợp lệ', color: 'success' },
     WARNING: { label: 'Cần xem lại', color: 'warning' },
-    ERROR: { label: 'Lỗi', color: 'error' },
+    ERROR: { label: 'Không hợp lệ', color: 'error' },
     SKIPPED: { label: 'Bỏ qua', color: 'default' },
     // The row itself is sound; the whole draw date is barred. "Lỗi" would send
     // the operator looking for a mistake in a row that has none.
@@ -500,9 +561,10 @@ export const ImportBatchFileImportDialog = ({
     const [discardingBatchId, setDiscardingBatchId] = useState<number | null>(null);
     const [shortfallCheck, setShortfallCheck] = useState<ImportQuantityCheck | null>(null);
     const [allocationOpen, setAllocationOpen] = useState(false);
+    const [staleImportBatchId, setStaleImportBatchId] = useState<number | null>(null);
 
-    const { data: incompleteBatches = [], refetch: refetchIncompleteBatches, isLoading: loadingBatches } =
-        useIncompleteImportBatches(open);
+    const { data: draftBatches = [], refetch: refetchDraftBatches, isLoading: loadingBatches } =
+        useDraftImportBatches(open);
 
     /**
      * The same station can be flagged on several draw dates; the correction is
@@ -601,8 +663,8 @@ export const ImportBatchFileImportDialog = ({
     );
 
     const selectedDraftBatch = useMemo(
-        () => incompleteBatches.find((b) => b.id === selectedImportBatchId) ?? null,
-        [incompleteBatches, selectedImportBatchId]
+        () => draftBatches.find((b) => b.id === selectedImportBatchId) ?? null,
+        [draftBatches, selectedImportBatchId]
     );
 
     const selectedBatchDrawDate = useMemo(() => {
@@ -659,8 +721,8 @@ export const ImportBatchFileImportDialog = ({
         intakeTimePolicy?.returnBufferMinutes ?? DEFAULT_RETURN_BUFFER_MINUTES;
 
     const allBatchOptions = useMemo(
-        () => collectOcrBatchOptions(incompleteBatches),
-        [incompleteBatches]
+        () => collectOcrBatchOptions(draftBatches),
+        [draftBatches]
     );
 
     const eligibleBatchOptions = useMemo(
@@ -755,16 +817,16 @@ export const ImportBatchFileImportDialog = ({
         setDiscardingBatchId(batchId);
         try {
             await cancelImportBatchDraft(batchId);
-            toast.success('Đã hủy phiếu nhập nháp.');
+            toast.success('Đã xóa phiếu nhập lô.');
             if (selectedImportBatchId === batchId) {
                 handleSelectDraftBatch(null);
             }
-            await refetchIncompleteBatches();
+            await refetchDraftBatches();
         } catch (error: unknown) {
             const message =
                 (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message ||
                 (error as { message?: string })?.message ||
-                'Không hủy được phiếu nhập.';
+                'Không xóa được phiếu nhập lô.';
             toast.error(message);
         } finally {
             setDiscardingBatchId(null);
@@ -1164,9 +1226,16 @@ export const ImportBatchFileImportDialog = ({
 
         setBusy(true);
         try {
+            const selectionSnapshot = buildImportBatchSelectionSnapshot(selectedDraftBatch);
+            const latestBatch = (await getImportBatchById(selectedDraftBatch.id)).data;
+            if (!latestBatch || !importBatchMatchesSelectionSnapshot(latestBatch, selectionSnapshot)) {
+                setStaleImportBatchId(selectedDraftBatch.id);
+                return;
+            }
             const manualBatchBindings = selectedDates.map((drawDate) => ({
                 drawDate,
                 importBatchId: selectedDraftBatch.id,
+                selectionSnapshot,
             }));
             const response = await commitImportBatchFile(file, {
                 supplierId,
@@ -1218,6 +1287,10 @@ export const ImportBatchFileImportDialog = ({
             reset();
             onClose();
         } catch (err: unknown) {
+            if (isImportBatchSelectionStaleError(err)) {
+                setStaleImportBatchId(selectedDraftBatch?.id ?? null);
+                return;
+            }
             toast.error(fileImportRequestErrorMessage(err, 'Không nhập được vé từ tệp vào phiếu nhập.'));
         } finally {
             setBusy(false);
@@ -1447,9 +1520,67 @@ export const ImportBatchFileImportDialog = ({
                             </TextField>
 
                             {activeIntakeAlert && (
-                                <Alert severity={activeIntakeAlert.blocked ? 'error' : 'warning'} sx={{ mt: 2 }}>
-                                    {activeIntakeAlert.message}
-                                </Alert>
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        mt: 2,
+                                        p: 1.75,
+                                        borderRadius: '12px',
+                                        bgcolor: activeIntakeAlert.blocked ? '#fef2f2' : '#fffbeb',
+                                        border: `1px solid ${activeIntakeAlert.blocked ? '#fee2e2' : '#fef3c7'}`,
+                                        borderLeft: `4px solid ${activeIntakeAlert.blocked ? '#ef4444' : '#f59e0b'}`,
+                                    }}
+                                >
+                                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                                        <Box
+                                            sx={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: '8px',
+                                                bgcolor: activeIntakeAlert.blocked ? '#fee2e2' : '#fef3c7',
+                                                color: activeIntakeAlert.blocked ? '#dc2626' : '#d97706',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                                mt: 0.2,
+                                            }}
+                                        >
+                                            <AccessTimeIcon sx={{ fontSize: 18 }} />
+                                        </Box>
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <Typography
+                                                    variant="subtitle2"
+                                                    fontWeight={800}
+                                                    color={activeIntakeAlert.blocked ? '#991b1b' : '#92400e'}
+                                                    sx={{ fontSize: '0.85rem' }}
+                                                >
+                                                    {activeIntakeAlert.blocked ? 'Đã quá giờ nhận vé' : 'Cảnh báo thời gian nhận vé'}
+                                                </Typography>
+                                                <Chip
+                                                    size="small"
+                                                    label={activeIntakeAlert.blocked ? 'Chặn nhận vé' : 'Sắp hết giờ'}
+                                                    sx={{
+                                                        height: 20,
+                                                        fontSize: '0.65rem',
+                                                        fontWeight: 800,
+                                                        bgcolor: activeIntakeAlert.blocked ? '#fca5a5' : '#fde68a',
+                                                        color: activeIntakeAlert.blocked ? '#991b1b' : '#78350f',
+                                                        borderRadius: '4px',
+                                                    }}
+                                                />
+                                            </Stack>
+                                            <Typography
+                                                variant="body2"
+                                                color={activeIntakeAlert.blocked ? '#7f1d1d' : '#78350f'}
+                                                sx={{ mt: 0.25, fontSize: '0.8125rem', lineHeight: 1.4 }}
+                                            >
+                                                {activeIntakeAlert.message}
+                                            </Typography>
+                                        </Box>
+                                    </Stack>
+                                </Paper>
                             )}
 
                             {supplierId > 0 && (
@@ -1471,23 +1602,33 @@ export const ImportBatchFileImportDialog = ({
                                                 }}
                                             />
                                         </Stack>
-                                        {eligibleBatchOptions.length > 0 && (
+                                        <Stack direction="row" spacing={1}>
                                             <Button
                                                 size="small"
-                                                startIcon={<AddCircleOutlineIcon />}
-                                                onClick={handleNavigateToCreateBatch}
-                                                sx={{
-                                                    textTransform: 'none',
-                                                    fontWeight: 700,
-                                                    fontSize: '0.775rem',
-                                                    color: '#2563eb',
-                                                    p: 0,
-                                                    '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
-                                                }}
+                                                variant="outlined"
+                                                startIcon={<RefreshOutlinedIcon />}
+                                                disabled={loadingBatches}
+                                                onClick={() => void refetchDraftBatches()}
+                                                sx={{ textTransform: 'none', fontWeight: 700 }}
                                             >
-                                                Khai báo thêm phiếu
+                                                Tải lại
                                             </Button>
-                                        )}
+                                            {eligibleBatchOptions.length > 0 && (
+                                                <Button
+                                                    size="small"
+                                                    startIcon={<AddCircleOutlineIcon />}
+                                                    onClick={handleNavigateToCreateBatch}
+                                                    sx={{
+                                                        textTransform: 'none',
+                                                        fontWeight: 700,
+                                                        fontSize: '0.775rem',
+                                                        color: '#2563eb',
+                                                    }}
+                                                >
+                                                    Khai báo thêm phiếu
+                                                </Button>
+                                            )}
+                                        </Stack>
                                     </Stack>
 
                                     {loadingBatches ? (
@@ -1695,11 +1836,16 @@ export const ImportBatchFileImportDialog = ({
                                                                         <EditOutlinedIcon sx={{ fontSize: '1.15rem' }} />
                                                                     </IconButton>
                                                                 </Tooltip>
-                                                                <Tooltip title="Hủy bỏ phiếu nhập này">
+                                                                {canShowImportBatchDelete(option) && (
+                                                                <Tooltip title={getImportBatchDeleteDisabledReason(option) || 'Xóa phiếu nhập này'}>
+                                                                    <span>
                                                                     <IconButton
                                                                         size="small"
                                                                         color="error"
-                                                                        disabled={discardingBatchId === option.id}
+                                                                        disabled={
+                                                                            discardingBatchId === option.id ||
+                                                                            !canDeleteImportBatch(option)
+                                                                        }
                                                                         onClick={(event) => {
                                                                             event.stopPropagation();
                                                                             setBatchToDiscard(option);
@@ -1716,9 +1862,17 @@ export const ImportBatchFileImportDialog = ({
                                                                             <DeleteOutlineIcon sx={{ fontSize: '1.15rem' }} />
                                                                         )}
                                                                     </IconButton>
+                                                                    </span>
                                                                 </Tooltip>
+                                                                )}
                                                             </Stack>
                                                         </Stack>
+                                                        <ImportBatchReceptionLineSummary
+                                                            batch={option}
+                                                            onChanged={async () => {
+                                                                await refetchDraftBatches();
+                                                            }}
+                                                        />
                                                     </Paper>
                                                 );
                                             })}
@@ -2160,32 +2314,18 @@ export const ImportBatchFileImportDialog = ({
                             onChooseStation={handleChooseStation}
                         />
 
-                        {/* Preview tickets for the selected, existing batch. */}
-                        <Stack spacing={2}>
-                            <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                                Danh sách vé theo ngày quay ({preview.groups.length})
-                            </Typography>
-                            {selectedDates.length === 0 && (
-                                <Alert severity="error">
-                                    Tệp không có vé hợp lệ cho ngày quay của phiếu nhập đã chọn ({formatDate(selectedBatchDrawDate ?? undefined)}).
-                                </Alert>
-                            )}
-                            {preview.groups.map((group, index) => (
-                                <PreviewGroup
-                                    key={group.drawDate ?? `undated-${index}`}
-                                    group={group}
-                                    targetDrawDate={selectedBatchDrawDate}
-                                    busy={busy}
-                                    importsTickets={preview.importsTickets}
-                                    mapping={mapping}
-                                    windowFrom={preview.windowFrom}
-                                    windowTo={preview.windowTo}
-                                    onChooseStation={handleChooseStation}
-                                    onOpenPricing={() => setPricingOpen(true)}
-                                    onOpenSchedule={() => setScheduleOpen(true)}
-                                />
-                            ))}
-                        </Stack>
+                        {/* Preview tickets: Unified Flattened Table with Search, Filters, and Pagination */}
+                        <PreviewTicketFlatTable
+                            preview={preview}
+                            mapping={mapping}
+                            targetDrawDate={selectedBatchDrawDate}
+                            selectedDates={selectedDates}
+                            busy={busy}
+                            importsTickets={preview.importsTickets}
+                            onChooseStation={handleChooseStation}
+                            onOpenPricing={() => setPricingOpen(true)}
+                            onOpenSchedule={() => setScheduleOpen(true)}
+                        />
 
                     </Stack>
                 )}
@@ -2296,7 +2436,7 @@ export const ImportBatchFileImportDialog = ({
                 batch={selectedDraftBatch}
                 fileStations={selectedGroup?.stations ?? []}
                 onBatchUpdated={async () => {
-                    await refetchIncompleteBatches();
+                    await refetchDraftBatches();
                 }}
             />
 
@@ -2481,12 +2621,12 @@ export const ImportBatchFileImportDialog = ({
                         <DeleteOutlineIcon sx={{ fontSize: 20 }} />
                     </Box>
                     <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.05rem' }}>
-                        Hủy phiếu nhập nháp
+                        Xóa phiếu nhập lô
                     </Typography>
                 </DialogTitle>
                 <DialogContent sx={{ px: 2.5, py: 1.5 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                        Bạn có chắc chắn muốn hủy phiếu nhập nháp{' '}
+                        Bạn có chắc chắn muốn xóa phiếu nhập lô{' '}
                         <Box component="span" fontWeight={700} color="text.primary">
                             {batchToDiscard ? formatImportBatchHeaderCode(batchToDiscard.batchCode, batchToDiscard.id) : ''}
                             {batchToDiscard?.drawDate ? ` - ${dayjs(batchToDiscard.drawDate).format('DD/MM/YYYY')}` : ''}
@@ -2522,7 +2662,7 @@ export const ImportBatchFileImportDialog = ({
                         }}
                         sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5 }}
                     >
-                        {discardingBatchId ? 'Đang hủy…' : 'Xác nhận hủy'}
+                        {discardingBatchId ? 'Đang xóa…' : 'Xác nhận xóa'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -2562,6 +2702,14 @@ export const ImportBatchFileImportDialog = ({
                 // whole preview has to be resolved again before anything on screen
                 // reflects the correction.
                 onSaved={() => void runPreview()}
+            />
+            <ImportBatchStateChangedDialog
+                open={staleImportBatchId != null}
+                importBatchId={staleImportBatchId}
+                onAcknowledge={async () => {
+                    setStaleImportBatchId(null);
+                    await refetchDraftBatches();
+                }}
             />
         </Dialog>
     );
@@ -2722,191 +2870,42 @@ const AnomalyTable = ({ anomalies, mapping, busy, hideEmptySuccess, onChooseStat
     );
 };
 
-type PreviewGroupProps = {
-    group: ImportBatchFileGroup;
+type FlatPreviewSerialRow = {
+    id: string;
+    serial: string;
+    ticketNumbers: string;
+    drawDate: string;
+    stationName: string;
+    stationCode?: string;
+    lotteryStationId?: number | null;
+    rawStation?: string;
+    importCost: string;
+    fileImportCost?: string;
+    showFileImportCost: boolean;
+    salePrice: string;
+    commission: string;
+    displayStatus: PreviewDisplayStatus;
+    shortNote: string;
+    fullNote: string;
+    image: string | null;
+    sourceRow: ImportBatchFileRow;
+    suggestions: Array<{ lotteryStationId: number; name: string }>;
+    stationMatchesFile: boolean;
+    dateIssue: boolean;
+    offWindow: boolean;
+    dateInvalid: boolean;
+};
+
+type PreviewTicketFlatTableProps = {
+    preview: ImportBatchFilePreviewResult;
+    mapping: ImportBatchFileMapping | null;
     targetDrawDate: string | null;
+    selectedDates: string[];
     busy: boolean;
     importsTickets: boolean;
-    mapping: ImportBatchFileMapping | null;
-    windowFrom?: string | null;
-    windowTo?: string | null;
     onChooseStation: (row: ImportBatchFileRow, lotteryStationId: number) => void;
     onOpenPricing: () => void;
     onOpenSchedule: () => void;
-};
-
-const PreviewGroup = ({
-    group,
-    targetDrawDate,
-    busy,
-    importsTickets,
-    mapping,
-    windowFrom,
-    windowTo,
-    onChooseStation,
-    onOpenPricing,
-    onOpenSchedule,
-}: PreviewGroupProps) => {
-    const offWindow = group.status === 'OUT_OF_WINDOW' || !group.drawDate;
-    const [openRows, setOpenRows] = useState(offWindow);
-    const ticketLines = useMemo(
-        () => groupPreviewTicketRows(group.rows ?? [], mapping),
-        [group.rows, mapping]
-    );
-    const showFilePricing = ticketLines.some((line) => {
-        const values = readPreviewFileValues(line.row, mapping);
-        return Boolean(values.salePrice || values.commission);
-    });
-    const stationColumn = mapping?.stationColumn ?? '';
-
-    return (
-        <Paper
-            elevation={0}
-            sx={{
-                border: '1px solid #e2e8f0',
-                borderRadius: '16px',
-                p: 2.5,
-                bgcolor: '#ffffff',
-                transition: 'all 0.2s',
-                '&:hover': {
-                    borderColor: '#cbd5e1',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
-                },
-            }}
-        >
-            <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                flexWrap="wrap"
-                gap={1.5}
-            >
-                <Stack direction="row" alignItems="center" spacing={1.5}>
-                    <Box>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                                {group.drawDate ? formatDate(group.drawDate) : 'Không xác định ngày quay'}
-                            </Typography>
-                            {group.drawDate === targetDrawDate && group.status === 'IMPORTABLE' ? (
-                                <Chip size="small" color="success" label="Sẽ nhập vào phiếu đã chọn" />
-                            ) : (
-                                <Chip size="small" label="Không nhập vào phiếu đã chọn" />
-                            )}
-                            {group.status === 'OUT_OF_WINDOW' && (
-                                <Chip size="small" label="Ngoài phạm vi hôm nay/ngày mai" sx={{ height: 22, fontSize: '0.75rem' }} />
-                            )}
-                            {group.status === 'BLOCKED' && (
-                                <Chip size="small" color="error" label="Không thể nạp vé" sx={{ height: 22, fontSize: '0.75rem' }} />
-                            )}
-                        </Stack>
-                    </Box>
-                </Stack>
-
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                        <span style={{ color: '#0f172a', fontWeight: 800 }}>{group.stations?.length ?? 0}</span> đài ·{' '}
-                        <span style={{ color: '#0f172a', fontWeight: 800 }}>{group.ticketCount ?? 0}</span> dãy số ·{' '}
-                        khai báo <span style={{ color: '#0f172a', fontWeight: 800 }}>{group.totalDeclareQuantity}</span> vé
-                        {(group.totalSerialCount ?? 0) !== group.totalDeclareQuantity && (
-                            <span style={{ color: '#16a34a', fontWeight: 700 }}> (nhập {group.totalSerialCount ?? 0})</span>
-                        )}
-                    </Typography>
-
-                    <Button
-                        size="small"
-                        variant="text"
-                        onClick={() => setOpenRows((prev) => !prev)}
-                        endIcon={openRows ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
-                    >
-                        {openRows ? 'Thu gọn' : `Danh sách vé (${ticketLines.length})`}
-                    </Button>
-                </Stack>
-            </Stack>
-
-            <GroupIssuesList
-                issues={group.groupIssues}
-                onOpenPricing={onOpenPricing}
-                onOpenSchedule={onOpenSchedule}
-            />
-
-
-            {/* Expandable Rows Table */}
-            <Collapse in={openRows} timeout="auto" unmountOnExit>
-                {ticketLines.length > 0 && (
-                    <Box sx={{ overflowX: 'auto', mt: 2, border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-                        <Table
-                            size="small"
-                            sx={{
-                                '& .MuiTableCell-root': {
-                                    py: 0.85,
-                                    px: 1.25,
-                                    fontSize: '0.8125rem',
-                                    borderColor: '#f1f5f9',
-                                },
-                                '& .MuiTableHead-root .MuiTableCell-root': {
-                                    py: 0.7,
-                                    fontSize: '0.68rem',
-                                    fontWeight: 800,
-                                    letterSpacing: '0.04em',
-                                    textTransform: 'uppercase',
-                                    color: '#64748b',
-                                    bgcolor: '#f8fafc',
-                                },
-                            }}
-                        >
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell sx={{ width: 56 }}>STT</TableCell>
-                                    <TableCell>Đài</TableCell>
-                                    <TableCell>Ngày quay</TableCell>
-                                    {importsTickets && <TableCell>Dãy số</TableCell>}
-                                    <TableCell align="right">Giá nhập</TableCell>
-                                    {showFilePricing && <TableCell align="right">Giá bán</TableCell>}
-                                    {showFilePricing && <TableCell align="right">HH</TableCell>}
-                                    <TableCell>Trạng thái</TableCell>
-                                    <TableCell sx={{ minWidth: 180 }}>Ghi chú</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {ticketLines.map((line, index) => (
-                                    <PreviewRow
-                                        key={line.row.rowNumber}
-                                        index={index}
-                                        line={line}
-                                        busy={busy}
-                                        importsTickets={importsTickets}
-                                        showFilePricing={showFilePricing}
-                                        mapping={mapping}
-                                        stationColumn={stationColumn}
-                                        windowFrom={windowFrom}
-                                        windowTo={windowTo}
-                                        group={group}
-                                        onChooseStation={onChooseStation}
-                                    />
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </Box>
-                )}
-            </Collapse>
-        </Paper>
-    );
-};
-
-type PreviewRowProps = {
-    index: number;
-    line: PreviewTicketLine;
-    busy: boolean;
-    importsTickets: boolean;
-    showFilePricing: boolean;
-    mapping: ImportBatchFileMapping | null;
-    stationColumn: string;
-    windowFrom?: string | null;
-    windowTo?: string | null;
-    /** Needed because a blocked draw date overrides every row's own status. */
-    group: ImportBatchFileGroup;
-    onChooseStation: (row: ImportBatchFileRow, lotteryStationId: number) => void;
 };
 
 const formatCommissionDisplay = (value: string) => {
@@ -2916,337 +2915,1158 @@ const formatCommissionDisplay = (value: string) => {
     return value.includes('%') ? value : `${value}%`;
 };
 
-const PreviewRow = ({
-    index,
-    line,
+const PreviewTicketFlatTable = ({
+    preview,
+    mapping,
+    targetDrawDate,
+    selectedDates,
     busy,
     importsTickets,
-    showFilePricing,
-    mapping,
-    stationColumn,
-    windowFrom,
-    windowTo,
-    group,
     onChooseStation,
-}: PreviewRowProps) => {
-    const [expanded, setExpanded] = useState(false);
-    const row = line.row;
-    const displayStatus = previewTicketDisplayStatus(line, group);
-    const chip = ROW_STATUS_CHIP[displayStatus];
-    const suggestions = row.issues.flatMap((issue) => issue.suggestions ?? []);
-    const rawStation = (row.rawValues[stationColumn] ?? '').trim();
-    const serialEntries = listPreviewSerials(line);
-    const errorSerialCount = serialEntries.filter((item) => item.status === 'ERROR').length;
-    const matchedStation = (row.stationName ?? '').trim();
-    const stationMatchesFile =
-        !rawStation || !matchedStation || rawStation.toLowerCase() === matchedStation.toLowerCase();
-    const fileValues = readPreviewFileValues(row, mapping);
-    const notes = collectPreviewRowNotes(line, group);
-    const dateIssue = hasDrawDateIssue(row) || line.attachedRows.some(hasDrawDateIssue);
-    const offWindow = isDrawDateOutsideWindow(row.drawDate, windowFrom, windowTo);
-    const dateInvalid = !row.drawDate || row.issues.some((issue) => issue.code === 'DRAW_DATE_INVALID');
-    const columnCount = 6 + (importsTickets ? 1 : 0) + (showFilePricing ? 2 : 0);
-    const canExpand = importsTickets && serialEntries.length > 0;
-    const formattedImportCost = formatImportCost(row.importCost);
-    const showFileImportCost =
-        Boolean(fileValues.importCost)
-        && fileValues.importCost.replace(/\s/g, '') !== formattedImportCost.replace(/\s/g, '');
+    onOpenPricing,
+    onOpenSchedule,
+}: PreviewTicketFlatTableProps) => {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [stationFilter, setStationFilter] = useState('ALL');
+    const [drawDateFilter, setDrawDateFilter] = useState('ALL');
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'VALID' | 'INVALID'>('ALL');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [selectedErrorDetail, setSelectedErrorDetail] = useState<{ row: FlatPreviewSerialRow; index: number } | null>(null);
+
+    const stationColumn = mapping?.stationColumn ?? '';
+
+    // Collect all group issues across all groups
+    const allGroupIssues = useMemo(() => {
+        const issuesMap = new Map<string, ImportBatchFileIssue>();
+        (preview.groups ?? []).forEach((group) => {
+            (group.groupIssues ?? []).forEach((issue) => {
+                const key = `${issue.code}-${issue.message}`;
+                if (!issuesMap.has(key)) {
+                    issuesMap.set(key, issue);
+                }
+            });
+        });
+        return Array.from(issuesMap.values());
+    }, [preview.groups]);
+
+    // Flatten all serials across all groups
+    const flatSerialRows = useMemo(() => {
+        if (!preview?.groups) return [];
+
+        const rows: FlatPreviewSerialRow[] = [];
+
+        preview.groups.forEach((group, groupIdx) => {
+            const ticketLines = groupPreviewTicketRows(group.rows ?? [], mapping);
+
+            ticketLines.forEach((line, lineIdx) => {
+                const row = line.row;
+                const rawStation = (row.rawValues[stationColumn] ?? '').trim();
+                const matchedStation = (row.stationName ?? '').trim();
+                const stationMatchesFile =
+                    !rawStation || !matchedStation || rawStation.toLowerCase() === matchedStation.toLowerCase();
+                const fileValues = readPreviewFileValues(row, mapping);
+                const suggestions = row.issues.flatMap((issue) => issue.suggestions ?? []);
+                const dateIssue = hasDrawDateIssue(row) || line.attachedRows.some(hasDrawDateIssue);
+                const offWindow = isDrawDateOutsideWindow(row.drawDate, preview.windowFrom, preview.windowTo);
+                const dateInvalid = !row.drawDate || row.issues.some((issue) => issue.code === 'DRAW_DATE_INVALID');
+                const formattedImportCost = formatImportCost(row.importCost);
+                const showFileImportCost =
+                    Boolean(fileValues.importCost) &&
+                    fileValues.importCost.replace(/\s/g, '') !== formattedImportCost.replace(/\s/g, '');
+
+                const serialEntries = listPreviewSerials(line, group);
+
+                if (serialEntries.length === 0) {
+                    const lineStatus = previewTicketDisplayStatus(line, group);
+                    const lineNotes = collectPreviewRowNotes(line, group);
+                    rows.push({
+                        id: `row-${group.drawDate ?? groupIdx}-${row.rowNumber}-${lineIdx}`,
+                        serial: '—',
+                        ticketNumbers: row.numbers || fileValues.numbers || '—',
+                        drawDate: row.drawDate || group.drawDate || '',
+                        stationName: matchedStation || rawStation || fileValues.stationName || fileValues.stationCode || '—',
+                        stationCode: fileValues.stationCode,
+                        lotteryStationId: row.lotteryStationId,
+                        rawStation,
+                        importCost: formattedImportCost,
+                        fileImportCost: fileValues.importCost,
+                        showFileImportCost,
+                        salePrice: fileValues.salePrice || '—',
+                        commission: formatCommissionDisplay(fileValues.commission),
+                        displayStatus: lineStatus,
+                        shortNote: lineNotes.short,
+                        fullNote: lineNotes.full,
+                        image: null,
+                        sourceRow: row,
+                        suggestions,
+                        stationMatchesFile,
+                        dateIssue,
+                        offWindow,
+                        dateInvalid,
+                    });
+                } else {
+                    serialEntries.forEach((serialEntry, sIdx) => {
+                        const serialNotes = collectPreviewSerialNotes(serialEntry, line, group);
+                        const serialSuggestions = serialEntry.issues.flatMap((i) => i.suggestions ?? []);
+                        rows.push({
+                            id: `row-${group.drawDate ?? groupIdx}-${row.rowNumber}-${lineIdx}-${sIdx}-${serialEntry.serial}`,
+                            serial: serialEntry.serial,
+                            ticketNumbers: row.numbers || fileValues.numbers || '—',
+                            drawDate: row.drawDate || group.drawDate || '',
+                            stationName: matchedStation || rawStation || fileValues.stationName || fileValues.stationCode || '—',
+                            stationCode: fileValues.stationCode,
+                            lotteryStationId: row.lotteryStationId,
+                            rawStation,
+                            importCost: formattedImportCost,
+                            fileImportCost: fileValues.importCost,
+                            showFileImportCost,
+                            salePrice: fileValues.salePrice || '—',
+                            commission: formatCommissionDisplay(fileValues.commission),
+                            displayStatus: serialEntry.status,
+                            shortNote: serialNotes.short,
+                            fullNote: serialNotes.full,
+                            image: serialEntry.image,
+                            sourceRow: serialEntry.sourceRow,
+                            suggestions: serialSuggestions.length > 0 ? serialSuggestions : suggestions,
+                            stationMatchesFile,
+                            dateIssue,
+                            offWindow,
+                            dateInvalid,
+                        });
+                    });
+                }
+            });
+        });
+
+        return rows;
+    }, [preview?.groups, mapping, stationColumn, preview?.windowFrom, preview?.windowTo]);
+
+    // Check if any row has sale price or commission
+    const showFilePricing = useMemo(
+        () => flatSerialRows.some((r) => Boolean(r.salePrice && r.salePrice !== '—') || Boolean(r.commission && r.commission !== '—')),
+        [flatSerialRows]
+    );
+
+    // Filter options
+    const stationFilterOptions = useMemo(() => {
+        const set = new Set<string>();
+        flatSerialRows.forEach((r) => {
+            if (r.stationName && r.stationName !== '—') set.add(r.stationName);
+        });
+        return Array.from(set).sort();
+    }, [flatSerialRows]);
+
+    const drawDateFilterOptions = useMemo(() => {
+        const set = new Set<string>();
+        flatSerialRows.forEach((r) => {
+            if (r.drawDate) set.add(r.drawDate);
+        });
+        return Array.from(set).sort();
+    }, [flatSerialRows]);
+
+    const activeFilterCount =
+        (stationFilter !== 'ALL' ? 1 : 0) +
+        (drawDateFilter !== 'ALL' ? 1 : 0) +
+        (statusFilter !== 'ALL' ? 1 : 0);
+
+    // Filtered rows
+    const filteredRows = useMemo(() => {
+        return flatSerialRows.filter((row) => {
+            if (searchQuery.trim()) {
+                const q = searchQuery.trim().toLowerCase();
+                const matchesTicket = row.ticketNumbers.toLowerCase().includes(q);
+                const matchesSerial = row.serial.toLowerCase().includes(q);
+                if (!matchesTicket && !matchesSerial) return false;
+            }
+
+            if (stationFilter !== 'ALL') {
+                if (row.stationName !== stationFilter && row.rawStation !== stationFilter) {
+                    return false;
+                }
+            }
+
+            if (drawDateFilter !== 'ALL') {
+                if (row.drawDate !== drawDateFilter) {
+                    return false;
+                }
+            }
+
+            if (statusFilter === 'VALID') {
+                if (row.displayStatus !== 'OK' || row.dateIssue || row.offWindow || row.dateInvalid) {
+                    return false;
+                }
+            } else if (statusFilter === 'INVALID') {
+                if (row.displayStatus === 'OK' && !row.dateIssue && !row.offWindow && !row.dateInvalid) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }, [flatSerialRows, searchQuery, stationFilter, drawDateFilter, statusFilter]);
+
+    // Paginated rows
+    const paginatedRows = useMemo(() => {
+        const start = page * rowsPerPage;
+        return filteredRows.slice(start, start + rowsPerPage);
+    }, [filteredRows, page, rowsPerPage]);
+
+    const handleClearAllFilters = () => {
+        setSearchQuery('');
+        setStationFilter('ALL');
+        setDrawDateFilter('ALL');
+        setStatusFilter('ALL');
+        setPage(0);
+    };
 
     return (
-        <>
-            <TableRow
-                hover
-                sx={{ '& > *': { borderBottom: expanded ? 'unset' : undefined } }}
-            >
-                <TableCell sx={{ fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>
-                    {index + 1}
-                </TableCell>
-                <TableCell sx={{ minWidth: 140 }}>
-                    {matchedStation ? (
-                        <Stack spacing={0.15}>
-                            <Typography variant="body2" fontWeight={700} color="#0f172a" sx={{ lineHeight: 1.25 }}>
-                                {matchedStation}
-                            </Typography>
-                            {(fileValues.stationCode || !stationMatchesFile) && (
-                                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                                    {[fileValues.stationCode, !stationMatchesFile ? `Tệp: ${rawStation}` : null]
-                                        .filter(Boolean)
-                                        .join(' · ')}
+        <Stack spacing={2}>
+            {selectedDates.length === 0 && (
+                <Paper
+                    elevation={0}
+                    sx={{
+                        p: 2,
+                        borderRadius: '12px',
+                        bgcolor: '#fef2f2',
+                        border: '1px solid #fee2e2',
+                        borderLeft: '4px solid #ef4444',
+                    }}
+                >
+                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                        <Box
+                            sx={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: '8px',
+                                bgcolor: '#fee2e2',
+                                color: '#dc2626',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                mt: 0.25,
+                            }}
+                        >
+                            <ErrorOutlineOutlinedIcon sx={{ fontSize: 20 }} />
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={0.5}>
+                                <Typography variant="subtitle2" fontWeight={800} color="#991b1b" sx={{ fontSize: '0.875rem' }}>
+                                    Tệp không có vé hợp lệ cho ngày quay đã chọn
                                 </Typography>
-                            )}
+                                <Chip
+                                    size="small"
+                                    label="Không thể nạp vé"
+                                    sx={{
+                                        height: 20,
+                                        fontSize: '0.65rem',
+                                        fontWeight: 800,
+                                        bgcolor: '#fca5a5',
+                                        color: '#991b1b',
+                                        borderRadius: '4px',
+                                    }}
+                                />
+                            </Stack>
+                            <Typography variant="body2" color="#7f1d1d" sx={{ mt: 0.5, fontSize: '0.8125rem', lineHeight: 1.45 }}>
+                                Tệp không có vé hợp lệ cho ngày quay của phiếu nhập đã chọn ({formatDate(targetDrawDate ?? undefined)}). Vui lòng kiểm tra lại ngày quay trong tệp hoặc chọn phiếu nhập khác.
+                            </Typography>
+                        </Box>
+                    </Stack>
+                </Paper>
+            )}
+
+            {allGroupIssues.length > 0 && (
+                <GroupIssuesList
+                    issues={allGroupIssues}
+                    onOpenPricing={onOpenPricing}
+                    onOpenSchedule={onOpenSchedule}
+                />
+            )}
+
+            {/* Header Toolbar: Search + Filter */}
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 2,
+                    borderRadius: '16px',
+                    border: '1px solid #e2e8f0',
+                    bgcolor: '#ffffff',
+                }}
+            >
+                <Stack spacing={1.5}>
+                    <Stack
+                        direction={{ xs: 'column', md: 'row' }}
+                        spacing={2}
+                        alignItems={{ xs: 'stretch', md: 'center' }}
+                        justifyContent="space-between"
+                    >
+                        <Stack
+                            direction="row"
+                            spacing={1.5}
+                            alignItems="center"
+                            sx={{ flex: 1, maxWidth: { md: 580 } }}
+                        >
+                            <TextField
+                                size="small"
+                                fullWidth
+                                placeholder="Tìm kiếm dãy số, số serial..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setPage(0);
+                                }}
+                                slotProps={{
+                                    input: {
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                                            </InputAdornment>
+                                        ),
+                                        endAdornment: searchQuery ? (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => {
+                                                        setSearchQuery('');
+                                                        setPage(0);
+                                                    }}
+                                                >
+                                                    <CloseIcon sx={{ fontSize: 16 }} />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ) : null,
+                                    },
+                                }}
+                                sx={{
+                                    bgcolor: '#ffffff',
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '10px',
+                                        fontSize: '0.875rem',
+                                    },
+                                }}
+                            />
+
+                            <Button
+                                variant={activeFilterCount > 0 ? 'contained' : 'outlined'}
+                                color={activeFilterCount > 0 ? 'primary' : 'inherit'}
+                                size="medium"
+                                onClick={(e) => setFilterAnchorEl(e.currentTarget)}
+                                startIcon={
+                                    <Badge badgeContent={activeFilterCount} color="error">
+                                        <FilterListIcon fontSize="small" />
+                                    </Badge>
+                                }
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: '10px',
+                                    borderColor: '#cbd5e1',
+                                    color: activeFilterCount > 0 ? '#ffffff' : '#334155',
+                                    minWidth: '105px',
+                                    height: '40px',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                Bộ lọc
+                            </Button>
                         </Stack>
-                    ) : suggestions.length > 0 ? (
+
+                        <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
+                            Hiển thị <span style={{ color: '#0f172a', fontWeight: 800 }}>{filteredRows.length.toLocaleString('vi-VN')}</span> / {flatSerialRows.length.toLocaleString('vi-VN')} vé
+                        </Typography>
+                    </Stack>
+
+                    {/* Active Filter Chips */}
+                    {(activeFilterCount > 0 || searchQuery) && (
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={0.5}>
+                            {searchQuery && (
+                                <Chip
+                                    size="small"
+                                    label={`Tìm kiếm: "${searchQuery}"`}
+                                    onDelete={() => {
+                                        setSearchQuery('');
+                                        setPage(0);
+                                    }}
+                                    sx={{ borderRadius: '6px', bgcolor: '#f1f5f9', fontWeight: 600 }}
+                                />
+                            )}
+                            {stationFilter !== 'ALL' && (
+                                <Chip
+                                    size="small"
+                                    label={`Nhà đài: ${stationFilter}`}
+                                    onDelete={() => {
+                                        setStationFilter('ALL');
+                                        setPage(0);
+                                    }}
+                                    sx={{ borderRadius: '6px', bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600 }}
+                                />
+                            )}
+                            {drawDateFilter !== 'ALL' && (
+                                <Chip
+                                    size="small"
+                                    label={`Lịch quay: ${formatDate(drawDateFilter)}`}
+                                    onDelete={() => {
+                                        setDrawDateFilter('ALL');
+                                        setPage(0);
+                                    }}
+                                    sx={{ borderRadius: '6px', bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600 }}
+                                />
+                            )}
+                            {statusFilter !== 'ALL' && (
+                                <Chip
+                                    size="small"
+                                    label={`Trạng thái: ${statusFilter === 'VALID' ? 'Hợp lệ' : 'Không hợp lệ'}`}
+                                    onDelete={() => {
+                                        setStatusFilter('ALL');
+                                        setPage(0);
+                                    }}
+                                    sx={{
+                                        borderRadius: '6px',
+                                        bgcolor: statusFilter === 'VALID' ? '#f0fdf4' : '#fef2f2',
+                                        color: statusFilter === 'VALID' ? '#15803d' : '#b91c1c',
+                                        fontWeight: 600,
+                                    }}
+                                />
+                            )}
+                            <Button
+                                size="small"
+                                variant="text"
+                                onClick={handleClearAllFilters}
+                                sx={{ textTransform: 'none', fontSize: '0.75rem', color: 'text.secondary', fontWeight: 600 }}
+                            >
+                                Xóa tất cả
+                            </Button>
+                        </Stack>
+                    )}
+                </Stack>
+            </Paper>
+
+            {/* Filter Popover */}
+            <Popover
+                open={Boolean(filterAnchorEl)}
+                anchorEl={filterAnchorEl}
+                onClose={() => setFilterAnchorEl(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            p: 2.5,
+                            width: 320,
+                            borderRadius: '14px',
+                            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+                            border: '1px solid #e2e8f0',
+                        },
+                    },
+                }}
+            >
+                <Stack spacing={2}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
+                            Bộ lọc danh sách vé
+                        </Typography>
+                        {activeFilterCount > 0 && (
+                            <Button
+                                size="small"
+                                variant="text"
+                                onClick={() => {
+                                    setStationFilter('ALL');
+                                    setDrawDateFilter('ALL');
+                                    setStatusFilter('ALL');
+                                    setPage(0);
+                                }}
+                                sx={{ textTransform: 'none', fontSize: '0.75rem', p: 0 }}
+                            >
+                                Đặt lại
+                            </Button>
+                        )}
+                    </Stack>
+
+                    <Divider />
+
+                    {/* 1. Nhà đài */}
+                    <Box>
+                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block' }}>
+                            Nhà đài
+                        </Typography>
                         <TextField
                             select
                             size="small"
-                            label="Chọn đài"
-                            value=""
-                            disabled={busy}
-                            onChange={(event) =>
-                                onChooseStation(row, Number(event.target.value))
-                            }
-                            sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                            fullWidth
+                            value={stationFilter}
+                            onChange={(e) => {
+                                setStationFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                         >
-                            {suggestions.map((suggestion) => (
-                                <MenuItem
-                                    key={suggestion.lotteryStationId}
-                                    value={suggestion.lotteryStationId}
-                                >
-                                    {suggestion.name}
+                            <MenuItem value="ALL">Tất cả nhà đài</MenuItem>
+                            {stationFilterOptions.map((station) => (
+                                <MenuItem key={station} value={station}>
+                                    {station}
                                 </MenuItem>
                             ))}
                         </TextField>
-                    ) : (
-                        <Typography variant="body2" color="text.secondary">
-                            {rawStation || fileValues.stationName || fileValues.stationCode || '—'}
-                        </Typography>
-                    )}
-                </TableCell>
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                    <Typography
-                        variant="body2"
-                        fontWeight={800}
-                        color={dateIssue || offWindow || dateInvalid ? '#c2410c' : '#0f172a'}
-                    >
-                        {row.drawDate ? formatDate(row.drawDate) : 'Không đọc được'}
-                    </Typography>
-                    {(dateIssue || offWindow || dateInvalid) && (
-                        <Typography variant="caption" fontWeight={700} color="#c2410c" sx={{ display: 'block', lineHeight: 1.2 }}>
-                            {dateInvalid ? 'Sai / thiếu ngày quay' : `Ngoài hạn ${formatDate(windowFrom ?? undefined)}`}
-                        </Typography>
-                    )}
-                </TableCell>
-                {importsTickets && (
-                    <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <AdminLuckyDisplay value={row.numbers} ticket sx={{ fontWeight: 800, color: '#0f172a' }} />
-                            {canExpand && (
-                                <Button
-                                    size="small"
-                                    variant="text"
-                                    onClick={() => setExpanded((current) => !current)}
-                                    endIcon={expanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                                    sx={{
-                                        textTransform: 'none',
-                                        fontWeight: 700,
-                                        minWidth: 0,
-                                        px: 0.75,
-                                        color: errorSerialCount > 0 ? '#c2410c' : '#64748b',
-                                    }}
-                                >
-                                    {serialEntries.length} sê-ri
-                                    {errorSerialCount > 0 ? ` · ${errorSerialCount} lỗi` : ''}
-                                </Button>
-                            )}
-                        </Stack>
-                    </TableCell>
-                )}
-                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                    <Typography variant="body2" fontWeight={700} color="#0f172a">
-                        {formattedImportCost}
-                    </Typography>
-                    {showFileImportCost && (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
-                            Tệp: {fileValues.importCost}
-                        </Typography>
-                    )}
-                </TableCell>
-                {showFilePricing && (
-                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', color: line.priceVariance ? '#d97706' : undefined }}>
-                        {fileValues.salePrice || '—'}
-                    </TableCell>
-                )}
-                {showFilePricing && (
-                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', color: line.priceVariance ? '#d97706' : undefined }}>
-                        {formatCommissionDisplay(fileValues.commission)}
-                    </TableCell>
-                )}
-                <TableCell>
-                    <Chip
-                        size="small"
-                        color={dateIssue || offWindow || dateInvalid ? 'warning' : chip.color}
-                        label={
-                            dateInvalid
-                                ? 'Sai ngày quay'
-                                : dateIssue || offWindow
-                                    ? 'Ngoài hạn nhập'
-                                    : chip.label
-                        }
-                        sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }}
-                    />
-                </TableCell>
-                <TableCell sx={{ minWidth: 180 }}>
-                    {!notes.short ? (
-                        <Typography variant="caption" color="text.disabled">—</Typography>
-                    ) : (
-                        <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{notes.full || notes.short}</Box>}>
-                            <Typography
-                                variant="caption"
-                                color={errorSerialCount > 0 || displayStatus === 'ERROR' || dateIssue || offWindow || dateInvalid ? 'error.main' : 'text.secondary'}
-                                sx={{
-                                    display: '-webkit-box',
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: 'vertical',
-                                    overflow: 'hidden',
-                                    lineHeight: 1.35,
-                                    fontWeight: 600,
-                                }}
-                            >
-                                {notes.short}
-                            </Typography>
-                        </Tooltip>
-                    )}
-                </TableCell>
-            </TableRow>
+                    </Box>
 
-            {canExpand && (
-                <TableRow>
-                    <TableCell colSpan={columnCount} sx={{ py: 0, borderBottom: expanded ? undefined : 0 }}>
-                        <Collapse in={expanded} timeout="auto" unmountOnExit>
-                            <Box
-                                sx={{
-                                    mx: 1.5,
-                                    my: 1.25,
-                                    border: '1px solid #e2e8f0',
-                                    borderRadius: '12px',
-                                    overflow: 'hidden',
-                                    bgcolor: '#fff',
-                                }}
-                            >
-                                <Table
-                                    size="small"
-                                    sx={{
-                                        '& .MuiTableCell-root': {
-                                            py: 0.85,
-                                            px: 1.5,
-                                            fontSize: '0.8125rem',
-                                            borderColor: '#f1f5f9',
-                                        },
-                                        '& .MuiTableHead-root .MuiTableCell-root': {
-                                            py: 0.7,
-                                            fontSize: '0.68rem',
-                                            fontWeight: 800,
-                                            letterSpacing: '0.04em',
-                                            textTransform: 'uppercase',
-                                            color: '#64748b',
-                                            bgcolor: '#f8fafc',
-                                        },
-                                    }}
-                                >
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell sx={{ width: 44 }}>#</TableCell>
-                                            <TableCell>Sê-ri</TableCell>
-                                            <TableCell>Đài</TableCell>
-                                            <TableCell>Trạng thái</TableCell>
-                                            <TableCell>Ghi chú</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {serialEntries.map((entry, serialIndex) => {
-                                            const serialChip = ROW_STATUS_CHIP[entry.status];
-                                            const serialNotes = entry.issues
-                                                .map((issue) => formatPreviewIssueNote(issue))
-                                                .join(' · ');
-                                            const serialSuggestions = entry.issues.flatMap(
-                                                (issue) => issue.suggestions ?? []
-                                            );
-                                            return (
-                                                <TableRow
-                                                    key={`${entry.serial}-${entry.sourceRowNumber}-${serialIndex}`}
-                                                    sx={{
-                                                        bgcolor: entry.status === 'ERROR' ? '#fef2f2' : undefined,
-                                                    }}
-                                                >
-                                                    <TableCell sx={{ color: '#94a3b8', fontWeight: 700 }}>
-                                                        {serialIndex + 1}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Stack direction="row" spacing={1} alignItems="center">
-                                                            <Typography variant="body2" fontWeight={800} color="#0f172a">
-                                                                {entry.serial}
-                                                            </Typography>
-                                                            {entry.image && (
-                                                                <Chip
-                                                                    size="small"
-                                                                    icon={<ImageOutlinedIcon sx={{ fontSize: '14px !important' }} />}
-                                                                    label="Ảnh"
-                                                                    component="a"
-                                                                    href={entry.image}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    clickable
-                                                                    sx={{ height: 22, fontWeight: 700, fontSize: '0.7rem' }}
-                                                                />
-                                                            )}
-                                                        </Stack>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {serialSuggestions.length > 0 ? (
-                                                            <TextField
-                                                                select
-                                                                size="small"
-                                                                label="Chọn đài"
-                                                                value=""
-                                                                disabled={busy}
-                                                                onChange={(event) =>
-                                                                    onChooseStation(
-                                                                        entry.sourceRow,
-                                                                        Number(event.target.value)
-                                                                    )
-                                                                }
-                                                                sx={{ minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                                                            >
-                                                                {serialSuggestions.map((suggestion) => (
-                                                                    <MenuItem
-                                                                        key={suggestion.lotteryStationId}
-                                                                        value={suggestion.lotteryStationId}
-                                                                    >
-                                                                        {suggestion.name}
-                                                                    </MenuItem>
-                                                                ))}
-                                                            </TextField>
-                                                        ) : (
-                                                            <Typography variant="body2" fontWeight={600} color="#334155">
-                                                                {entry.stationName || '—'}
-                                                            </Typography>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
+                    {/* 2. Lịch quay */}
+                    <Box>
+                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block' }}>
+                            Lịch quay
+                        </Typography>
+                        <TextField
+                            select
+                            size="small"
+                            fullWidth
+                            value={drawDateFilter}
+                            onChange={(e) => {
+                                setDrawDateFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                        >
+                            <MenuItem value="ALL">Tất cả lịch quay</MenuItem>
+                            {drawDateFilterOptions.map((date) => (
+                                <MenuItem key={date} value={date}>
+                                    {formatDate(date)}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    </Box>
+
+                    {/* 3. Trạng thái */}
+                    <Box>
+                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block' }}>
+                            Trạng thái
+                        </Typography>
+                        <TextField
+                            select
+                            size="small"
+                            fullWidth
+                            value={statusFilter}
+                            onChange={(e) => {
+                                setStatusFilter(e.target.value as any);
+                                setPage(0);
+                            }}
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                        >
+                            <MenuItem value="ALL">Tất cả trạng thái</MenuItem>
+                            <MenuItem value="VALID">Hợp lệ</MenuItem>
+                            <MenuItem value="INVALID">Không hợp lệ</MenuItem>
+                        </TextField>
+                    </Box>
+
+                    <Button
+                        variant="contained"
+                        size="small"
+                        fullWidth
+                        onClick={() => setFilterAnchorEl(null)}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', mt: 1 }}
+                    >
+                        Đóng
+                    </Button>
+                </Stack>
+            </Popover>
+
+            {/* Table */}
+            <Paper
+                elevation={0}
+                sx={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '16px',
+                    bgcolor: '#ffffff',
+                    overflow: 'hidden',
+                }}
+            >
+                <TableContainer sx={{ maxHeight: 600 }}>
+                    <Table
+                        size="small"
+                        stickyHeader
+                        sx={{
+                            '& .MuiTableCell-root': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.8125rem',
+                                borderColor: '#f1f5f9',
+                            },
+                            '& .MuiTableHead-root .MuiTableCell-root': {
+                                py: 1,
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                letterSpacing: '0.04em',
+                                textTransform: 'uppercase',
+                                color: '#64748b',
+                                bgcolor: '#f8fafc',
+                            },
+                        }}
+                    >
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ width: 52, textAlign: 'center' }}>STT</TableCell>
+                                <TableCell sx={{ minWidth: 105 }}>Dãy số</TableCell>
+                                <TableCell sx={{ minWidth: 115 }}>Sê-ri</TableCell>
+                                <TableCell sx={{ minWidth: 130 }}>Nhà đài</TableCell>
+                                <TableCell sx={{ minWidth: 105 }}>Ngày quay</TableCell>
+                                <TableCell align="right" sx={{ minWidth: 95 }}>Giá bán</TableCell>
+                                <TableCell align="right" sx={{ minWidth: 85 }}>Hoa hồng</TableCell>
+                                <TableCell align="right" sx={{ minWidth: 95 }}>Giá nhập</TableCell>
+                                <TableCell sx={{ minWidth: 105, textAlign: 'center' }}>Trạng thái</TableCell>
+                                <TableCell sx={{ minWidth: 100, textAlign: 'center' }}>Chi tiết</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {paginatedRows.length === 0 ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={10}
+                                        sx={{ py: 6, textAlign: 'center', color: '#94a3b8' }}
+                                    >
+                                        Không tìm thấy vé nào phù hợp với điều kiện tìm kiếm hoặc bộ lọc.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                paginatedRows.map((row, idx) => {
+                                    const globalIndex = page * rowsPerPage + idx + 1;
+                                    const isRowError =
+                                        row.displayStatus === 'BLOCKED' ||
+                                        row.displayStatus === 'ERROR' ||
+                                        row.dateInvalid ||
+                                        row.sourceRow.issues.some((i) => i.severity === 'ERROR');
+
+                                    const hasIssue =
+                                        isRowError ||
+                                        row.displayStatus === 'WARNING' ||
+                                        row.dateIssue ||
+                                        row.offWindow ||
+                                        Boolean(row.shortNote) ||
+                                        Boolean(row.fullNote) ||
+                                        row.sourceRow.issues.length > 0;
+
+                                    return (
+                                        <TableRow
+                                            key={row.id}
+                                            hover
+                                            sx={{
+                                                bgcolor: isRowError ? 'rgba(254, 242, 242, 0.4)' : undefined,
+                                            }}
+                                        >
+                                            {/* 1. STT */}
+                                            <TableCell sx={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
+                                                {globalIndex}
+                                            </TableCell>
+
+                                            {/* 2. Dãy số */}
+                                            <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                                <AdminLuckyDisplay
+                                                    value={row.ticketNumbers}
+                                                    ticket
+                                                    sx={{ fontWeight: 800, fontSize: '0.875rem', color: '#0f172a' }}
+                                                />
+                                            </TableCell>
+
+                                            {/* 3. Sê-ri */}
+                                            <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                                <Stack direction="row" spacing={0.75} alignItems="center">
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{ fontFamily: 'monospace', fontWeight: 600, color: '#334155' }}
+                                                    >
+                                                        {row.serial}
+                                                    </Typography>
+                                                    {row.image && (
                                                         <Chip
                                                             size="small"
-                                                            color={serialChip.color}
-                                                            label={serialChip.label}
-                                                            sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }}
+                                                            icon={<ImageOutlinedIcon sx={{ fontSize: '13px !important' }} />}
+                                                            label="Ảnh"
+                                                            clickable
+                                                            onClick={() => setPreviewImage(row.image)}
+                                                            sx={{ height: 20, fontWeight: 700, fontSize: '0.675rem' }}
                                                         />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {serialNotes ? (
-                                                            <Tooltip
-                                                                title={entry.issues.map((issue) => issue.message).join('\n')}
-                                                            >
-                                                                <Typography
-                                                                    variant="caption"
-                                                                    fontWeight={600}
-                                                                    color={entry.status === 'ERROR' ? 'error.main' : 'text.secondary'}
-                                                                >
-                                                                    {serialNotes}
-                                                                </Typography>
-                                                            </Tooltip>
-                                                        ) : (
-                                                            <Typography variant="caption" color="text.disabled">—</Typography>
+                                                    )}
+                                                </Stack>
+                                            </TableCell>
+
+                                            {/* 4. Nhà đài */}
+                                            <TableCell>
+                                                {row.stationName && row.stationName !== '—' ? (
+                                                    <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
+                                                        <Box
+                                                            sx={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                px: 1,
+                                                                py: 0.3,
+                                                                borderRadius: '6px',
+                                                                fontSize: '0.75rem',
+                                                                fontWeight: 700,
+                                                                bgcolor: 'rgba(37, 99, 235, 0.08)',
+                                                                color: '#1d4ed8',
+                                                                border: '1px solid rgba(37, 99, 235, 0.2)',
+                                                            }}
+                                                        >
+                                                            {row.stationName}
+                                                        </Box>
+                                                        {(!row.stationMatchesFile && row.rawStation) && (
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                                                Tệp: {row.rawStation}
+                                                            </Typography>
                                                         )}
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
-                            </Box>
-                        </Collapse>
-                    </TableCell>
-                </TableRow>
+                                                    </Stack>
+                                                ) : row.suggestions.length > 0 ? (
+                                                    <TextField
+                                                        select
+                                                        size="small"
+                                                        label="Chọn đài"
+                                                        value=""
+                                                        disabled={busy}
+                                                        onChange={(event) =>
+                                                            onChooseStation(row.sourceRow, Number(event.target.value))
+                                                        }
+                                                        sx={{ minWidth: 130, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                                                    >
+                                                        {row.suggestions.map((suggestion) => (
+                                                            <MenuItem
+                                                                key={suggestion.lotteryStationId}
+                                                                value={suggestion.lotteryStationId}
+                                                            >
+                                                                {suggestion.name}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </TextField>
+                                                ) : (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {row.rawStation || '—'}
+                                                    </Typography>
+                                                )}
+                                            </TableCell>
+
+                                            {/* 5. Ngày quay */}
+                                            <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                                <Typography
+                                                    variant="body2"
+                                                    fontWeight={600}
+                                                    color={row.dateIssue || row.offWindow || row.dateInvalid ? '#c2410c' : '#334155'}
+                                                >
+                                                    {row.drawDate ? formatDate(row.drawDate) : 'Không đọc được'}
+                                                </Typography>
+                                                {(row.dateIssue || row.offWindow || row.dateInvalid) && (
+                                                    <Typography variant="caption" fontWeight={700} color="#c2410c" sx={{ display: 'block', lineHeight: 1.2, fontSize: '0.7rem' }}>
+                                                        {row.dateInvalid ? 'Sai / thiếu ngày quay' : 'Ngoài hạn nhập'}
+                                                    </Typography>
+                                                )}
+                                            </TableCell>
+
+                                            {/* 6. Giá bán */}
+                                            <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                                                <Typography variant="body2" fontWeight={800} color="#0f172a">
+                                                    {row.salePrice || '—'}
+                                                </Typography>
+                                            </TableCell>
+
+                                            {/* 7. Hoa hồng */}
+                                            <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                                                <Typography variant="body2" fontWeight={800} color="#2563eb">
+                                                    {row.commission || '—'}
+                                                </Typography>
+                                            </TableCell>
+
+                                            {/* 8. Giá nhập */}
+                                            <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                                                <Typography variant="body2" fontWeight={800} color="#0f172a">
+                                                    {row.importCost || '—'}
+                                                </Typography>
+                                                {row.showFileImportCost && (
+                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2, fontSize: '0.7rem' }}>
+                                                        Tệp: {row.fileImportCost}
+                                                    </Typography>
+                                                )}
+                                            </TableCell>
+
+                                            {/* 9. Trạng thái */}
+                                            <TableCell sx={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                                {row.dateInvalid ? (
+                                                    <Chip
+                                                        size="small"
+                                                        color="warning"
+                                                        label="Sai ngày quay"
+                                                        sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }}
+                                                    />
+                                                ) : row.dateIssue || row.offWindow ? (
+                                                    <Chip
+                                                        size="small"
+                                                        color="warning"
+                                                        label="Ngoài hạn nhập"
+                                                        sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }}
+                                                    />
+                                                ) : (
+                                                    <Chip
+                                                        size="small"
+                                                        color={ROW_STATUS_CHIP[row.displayStatus]?.color ?? 'default'}
+                                                        label={ROW_STATUS_CHIP[row.displayStatus]?.label ?? 'Bỏ qua'}
+                                                        sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }}
+                                                    />
+                                                )}
+                                            </TableCell>
+
+                                            {/* 10. Chi tiết */}
+                                            <TableCell sx={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                                {hasIssue ? (
+                                                    <Tooltip title={isRowError ? 'Nhấp để xem chi tiết lỗi' : 'Nhấp để xem chi tiết lưu ý'} arrow>
+                                                        <Box
+                                                            component="button"
+                                                            type="button"
+                                                            onClick={() => setSelectedErrorDetail({ row, index: globalIndex - 1 })}
+                                                            sx={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                gap: 0.5,
+                                                                px: 1.25,
+                                                                py: 0.35,
+                                                                borderRadius: '20px',
+                                                                border: '1px solid',
+                                                                fontSize: '0.725rem',
+                                                                fontWeight: 700,
+                                                                cursor: 'pointer',
+                                                                outline: 'none',
+                                                                transition: 'all 0.15s ease-in-out',
+                                                                bgcolor: isRowError ? '#fef2f2' : '#fffbeb',
+                                                                borderColor: isRowError ? '#fca5a5' : '#fde68a',
+                                                                color: isRowError ? '#dc2626' : '#b45309',
+                                                                '&:hover': {
+                                                                    bgcolor: isRowError ? '#fee2e2' : '#fef3c7',
+                                                                    borderColor: isRowError ? '#f87171' : '#f59e0b',
+                                                                    transform: 'translateY(-1px)',
+                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                                                                },
+                                                            }}
+                                                        >
+                                                            {isRowError ? (
+                                                                <ErrorOutlineOutlinedIcon sx={{ fontSize: 13 }} />
+                                                            ) : (
+                                                                <WarningAmberOutlinedIcon sx={{ fontSize: 13 }} />
+                                                            )}
+                                                            <span>{isRowError ? 'Chi tiết lỗi' : 'Lưu ý'}</span>
+                                                        </Box>
+                                                    </Tooltip>
+                                                ) : (
+                                                    <Typography variant="body2" color="text.disabled">—</Typography>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+
+                {/* Pagination matching ticket warehouse style */}
+                <TablePagination
+                    rowsPerPageOptions={[10, 20, 50, 100]}
+                    component="div"
+                    count={filteredRows.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={(_, newPage) => setPage(newPage)}
+                    onRowsPerPageChange={(e) => {
+                        setRowsPerPage(parseInt(e.target.value, 10));
+                        setPage(0);
+                    }}
+                    labelRowsPerPage="Số dòng mỗi trang:"
+                    labelDisplayedRows={({ from, to, count }) => `${from}–${to} trên ${count}`}
+                    sx={{
+                        borderTop: '1px solid #f1f5f9',
+                        '& .MuiTablePagination-toolbar': { minHeight: 48, px: 2 },
+                        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                        },
+                    }}
+                />
+            </Paper>
+
+            {/* Modal Chi tiết lỗi & kiểm định vé */}
+            {selectedErrorDetail && (() => {
+                const { row, index } = selectedErrorDetail;
+                const isError =
+                    row.displayStatus === 'BLOCKED' ||
+                    row.displayStatus === 'ERROR' ||
+                    row.dateInvalid ||
+                    row.sourceRow.issues.some((i) => i.severity === 'ERROR');
+
+                const issues = row.sourceRow.issues;
+                const notes = row.fullNote || row.shortNote;
+
+                return (
+                    <Dialog
+                        open={Boolean(selectedErrorDetail)}
+                        onClose={() => setSelectedErrorDetail(null)}
+                        maxWidth="sm"
+                        fullWidth
+                        PaperProps={{
+                            sx: {
+                                borderRadius: '16px',
+                                overflow: 'hidden',
+                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                            },
+                        }}
+                    >
+                        <DialogTitle
+                            sx={{
+                                p: 2,
+                                bgcolor: '#f8fafc',
+                                borderBottom: '1px solid #e2e8f0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                            }}
+                        >
+                            <Stack direction="row" spacing={1.25} alignItems="center">
+                                <Box
+                                    sx={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: '8px',
+                                        bgcolor: isError ? '#dc2626' : '#d97706',
+                                        color: '#ffffff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 800,
+                                        fontFamily: 'monospace',
+                                    }}
+                                >
+                                    #{index + 1}
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.05rem', color: '#0f172a', lineHeight: 1.2 }}>
+                                        {isError ? 'Chi tiết lỗi vé' : 'Chi tiết lưu ý vé'} #{index + 1}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Thông tin kiểm định và lý do không hợp lệ từ tệp nhập
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                            <IconButton
+                                size="small"
+                                onClick={() => setSelectedErrorDetail(null)}
+                                sx={{ color: '#64748b' }}
+                            >
+                                <CloseIcon fontSize="small" />
+                            </IconButton>
+                        </DialogTitle>
+
+                        <DialogContent sx={{ p: 2.5 }}>
+                            <Stack spacing={2.5}>
+                                {/* Top alert banner */}
+                                <Box
+                                    sx={{
+                                        p: 2,
+                                        borderRadius: '12px',
+                                        bgcolor: isError ? '#fef2f2' : '#fffbeb',
+                                        border: `1px solid ${isError ? '#fecaca' : '#fef3c7'}`,
+                                        borderLeft: `4px solid ${isError ? '#ef4444' : '#f59e0b'}`,
+                                    }}
+                                >
+                                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                                        <Box
+                                            sx={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: '6px',
+                                                bgcolor: isError ? '#fee2e2' : '#fef3c7',
+                                                color: isError ? '#dc2626' : '#d97706',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                                mt: 0.2,
+                                            }}
+                                        >
+                                            {isError ? (
+                                                <ErrorOutlineOutlinedIcon sx={{ fontSize: 18 }} />
+                                            ) : (
+                                                <WarningAmberOutlinedIcon sx={{ fontSize: 18 }} />
+                                            )}
+                                        </Box>
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            <Typography variant="subtitle2" fontWeight={800} color={isError ? '#991b1b' : '#92400e'}>
+                                                {isError ? 'Vé không đủ điều kiện nhập' : 'Vé có cảnh báo cần lưu ý'}
+                                            </Typography>
+                                            <Typography variant="body2" color={isError ? '#7f1d1d' : '#78350f'} sx={{ mt: 0.25, fontSize: '0.8125rem' }}>
+                                                {notes || (isError ? 'Dữ liệu vé không hợp lệ hoặc bị chặn nhập.' : 'Dữ liệu vé có lưu ý đối chiếu.')}
+                                            </Typography>
+                                        </Box>
+                                    </Stack>
+                                </Box>
+
+                                {/* Ticket info grid */}
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        p: 2,
+                                        borderRadius: '12px',
+                                        bgcolor: '#f8fafc',
+                                        border: '1px solid #e2e8f0',
+                                    }}
+                                >
+                                    <Typography variant="caption" fontWeight={800} color="#64748b" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 1.5 }}>
+                                        Thông tin vé
+                                    </Typography>
+                                    <Box
+                                        sx={{
+                                            display: 'grid',
+                                            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                                            gap: 1.5,
+                                        }}
+                                    >
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Dãy số</Typography>
+                                            <Typography variant="body2" fontWeight={800} color="#0f172a" sx={{ fontFamily: 'monospace' }}>
+                                                {row.ticketNumbers}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Số sê-ri</Typography>
+                                            <Typography variant="body2" fontWeight={700} color="#334155" sx={{ fontFamily: 'monospace' }}>
+                                                {row.serial}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Nhà đài</Typography>
+                                            <Box sx={{ mt: 0.25 }}>
+                                                <Box
+                                                    sx={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        px: 1,
+                                                        py: 0.25,
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 700,
+                                                        bgcolor: 'rgba(37, 99, 235, 0.08)',
+                                                        color: '#1d4ed8',
+                                                        border: '1px solid rgba(37, 99, 235, 0.2)',
+                                                    }}
+                                                >
+                                                    {row.stationName}
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Ngày quay</Typography>
+                                            <Typography variant="body2" fontWeight={700} color="#334155">
+                                                {row.drawDate ? formatDate(row.drawDate) : 'Không xác định'}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Giá bán</Typography>
+                                            <Typography variant="body2" fontWeight={800} color="#0f172a">
+                                                {row.salePrice || '—'}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Hoa hồng</Typography>
+                                            <Typography variant="body2" fontWeight={800} color="#2563eb">
+                                                {row.commission || '—'}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Giá nhập</Typography>
+                                            <Typography variant="body2" fontWeight={800} color="#0f172a">
+                                                {row.importCost || '—'}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Trạng thái dòng</Typography>
+                                            <Typography variant="body2" fontWeight={700} color={isError ? '#dc2626' : '#16a34a'}>
+                                                {ROW_STATUS_CHIP[row.displayStatus]?.label ?? row.displayStatus}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                </Paper>
+
+                                {/* Issue Breakdown Details */}
+                                <Box>
+                                    <Typography variant="caption" fontWeight={800} color="#64748b" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 1 }}>
+                                        Chi tiết các vấn đề phát hiện
+                                    </Typography>
+                                    <Stack spacing={1}>
+                                        {row.dateInvalid && (
+                                            <Paper elevation={0} sx={{ p: 1.5, borderRadius: '8px', bgcolor: '#fff', border: '1px solid #fee2e2' }}>
+                                                <Typography variant="body2" fontWeight={700} color="#dc2626">
+                                                    Sai hoặc thiếu ngày quay
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Ngày quay trong dòng tệp không đọc được hoặc không hợp lệ.
+                                                </Typography>
+                                            </Paper>
+                                        )}
+                                        {(row.dateIssue || row.offWindow) && (
+                                            <Paper elevation={0} sx={{ p: 1.5, borderRadius: '8px', bgcolor: '#fff', border: '1px solid #fef3c7' }}>
+                                                <Typography variant="body2" fontWeight={700} color="#d97706">
+                                                    Ngày quay ngoài hạn nhập
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Ngày quay không nằm trong phạm vi cho phép tiếp nhận của phiếu nhập.
+                                                </Typography>
+                                            </Paper>
+                                        )}
+                                        {issues.map((issue, iIdx) => (
+                                            <Paper key={iIdx} elevation={0} sx={{ p: 1.5, borderRadius: '8px', bgcolor: '#fff', border: `1px solid ${issue.severity === 'ERROR' ? '#fee2e2' : '#fef3c7'}` }}>
+                                                <Typography variant="body2" fontWeight={700} color={issue.severity === 'ERROR' ? '#dc2626' : '#d97706'}>
+                                                    {GROUP_ISSUE_TITLE[issue.code] ?? issue.code}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {issue.message}
+                                                </Typography>
+                                            </Paper>
+                                        ))}
+                                        {!row.dateInvalid && !row.dateIssue && !row.offWindow && issues.length === 0 && (
+                                            <Paper elevation={0} sx={{ p: 1.5, borderRadius: '8px', bgcolor: '#fff', border: '1px solid #e2e8f0' }}>
+                                                <Typography variant="body2" fontWeight={700} color="#334155">
+                                                    {row.shortNote || 'Không có mã lỗi cụ thể'}
+                                                </Typography>
+                                                {row.fullNote && row.fullNote !== row.shortNote && (
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {row.fullNote}
+                                                    </Typography>
+                                                )}
+                                            </Paper>
+                                        )}
+                                    </Stack>
+                                </Box>
+                            </Stack>
+                        </DialogContent>
+
+                        <DialogActions sx={{ p: 2, bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                            <Button
+                                variant="contained"
+                                onClick={() => setSelectedErrorDetail(null)}
+                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+                            >
+                                Đóng
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+                );
+            })()}
+
+            {/* Image Preview Modal */}
+            {previewImage && (
+                <ImagePreviewModal
+                    open={Boolean(previewImage)}
+                    onClose={() => setPreviewImage(null)}
+                    src={previewImage}
+                    alt="Ảnh vé số"
+                    dialogTitle="Chi tiết ảnh vé số"
+                />
             )}
-        </>
+        </Stack>
     );
 };

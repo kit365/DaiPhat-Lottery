@@ -31,6 +31,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -138,14 +139,17 @@ public class ImportBatchController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchResponse> cancelDraft(
             @PathVariable Long batchId,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            Authentication authentication
     ) {
         if (principal == null) {
             throw new DomainException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
                 "Đã hủy phiếu nhập nháp.",
-                importBatchServicePort.cancelDraft(batchId, principal.getId())
+                importBatchServicePort.cancelDraft(batchId, principal.getId(),
+                        authentication != null && authentication.getAuthorities().stream()
+                                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority())))
         );
     }
 

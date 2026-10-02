@@ -223,7 +223,7 @@ class Settings(BaseSettings):
     # CRNN+CTC when models/field_ocr/*.onnx (+ charset sidecar) exist; else
     # charset-constrained EasyOCR. See models/field_ocr/README.md.
     TICKET_VISION_FIELD_OCR_ENABLED: bool = True
-    TICKET_VISION_FIELD_OCR_FIELDS: str = "serialNumber,numbers,drawDate,ticketType,batchCode"
+    TICKET_VISION_FIELD_OCR_FIELDS: str = "serialNumber,serialSymbol,numbers,drawDate,ticketType,batchCode"
     TICKET_VISION_FIELD_OCR_SERIAL_MODEL: str = "models/field_ocr/serial.onnx"
     TICKET_VISION_FIELD_OCR_NUMBERS_MODEL: str = "models/field_ocr/numbers.onnx"
     TICKET_VISION_FIELD_OCR_DRAW_DATE_MODEL: str = "models/field_ocr/draw_date.onnx"

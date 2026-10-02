@@ -16,6 +16,7 @@ from domain.scanning.yolo_llm_guidance import (
     limit_vision_extra_images,
     merge_yolo_and_template_guidance,
 )
+from infra.vision_extraction import build_ticket_extraction_prompt
 
 
 _CLASS_NAMES = {
@@ -304,3 +305,25 @@ def test_limit_vision_extra_images_fields_only_prioritizes_numbers():
         f"{YOLO_FIELD_CROP_PREFIX}numbers",
         f"{YOLO_FIELD_CROP_PREFIX}serialNumber",
     ]
+
+
+def test_limit_vision_extra_images_pairs_separate_symbol_with_serial():
+    crops = [
+        ("field-crop:numbers:p1", b"numbers"),
+        ("field-crop:serialNumber:p1", b"serial"),
+        ("field-crop:serialSymbol:p1", b"letter"),
+    ]
+    limited = limit_vision_extra_images(crops, max_extra=2, prefer_ticket_crops=False)
+    assert [label for label, _ in limited] == [
+        "field-crop:serialNumber:p1",
+        "field-crop:serialSymbol:p1",
+    ]
+
+
+def test_full_frame_prompt_uses_ticket_numbers_for_serial_symbol_fallback():
+    prompt = build_ticket_extraction_prompt(
+        "[]", 1, 400, 800,
+        field_layouts_hint="serialNumber x=100; serialSymbol x=30",
+    )
+    assert "Read the serialNumber region first" in prompt
+    assert "appending that uppercase letter to the numbers" in prompt

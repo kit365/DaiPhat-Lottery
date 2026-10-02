@@ -34,28 +34,25 @@ export const BlogListPage = () => {
     const { data: nestedCategories } = useNestedBlogCategories();
     const { data: blogTypes } = useBlogTypes();
 
-
     const categoryOptions = useMemo(() => {
-        const flatten = (nodes: any[], level = 0): any[] => {
-            if (!nodes) return [];
+        const flatten = (nodes: any, level = 0): any[] => {
+            if (!Array.isArray(nodes)) return [];
             return nodes.filter(n => n && n.id != null).flatMap(n => {
                 const prefix = '-'.repeat(level);
                 return [
-                    { value: String(n.id), label: `${prefix ? prefix + ' ' : ''}${n.name || n.label}` },
+                    { value: String(n.id), label: `${prefix ? prefix + ' ' : ''}${n.name || n.label || ''}` },
                     ...flatten(n.children, level + 1)
                 ];
             });
         };
-        return flatten(nestedCategories || []);
+        return flatten(nestedCategories);
     }, [nestedCategories]);
 
     const typeOptions = useMemo(() => {
         const base = [{ value: '', label: 'Tất cả loại' }];
-        if (!blogTypes) return base;
-        return [...base, ...blogTypes.map(t => ({ value: t.code, label: t.name }))];
+        if (!Array.isArray(blogTypes)) return base;
+        return [...base, ...blogTypes.map(t => ({ value: t?.code || '', label: t?.name || '' }))];
     }, [blogTypes]);
-
-
 
     const statusFromTab =
         tabStatus === 1 ? BLOG_STATUS.PUBLISHED :
@@ -71,13 +68,12 @@ export const BlogListPage = () => {
         status: statusFromTab,
         categoryId: categoryId.length > 0 ? categoryId : undefined,
         type: type.length > 0 ? type : undefined,
-
         sort: sortBy,
     };
 
     const { data, isLoading } = useBlogs(filters);
 
-    const blogs = data?.recordList || [];
+    const blogs = Array.isArray(data?.recordList) ? data.recordList : [];
     const pagination = data?.pagination || { totalRecords: 0 };
 
     const counts = useMemo(() => ({

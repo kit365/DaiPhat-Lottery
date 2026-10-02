@@ -19,15 +19,20 @@ import {
 import dayjs from 'dayjs';
 import { useCallback, useState } from 'react';
 import { toast } from 'react-toastify';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
+import { ROUTES } from '@/admin/constants/routes';
+import { confirmDelete } from '@/admin/utils/swal';
 import { useActiveSuppliers } from '../../../../supplier';
 import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
-import { ROUTES } from '../../../../../constants/routes';
 import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
-import type { ImportBatch, ImportBatchStatus } from '../../types/importBatch.type';
-import type { useImportBatchList } from '../../hooks/useImportBatch';
+import { ImportBatchMethodSelectionDialog } from './ImportBatchMethodSelectionDialog';
+import { ImportBatchFileImportDialog } from './ImportBatchFileImportDialog';
+import { OcrTicketImportDialog } from '../../../ocr-import/components/OcrTicketImportDialog';
+import type { ImportBatch, ImportBatchLine, ImportBatchStatus } from '../../types/importBatch.type';
+import { useCancelImportBatch, type useImportBatchList } from '../../hooks/useImportBatch';
 import {
     getBatchTypeBadgeClass,
     getBatchTypeLabel,
@@ -47,6 +52,11 @@ import {
 } from '../../utils/importBatchCode';
 import { hasStartedImportBatchLineEntry } from '../../utils/importBatchEditDraft';
 import {
+    canDeleteImportBatch,
+    canShowImportBatchDelete,
+    getImportBatchDeleteDisabledReason,
+} from '../../utils/importBatchDeletion';
+import {
     batchHasPendingLines,
     findFirstIncompleteLine,
     importBatchMissingStations,
@@ -64,6 +74,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
     const { settings, setSettings } = useSettings();
     const { data: activeSuppliers = [] } = useActiveSuppliers();
     const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
+    const cancelBatchMutation = useCancelImportBatch();
     const {
         batches,
         pagination,
@@ -76,7 +87,19 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
         setPage,
         setLimit,
     } = listHook;
-    const [importTarget, setImportTarget] = useState<{ batchId: number; lineId: string } | null>(null);
+    const [methodSelectionBatch, setMethodSelectionBatch] = useState<ImportBatch | null>(null);
+    const [ocrTarget, setOcrTarget] = useState<{
+        batch: ImportBatch;
+        line?: ImportBatchLine | null;
+    } | null>(null);
+    const [fileTarget, setFileTarget] = useState<{
+        supplierId?: number | null;
+        batchId?: number | null;
+    } | null>(null);
+    const [manualTarget, setManualTarget] = useState<{
+        batchId: number;
+        lineId: string;
+    } | null>(null);
 
     const page = (filters.page ?? 1) - 1;
     const rowsPerPage = filters.size ?? 10;
@@ -100,35 +123,63 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
         [router]
     );
 
-    const handleAddTicket = useCallback((batch: ImportBatch) => {
-        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
-        const intake = evaluateIntake(supplier, batch.drawDate);
-        if (intake.blocked || intake.notYetAllowed) {
-            return;
-        }
+    const handleOpenImportMethodModal = useCallback(
+        (batch: ImportBatch) => {
+            const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+            const intake = evaluateIntake(supplier, batch.drawDate);
+            if (intake.blocked || intake.notYetAllowed) {
+                toast.error(intake.tooltipTitle ?? 'Không thể nhập vé lúc này.');
+                return;
+            }
+            setMethodSelectionBatch(batch);
+        },
+        [activeSuppliers, evaluateIntake]
+    );
 
-        const firstLine = findFirstIncompleteLine(batch);
-        if (firstLine?.id != null) {
-            setImportTarget({ batchId: batch.id, lineId: String(firstLine.id) });
-            return;
-        }
-        if ((batch.lines?.length ?? 0) === 0) {
-            toast.info('Phiếu chưa có dòng nhà đài. Hãy chỉnh sửa phiếu để thêm nhà đài trước.');
-            router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
-            return;
-        }
-        toast.info('Không còn dòng nào cần nhập vé. Mở chi tiết phiếu để kiểm tra.');
-        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
-    }, [activeSuppliers, evaluateIntake, router]);
-
-    const handleCloseImportDialog = useCallback(() => {
-        setImportTarget(null);
+    const handleSelectOcr = useCallback((batch: ImportBatch) => {
+        const firstLine = findFirstIncompleteLine(batch) || (batch.lines && batch.lines[0]) || null;
+        setOcrTarget({ batch, line: firstLine });
     }, []);
 
-    const handleImportSuccess = useCallback(() => {
-        setImportTarget(null);
-        listHook.refetch?.();
-    }, [listHook]);
+    const handleSelectFile = useCallback((batch: ImportBatch) => {
+        setFileTarget({
+            supplierId: batch.supplierId ?? null,
+            batchId: batch.id,
+        });
+    }, []);
+
+    const handleSelectManual = useCallback(
+        (batch: ImportBatch) => {
+            const firstLine = findFirstIncompleteLine(batch) || (batch.lines && batch.lines[0]);
+            if (firstLine?.id != null) {
+                setManualTarget({ batchId: batch.id, lineId: String(firstLine.id) });
+                return;
+            }
+            if ((batch.lines?.length ?? 0) === 0) {
+                toast.info('Phiếu chưa có dòng nhà đài. Hãy chỉnh sửa phiếu để thêm nhà đài trước.');
+                router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
+                return;
+            }
+            toast.info('Không còn dòng nào cần nhập vé. Mở chi tiết phiếu để kiểm tra.');
+            router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
+        },
+        [router]
+    );
+
+    const handleDeleteBatch = useCallback((batch: ImportBatch) => {
+        confirmDelete(
+            'Bạn có chắc muốn xóa phiếu nhập lô này? Tất cả dòng nháp hoặc đã tạm dừng và dữ liệu vé chưa hoàn tất sẽ bị xóa.',
+            async () => {
+                try {
+                    await cancelBatchMutation.mutateAsync(batch.id);
+                    toast.success('Đã xóa phiếu nhập lô.');
+                    await listHook.refetch?.();
+                } catch (error: any) {
+                    toast.error(error?.response?.data?.message || error?.message || 'Không thể xóa phiếu nhập lô.');
+                }
+            }
+        );
+    }, [cancelBatchMutation, listHook]);
 
     if (error) {
         return (
@@ -327,7 +378,19 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                                 disabledTitle:
                                                                     batchIntake.tooltipTitle ??
                                                                     'Không thể nhập vé lúc này.',
-                                                                onClick: () => handleAddTicket(batch),
+                                                                onClick: () => handleOpenImportMethodModal(batch),
+                                                            },
+                                                            {
+                                                                id: 'delete',
+                                                                label: 'Xóa',
+                                                                icon: <DeleteOutlineIcon fontSize="small" />,
+                                                                danger: true,
+                                                                hidden:
+                                                                    !isImportBatchEditable(batch) ||
+                                                                    !canShowImportBatchDelete(batch),
+                                                                disabled: !canDeleteImportBatch(batch),
+                                                                disabledTitle: getImportBatchDeleteDisabledReason(batch),
+                                                                onClick: () => handleDeleteBatch(batch),
                                                             },
                                                         ]}
                                                     />
@@ -363,11 +426,46 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                 </Box>
             </Card>
 
+            <ImportBatchMethodSelectionDialog
+                open={!!methodSelectionBatch}
+                batch={methodSelectionBatch}
+                onClose={() => setMethodSelectionBatch(null)}
+                onSelectOcr={handleSelectOcr}
+                onSelectFile={handleSelectFile}
+                onSelectManual={handleSelectManual}
+            />
+
+            <OcrTicketImportDialog
+                open={!!ocrTarget}
+                onClose={() => setOcrTarget(null)}
+                onImported={() => {
+                    setOcrTarget(null);
+                    listHook.refetch?.();
+                }}
+                prefillBatch={ocrTarget?.batch ?? null}
+                prefillLine={ocrTarget?.line ?? null}
+                restoreSelectedImportBatchId={ocrTarget?.batch?.id ?? null}
+            />
+
+            <ImportBatchFileImportDialog
+                open={!!fileTarget}
+                onClose={() => setFileTarget(null)}
+                onImported={() => {
+                    setFileTarget(null);
+                    listHook.refetch?.();
+                }}
+                prefillSupplierId={fileTarget?.supplierId ?? null}
+                prefillBatchId={fileTarget?.batchId ?? null}
+            />
+
             <ImportBatchLineImportHost
-                batchId={importTarget?.batchId ?? null}
-                lineId={importTarget?.lineId ?? null}
-                onClose={handleCloseImportDialog}
-                onSuccess={handleImportSuccess}
+                batchId={manualTarget?.batchId ?? null}
+                lineId={manualTarget?.lineId ?? null}
+                onClose={() => setManualTarget(null)}
+                onSuccess={() => {
+                    setManualTarget(null);
+                    listHook.refetch?.();
+                }}
             />
         </>
     );

@@ -7,6 +7,7 @@ import java.util.List;
 @Builder
 public record ImportBatchEligibleStationsResponse(
         List<ImportBatchEligibleStationResponse> eligible,
-        List<ImportBatchBlockedStationResponse> blocked
+        List<ImportBatchBlockedStationResponse> blocked,
+        ImportBatchResponse unfinishedBatch
 ) {
 }

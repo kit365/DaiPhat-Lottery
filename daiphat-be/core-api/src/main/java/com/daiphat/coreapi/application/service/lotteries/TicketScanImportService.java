@@ -816,6 +816,39 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         );
     }
 
+    private List<String> expectedOcrFields(Long templateId) {
+        if (templateId == null) {
+            return List.of("stationName", "numbers", "drawDate", "ticketType");
+        }
+        List<String> fields = ocrFieldLayoutRepositoryPort.findByTemplateId(templateId).stream()
+                .map(this::toRemoteLayout)
+                .filter(java.util.Objects::nonNull)
+                .map(layout -> "price".equals(layout.fieldName()) ? "ticketType" : layout.fieldName())
+                .filter(name -> !"ticketFrame".equals(name))
+                .distinct()
+                .toList();
+        if (fields.contains("serialNumber")) {
+            fields = fields.stream().filter(name -> !"serialSymbol".equals(name)).toList();
+        }
+        return fields.isEmpty() ? List.of("stationName", "numbers", "drawDate", "ticketType") : fields;
+    }
+
+    static double calculateOcrAccuracy(List<String> expectedFields, Map<String, Double> confidences) {
+        if (expectedFields == null || expectedFields.isEmpty()) {
+            return 0.0;
+        }
+        double total = 0.0;
+        for (String field : expectedFields) {
+            Double value = confidences == null ? null : confidences.get(field);
+            if (value != null && Double.isFinite(value)) {
+                total += value <= 2.0
+                        ? Math.max(0.0, Math.min(1.0, value))
+                        : Math.min(value, 100.0) / 100.0;
+            }
+        }
+        return total / expectedFields.size();
+    }
+
     private ScannedTicketResponse enrichTicket(
             RemoteScannedTicket remote,
             LotteryStationModel lineStation,
@@ -865,6 +898,8 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .resolveForStation(resolvedStationId, templateDrawDate)
                 .map(t -> t.getId())
                 .orElse(null);
+        List<String> expectedOcrFields = expectedOcrFields(
+                templateId != null ? templateId : provisionalTemplateId);
 
         PersistedOcrScanResult persistResult = persistOcrScanResult(
                 remote,
@@ -902,6 +937,8 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .status(outcome.status())
                 .confidence(remote.confidence())
                 .adjustedConfidence(outcome.adjustedConfidence())
+                .ocrAccuracy(calculateOcrAccuracy(expectedOcrFields, remote.fieldConfidences()))
+                .expectedOcrFields(expectedOcrFields)
                 .extracted(extracted)
                 .fieldConfidences(remote.fieldConfidences())
                 .fieldBoxes(remote.fieldBoxes())

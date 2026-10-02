@@ -80,6 +80,8 @@ export interface ScannedTicket {
     status: ScannedTicketStatus;
     confidence: number;
     adjustedConfidence?: number | null;
+    ocrAccuracy?: number | null;
+    expectedOcrFields?: string[] | null;
     extracted?: ExtractedTicketFields | null;
     fieldConfidences?: Record<string, number> | null;
     fieldBoxes?: Record<string, TicketBoundingBox> | null;
@@ -128,6 +130,8 @@ export interface BatchImportScannedTicketsPayload {
 }
 
 export interface OcrConfirmImportTicketPayload {
+    // Ký hiệu/Lô is OCR review metadata only; the persisted ticket models do
+    // not have a corresponding field, so it must not be sent for validation.
     numbers: string;
     serialNumber: string;
     stationId: number;
@@ -143,6 +147,7 @@ export interface OcrConfirmImportPayload {
     ticketListImageUrls?: string[] | null;
     forceCreate?: boolean | null;
     importBatchId?: number | null;
+    selectionSnapshot?: import('../../import-batch/utils/importBatchSelectionSnapshot').ImportBatchSelectionSnapshot;
     tickets: OcrConfirmImportTicketPayload[];
 }
 
@@ -252,6 +257,8 @@ export interface OcrReviewRow {
     status: ScannedTicketStatus;
     confidence: number;
     adjustedConfidence?: number | null;
+    ocrAccuracy?: number | null;
+    expectedOcrFields?: string[] | null;
     bbox?: TicketBoundingBox | null;
     imageWidth?: number | null;
     imageHeight?: number | null;
@@ -277,6 +284,10 @@ export interface OcrReviewRow {
     croppedImageUrl?: string | null;
     selected: boolean;
     edited: boolean;
+    /** Distinguishes immutable persisted tickets from rows scanned in this session. */
+    source?: 'EXISTING' | 'OCR';
+    /** Existing imported rows are display-only and cannot be selected for confirmation. */
+    readOnly?: boolean;
     /** Fields explicitly corrected in this review session (persisted with the draft). */
     editedFields?: Partial<Record<'numbers' | 'serialNumber' | 'stationName' | 'drawDate' | 'ticketType' | 'batchCode', boolean>>;
     scannedAt?: string | null;

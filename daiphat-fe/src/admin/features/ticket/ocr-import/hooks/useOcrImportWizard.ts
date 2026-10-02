@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { resolveIsAdmin } from '@/admin/utils/permission.util';
 import { toast } from 'react-toastify';
 import {
     getActiveImportBatchDraft,
     getIncompleteImportBatches,
+    getImportBatchById,
+    getImportBatchLineEntryTickets,
     cancelImportBatchDraft,
 } from '../../import-batch/services/importBatchService';
 import type { ImportBatch, ImportBatchLine } from '../../import-batch/types/importBatch.type';
@@ -26,13 +30,19 @@ import type {
     OcrQueuedImage,
     OcrReviewRow,
 } from '../types/ticketOcr.type';
-import { OCR_IMPORT_DRAFT_KEY } from '../types/ticketOcr.type';
+import {
+    clearOcrImportDraft,
+    readOcrImportDraft,
+    writeOcrImportDraft,
+} from '../utils/ocrImportDraftStorage';
 import {
     canConfirmReviewRow,
+    canOperateOcrImportBatch,
     collectOcrBatchOptions,
     createFailedReviewRow,
     createPrefillLineOption,
     findOcrLineOption,
+    getOcrImportResultPresentation,
     mapScannedTicketToReviewRow,
     type OcrBatchOption,
     type OcrLineOption,
@@ -52,6 +62,11 @@ import {
     type ImportQuantityCheck,
 } from '../utils/ocrImportQuantity';
 import { optimizeOcrScanImage } from '../utils/optimizeOcrImage';
+import {
+    buildImportBatchSelectionSnapshot,
+    importBatchMatchesSelectionSnapshot,
+    isImportBatchSelectionStaleError,
+} from '../../import-batch/utils/importBatchSelectionSnapshot';
 import type { OcrSessionImage } from '../types/ocrSession.type';
 
 export type OcrWizardStep = 'upload' | 'review' | 'importMode' | 'result';
@@ -67,6 +82,9 @@ const OCR_SERVICE_RETRY_DELAY_MS = 8_000;
 const OCR_SERVICE_MAX_RETRIES = 1;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+const importTicketIdentity = (stationId: number, drawDate: string, numbers: string, serial: string) =>
+    `${stationId}|${dayjs(drawDate).format('YYYY-MM-DD')}|${numbers.trim()}|${serial.trim().toUpperCase()}`;
 
 const isUnreadableScanResult = (
     tickets: { status?: string | null; extracted?: { numbers?: string | null; serialNumber?: string | null } | null }[]
@@ -126,44 +144,9 @@ const newImageId = () =>
  * Prefer localStorage so unfinished OCR reviews survive tab refresh / closing the dialog.
  * Falls back to reading legacy sessionStorage drafts once, then migrates them.
  */
-const readDraft = (): OcrImportDraft | null => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-    try {
-        const raw =
-            localStorage.getItem(OCR_IMPORT_DRAFT_KEY) ??
-            sessionStorage.getItem(OCR_IMPORT_DRAFT_KEY);
-        if (!raw) {
-            return null;
-        }
-        const draft = JSON.parse(raw) as OcrImportDraft;
-        if (!localStorage.getItem(OCR_IMPORT_DRAFT_KEY) && sessionStorage.getItem(OCR_IMPORT_DRAFT_KEY)) {
-            localStorage.setItem(OCR_IMPORT_DRAFT_KEY, raw);
-            sessionStorage.removeItem(OCR_IMPORT_DRAFT_KEY);
-        }
-        return draft;
-    } catch {
-        return null;
-    }
-};
-
-const writeDraft = (draft: OcrImportDraft) => {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    const raw = JSON.stringify(draft);
-    localStorage.setItem(OCR_IMPORT_DRAFT_KEY, raw);
-    sessionStorage.removeItem(OCR_IMPORT_DRAFT_KEY);
-};
-
-const clearDraftStorage = () => {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    localStorage.removeItem(OCR_IMPORT_DRAFT_KEY);
-    sessionStorage.removeItem(OCR_IMPORT_DRAFT_KEY);
-};
+const readDraft = readOcrImportDraft;
+const writeDraft = writeOcrImportDraft;
+const clearDraftStorage = clearOcrImportDraft;
 
 const isDurableImageUrl = (url?: string | null): url is string =>
     Boolean(url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')));
@@ -285,6 +268,9 @@ export const useOcrImportWizard = ({
     restoreSelectedImportBatchId = null,
     onDraftRestored,
 }: UseOcrImportWizardArgs) => {
+    const currentUser = useAuthStore((state) => state.user);
+    const operatorId = currentUser?.id;
+    const canUseAnyImportBatch = resolveIsAdmin(currentUser);
     const [step, setStep] = useState<OcrWizardStep>('upload');
     const [loadingBatches, setLoadingBatches] = useState(false);
     const [batchOptions, setBatchOptions] = useState<OcrBatchOption[]>([]);
@@ -297,6 +283,7 @@ export const useOcrImportWizard = ({
     scanningRef.current = scanning;
     const [confirming, setConfirming] = useState(false);
     const [importResult, setImportResult] = useState<OcrConfirmImportResponse | null>(null);
+    const [staleImportBatchId, setStaleImportBatchId] = useState<number | null>(null);
     const [scanLogs, setScanLogs] = useState<LotteryScanLog[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
 
@@ -316,6 +303,7 @@ export const useOcrImportWizard = ({
     const [savedDraft, setSavedDraft] = useState<OcrImportDraft | null>(null);
 
     const restoredRef = useRef(false);
+    const lastLoadedOperatorIdRef = useRef<string | null>(null);
     const onDraftRestoredRef = useRef(onDraftRestored);
     const fieldCorrectionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -379,6 +367,12 @@ export const useOcrImportWizard = ({
     }, [prefillBatch]);
 
     const loadBatchOptions = useCallback(async () => {
+        if (!operatorId) {
+            setImportBatches([]);
+            setBatchOptions([]);
+            return;
+        }
+        lastLoadedOperatorIdRef.current = operatorId;
         setLoadingBatches(true);
         try {
             // Sequential on purpose: both BE endpoints call cancelOverdueDrafts();
@@ -396,9 +390,16 @@ export const useOcrImportWizard = ({
                 byId.set(prefillBatch.id, prefillBatch);
             }
 
-            const batches = Array.from(byId.values());
+            // Admins supervise the shared intake queue and may continue any open
+            // batch. Staff remain restricted to batches assigned to themselves.
+            const batches = Array.from(byId.values()).filter(
+                (batch) => canOperateOcrImportBatch(batch, operatorId, canUseAnyImportBatch)
+            );
             setImportBatches(batches);
             setBatchOptions(collectOcrBatchOptions(batches));
+            setSelectedImportBatchId((current) =>
+                current != null && !batches.some((batch) => batch.id === current) ? null : current
+            );
 
             if (prefillBatch && prefillLine) {
                 const prefill =
@@ -414,7 +415,7 @@ export const useOcrImportWizard = ({
         } finally {
             setLoadingBatches(false);
         }
-    }, [prefillBatch, prefillLine]);
+    }, [prefillBatch, prefillLine, operatorId, canUseAnyImportBatch]);
 
     const applyDraft = useCallback(
         (draft: OcrImportDraft, overrideBatchId?: number | null, targetStep?: OcrWizardStep) => {
@@ -505,6 +506,12 @@ export const useOcrImportWizard = ({
         void loadBatchOptions();
         // Intentionally depend on `open` primarily; restore flags are read on first open only.
     }, [open]);
+
+    useEffect(() => {
+        if (open && restoredRef.current && operatorId && lastLoadedOperatorIdRef.current !== operatorId) {
+            void loadBatchOptions();
+        }
+    }, [open, operatorId, loadBatchOptions]);
 
     // After batches load, sync supplier from selected batch (e.g. return from create).
     useEffect(() => {
@@ -1310,8 +1317,15 @@ export const useOcrImportWizard = ({
         if (confirmableCount === 0) {
             return false;
         }
-        return selectedImportBatchId != null && selectedImportBatchId > 0;
-    }, [confirmableCount, selectedImportBatchId]);
+        return selectedImportBatchId != null && selectedImportBatchId > 0 &&
+            canOperateOcrImportBatch(selectedImportBatch, operatorId, canUseAnyImportBatch);
+    }, [
+        confirmableCount,
+        selectedImportBatchId,
+        selectedImportBatch,
+        operatorId,
+        canUseAnyImportBatch,
+    ]);
 
     const selectDraftBatch = useCallback((batchId: number | null) => {
         setDraftIntent('USE_EXISTING');
@@ -1336,7 +1350,7 @@ export const useOcrImportWizard = ({
             setDiscardingBatchId(batchId);
             try {
                 await cancelImportBatchDraft(batchId);
-                toast.success('Đã huỷ phiếu nhập nháp.');
+                toast.success('Đã xóa phiếu nhập lô.');
                 if (selectedImportBatchId === batchId) {
                     setSelectedImportBatchId(null);
                 }
@@ -1346,7 +1360,7 @@ export const useOcrImportWizard = ({
                     (error as { response?: { data?: { message?: string } }; message?: string })
                         ?.response?.data?.message ||
                     (error as { message?: string })?.message ||
-                    'Không huỷ được phiếu nháp.';
+                    'Không xóa được phiếu nhập lô.';
                 toast.error(message);
             } finally {
                 setDiscardingBatchId(null);
@@ -1397,6 +1411,46 @@ export const useOcrImportWizard = ({
 
             setConfirming(true);
             try {
+                if (!selectedImportBatch) {
+                    setStaleImportBatchId(selectedImportBatchId);
+                    return 'BLOCKED';
+                }
+                if (!canOperateOcrImportBatch(selectedImportBatch, operatorId, canUseAnyImportBatch)) {
+                    toast.error('Phiếu nhập lô đã chọn thuộc người nhập khác. Vui lòng chọn phiếu do bạn tạo.');
+                    return 'BLOCKED';
+                }
+                const selectionSnapshot = buildImportBatchSelectionSnapshot(selectedImportBatch);
+                const latestBatch = (await getImportBatchById(selectedImportBatchId)).data;
+                if (latestBatch && canOperateOcrImportBatch(latestBatch, operatorId, canUseAnyImportBatch)) {
+                    const selectedStations = new Set(selectedRows.map((row) => row.stationId));
+                    const relevantLines = (latestBatch.lines ?? []).filter(
+                        (line) => selectedStations.has(line.lotteryStationId) &&
+                            line.status !== 'CANCELLED' && line.status !== 'IMPORTED'
+                    );
+                    const lineTickets = await Promise.all(relevantLines.map(async (line) => ({
+                        stationId: line.lotteryStationId,
+                        tickets: (await getImportBatchLineEntryTickets(latestBatch.id, line.id)).data?.tickets ?? [],
+                    })));
+                    const existing = new Set(lineTickets.flatMap(({ stationId, tickets }) =>
+                        tickets.flatMap((ticket) => (ticket.serials ?? []).map((serial) =>
+                            importTicketIdentity(stationId, latestBatch.drawDate, ticket.numbers, serial.serialNumber)
+                        ))));
+                    const seen = new Set<string>();
+                    const duplicates = selectedRows.filter((row) => {
+                        const identity = importTicketIdentity(row.stationId!, row.drawDate!, row.numbers, row.serialNumber);
+                        return existing.has(identity) || !seen.add(identity);
+                    });
+                    if (duplicates.length > 0) {
+                        const descriptions = duplicates.slice(0, 5).map((row) =>
+                            `${row.stationName || `đài #${row.stationId}`} · ${row.numbers} · ${row.serialNumber}`);
+                        toast.error(`Vé đã có trên dòng nhập lô hoặc bị lặp trong lần nhập này: ${descriptions.join('; ')}${duplicates.length > 5 ? ` và ${duplicates.length - 5} vé khác` : ''}.`);
+                        return 'BLOCKED';
+                    }
+                }
+                if (!latestBatch || !importBatchMatchesSelectionSnapshot(latestBatch, selectionSnapshot)) {
+                    setStaleImportBatchId(selectedImportBatchId);
+                    return 'BLOCKED';
+                }
                 const tickets = selectedRows.map((row) => ({
                     numbers: row.numbers.trim(),
                     serialNumber: row.serialNumber.trim(),
@@ -1408,6 +1462,7 @@ export const useOcrImportWizard = ({
                 const response = await confirmOcrImport({
                     mode: 'MANUAL',
                     importBatchId: selectedImportBatchId,
+                    selectionSnapshot,
                     tickets,
                 });
                 const data = response.data;
@@ -1416,12 +1471,24 @@ export const useOcrImportWizard = ({
                 }
                 setImportResult(data);
                 setStep('result');
-                clearDraftStorage();
-                toast.success(
-                    `Đã nhập ${data.successCount}/${data.totalRequested} vé (trùng: ${data.duplicateCount}, lỗi: ${data.failedCount}).`
-                );
+                if (data.successCount > 0) {
+                    clearDraftStorage();
+                }
+                const presentation = getOcrImportResultPresentation(data);
+                const resultMessage = `Đã nhập ${data.successCount}/${data.totalRequested} vé (trùng: ${data.duplicateCount}, lỗi: ${data.failedCount}).`;
+                if (presentation.tone === 'success') {
+                    toast.success(resultMessage);
+                } else if (presentation.tone === 'warning') {
+                    toast.warning(resultMessage);
+                } else {
+                    toast.error(resultMessage);
+                }
                 return 'OK';
             } catch (error: unknown) {
+                if (isImportBatchSelectionStaleError(error)) {
+                    setStaleImportBatchId(selectedImportBatchId);
+                    return 'BLOCKED';
+                }
                 const message =
                     (error as { response?: { data?: { message?: string } }; message?: string })
                         ?.response?.data?.message ||
@@ -1433,8 +1500,20 @@ export const useOcrImportWizard = ({
                 setConfirming(false);
             }
         },
-        [rows, isRowConfirmable, selectedImportBatchId, selectedImportBatch]
+        [
+            rows,
+            isRowConfirmable,
+            selectedImportBatchId,
+            selectedImportBatch,
+            operatorId,
+            canUseAnyImportBatch,
+        ]
     );
+
+    const acknowledgeStaleImportBatch = useCallback(async () => {
+        setStaleImportBatchId(null);
+        await loadBatchOptions();
+    }, [loadBatchOptions]);
 
     const previousScanRowsCount = rows.length > 0 ? rows.length : (savedDraft?.rows?.length ?? 0);
     const hasPreviousScan = previousScanRowsCount > 0;
@@ -1490,6 +1569,8 @@ export const useOcrImportWizard = ({
         canConfirmImport,
         getImportQuantityCheck,
         confirmImport,
+        staleImportBatchId,
+        acknowledgeStaleImportBatch,
         confirming,
         importResult,
         scanLogs,

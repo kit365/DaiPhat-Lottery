@@ -421,6 +421,122 @@ const ZoomableImageViewer = ({ src, alt, open }: ZoomableImageViewerProps) => {
     );
 };
 
+export type ImagePreviewModalProps = {
+    open: boolean;
+    onClose: () => void;
+    src: string;
+    alt?: string;
+    dialogTitle?: string;
+    infoItems?: ImagePreviewInfoItem[];
+};
+
+export const ImagePreviewModal = ({
+    open,
+    onClose,
+    src,
+    alt = 'Ảnh',
+    dialogTitle,
+    infoItems,
+}: ImagePreviewModalProps) => {
+    const title = dialogTitle ?? alt;
+
+    return (
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="lg"
+            fullWidth
+            scroll="paper"
+            PaperProps={{
+                sx: {
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    maxHeight: { xs: '92vh', md: '88vh' },
+                },
+            }}
+        >
+            <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{
+                    px: { xs: 2, sm: 2.5 },
+                    py: 1.5,
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                }}
+            >
+                <Box sx={{ minWidth: 0, pr: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+                        {title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        Cuộn chuột để phóng to / thu nhỏ · Kéo ảnh khi đã phóng to
+                    </Typography>
+                </Box>
+                <IconButton aria-label="Đóng xem ảnh" onClick={onClose}>
+                    <CloseIcon />
+                </IconButton>
+            </Stack>
+
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', md: 'row' },
+                    minHeight: { xs: 420, md: 520 },
+                    maxHeight: { xs: 'calc(92vh - 72px)', md: 'calc(88vh - 72px)' },
+                }}
+            >
+                {infoItems && infoItems.length > 0 && (
+                    <Box
+                        sx={{
+                            width: { xs: '100%', md: 280 },
+                            flexShrink: 0,
+                            borderRight: { md: 1 },
+                            borderBottom: { xs: 1, md: 0 },
+                            borderColor: 'divider',
+                            bgcolor: (theme) =>
+                                theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                            p: { xs: 2, md: 2.5 },
+                            overflowY: 'auto',
+                        }}
+                    >
+                        <Typography
+                            variant="overline"
+                            color="text.secondary"
+                            sx={{ fontWeight: 700, letterSpacing: 0.8 }}
+                        >
+                            Thông tin phiếu
+                        </Typography>
+                        <Stack spacing={1.5} sx={{ mt: 1.5 }} divider={<Divider flexItem />}>
+                            {infoItems.map((item) => (
+                                <Box key={item.label}>
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        display="block"
+                                        sx={{ mb: 0.25 }}
+                                    >
+                                        {item.label}
+                                    </Typography>
+                                    <Typography variant="body2" fontWeight={600}>
+                                        {item.value}
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </Stack>
+                    </Box>
+                )}
+
+                <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                    <ZoomableImageViewer src={src} alt={alt} open={open} />
+                </Box>
+            </Box>
+        </Dialog>
+    );
+};
+
 export const ImagePreview = ({
     src,
     alt = 'Ảnh',
@@ -429,7 +545,6 @@ export const ImagePreview = ({
     thumbnailSx,
 }: ImagePreviewProps) => {
     const [open, setOpen] = useState(false);
-    const title = dialogTitle ?? alt;
 
     return (
         <>
@@ -449,99 +564,15 @@ export const ImagePreview = ({
                 }}
             />
 
-            <Dialog
+            <ImagePreviewModal
                 open={open}
                 onClose={() => setOpen(false)}
-                maxWidth="lg"
-                fullWidth
-                scroll="paper"
-                PaperProps={{
-                    sx: {
-                        borderRadius: 3,
-                        overflow: 'hidden',
-                        maxHeight: { xs: '92vh', md: '88vh' },
-                    },
-                }}
-            >
-                <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    sx={{
-                        px: { xs: 2, sm: 2.5 },
-                        py: 1.5,
-                        borderBottom: 1,
-                        borderColor: 'divider',
-                        bgcolor: 'background.paper',
-                    }}
-                >
-                    <Box sx={{ minWidth: 0, pr: 1 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
-                            {title}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            Cuộn chuột để phóng to / thu nhỏ · Kéo ảnh khi đã phóng to
-                        </Typography>
-                    </Box>
-                    <IconButton aria-label="Đóng xem ảnh" onClick={() => setOpen(false)}>
-                        <CloseIcon />
-                    </IconButton>
-                </Stack>
-
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flexDirection: { xs: 'column', md: 'row' },
-                        minHeight: { xs: 420, md: 520 },
-                        maxHeight: { xs: 'calc(92vh - 72px)', md: 'calc(88vh - 72px)' },
-                    }}
-                >
-                    {infoItems && infoItems.length > 0 && (
-                        <Box
-                            sx={{
-                                width: { xs: '100%', md: 280 },
-                                flexShrink: 0,
-                                borderRight: { md: 1 },
-                                borderBottom: { xs: 1, md: 0 },
-                                borderColor: 'divider',
-                                bgcolor: (theme) =>
-                                    theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
-                                p: { xs: 2, md: 2.5 },
-                                overflowY: 'auto',
-                            }}
-                        >
-                            <Typography
-                                variant="overline"
-                                color="text.secondary"
-                                sx={{ fontWeight: 700, letterSpacing: 0.8 }}
-                            >
-                                Thông tin phiếu
-                            </Typography>
-                            <Stack spacing={1.5} sx={{ mt: 1.5 }} divider={<Divider flexItem />}>
-                                {infoItems.map((item) => (
-                                    <Box key={item.label}>
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                            display="block"
-                                            sx={{ mb: 0.25 }}
-                                        >
-                                            {item.label}
-                                        </Typography>
-                                        <Typography variant="body2" fontWeight={600}>
-                                            {item.value}
-                                        </Typography>
-                                    </Box>
-                                ))}
-                            </Stack>
-                        </Box>
-                    )}
-
-                    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                        <ZoomableImageViewer src={src} alt={alt} open={open} />
-                    </Box>
-                </Box>
-            </Dialog>
+                src={src}
+                alt={alt}
+                dialogTitle={dialogTitle}
+                infoItems={infoItems}
+            />
         </>
     );
 };
+

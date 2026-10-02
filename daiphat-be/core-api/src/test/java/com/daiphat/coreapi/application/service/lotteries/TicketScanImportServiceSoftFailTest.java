@@ -151,6 +151,14 @@ class TicketScanImportServiceSoftFailTest {
                         .boundingBox(new OcrNormalizedBoundingBox(0.1, 0.4, 0.8, 0.2))
                         .priority(1)
                         .required(true)
+                        .build(),
+                OcrFieldLayoutModel.builder()
+                        .id(6L)
+                        .templateId(11L)
+                        .fieldName(OcrTemplateFieldName.serialNumber)
+                        .boundingBox(new OcrNormalizedBoundingBox(0.1, 0.2, 0.8, 0.1))
+                        .priority(1)
+                        .required(true)
                         .build()
         ));
         when(ticketVisionPort.scan(any(), any(), any())).thenReturn(
@@ -173,10 +181,7 @@ class TicketScanImportServiceSoftFailTest {
         assertThat(templates.getFirst().templateId()).isEqualTo(11L);
         assertThat(templates.getFirst().sampleImageUrl()).isEqualTo("https://cdn.test/kg-sample.jpg");
         assertThat(templates.getFirst().fieldLayouts())
-                .singleElement()
-                .satisfies(layout -> {
-                    assertThat(layout.fieldName()).isEqualTo("numbers");
-                    assertThat(layout.y()).isEqualTo(0.4);
-                });
+                .extracting(layout -> layout.fieldName())
+                .containsExactly("numbers", "serialNumber");
     }
 }

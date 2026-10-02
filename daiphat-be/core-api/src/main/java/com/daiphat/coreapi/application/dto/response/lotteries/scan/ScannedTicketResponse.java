@@ -33,6 +33,8 @@ public record ScannedTicketResponse(
         ScannedTicketStatus status,
         double confidence,
         Double adjustedConfidence,
+        Double ocrAccuracy,
+        List<String> expectedOcrFields,
         ExtractedTicketFieldsResponse extracted,
         Map<String, Double> fieldConfidences,
         Map<String, TicketBoundingBoxResponse> fieldBoxes,

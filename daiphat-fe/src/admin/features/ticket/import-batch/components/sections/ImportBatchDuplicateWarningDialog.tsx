@@ -8,8 +8,6 @@ type ImportBatchDuplicateWarningDialogProps = {
     existingBatch: ImportBatch | null;
     onClose: () => void;
     onContinue: () => void;
-    onCreateNew: () => void;
-    isCreatingNew?: boolean;
 };
 
 export const ImportBatchDuplicateWarningDialog = ({
@@ -17,8 +15,6 @@ export const ImportBatchDuplicateWarningDialog = ({
     existingBatch,
     onClose,
     onContinue,
-    onCreateNew,
-    isCreatingNew = false,
 }: ImportBatchDuplicateWarningDialogProps) => {
     const drawDateLabel = existingBatch?.drawDate
         ? dayjs(existingBatch.drawDate).format('DD/MM/YYYY')
@@ -61,18 +57,8 @@ export const ImportBatchDuplicateWarningDialog = ({
                     variant="contained"
                     color="warning"
                     sx={{ whiteSpace: 'nowrap' }}
-                    disabled={isCreatingNew}
                 >
                     Tiếp tục phiếu hiện tại
-                </Button>
-                <Button
-                    onClick={onCreateNew}
-                    variant="contained"
-                    className="btn-primary-admin"
-                    disabled={isCreatingNew}
-                    sx={{ whiteSpace: 'nowrap' }}
-                >
-                    {isCreatingNew ? 'Đang tạo...' : 'Tạo phiếu mới'}
                 </Button>
             </DialogActions>
         </Dialog>
