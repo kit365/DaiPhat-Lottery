@@ -71,7 +71,7 @@ import { AdminLuckyDisplay } from "@/shared/lucky-number";
 import { StationCapacityBadges } from "../sections/StationCapacityBadges";
 import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import { VendorAllocationStationDrawer } from "../sections/VendorAllocationStationDrawer";
-import { todayIsoVn } from "@/client/utils/sellableDrawDate.util";
+import { todayIsoVn, tomorrowIsoVn } from "@/client/utils/sellableDrawDate.util";
 import { SegmentedControl } from "../../../../components/ui/SegmentedControl";
 
 const fieldSx = {
@@ -414,18 +414,22 @@ export const VendorAllocationPage = () => {
         draftBatch?.status === "DRAFT"
     );
 
+    const todayIso = useMemo(() => todayIsoVn(new Date(nowMs)), [nowMs]);
+    const tomorrowIso = useMemo(() => tomorrowIsoVn(new Date(nowMs)), [nowMs]);
+    const maxBusinessDate = tomorrowIso;
+
     const returnCutoff = vendorDefaults.returnCutoff || vendorDefaults.timing.returnCutoff;
     const minBusinessDate = useMemo(
         () => minVendorAllocationBusinessDate(returnCutoff, new Date(nowMs)),
         [returnCutoff, nowMs]
     );
     const businessDateCutoffHelperText = useMemo(() => {
-        if (!returnCutoff || minBusinessDate <= todayIsoVn(new Date(nowMs))) {
+        if (!returnCutoff || minBusinessDate <= todayIso) {
             return undefined;
         }
         const cutoffLabel = returnCutoff.match(/^(\d{1,2}:\d{2})/)?.[1] || returnCutoff;
         return `Đã qua giờ chốt trả vé (${cutoffLabel}) — không thể chọn hôm nay.`;
-    }, [returnCutoff, minBusinessDate, nowMs]);
+    }, [returnCutoff, minBusinessDate, todayIso]);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -438,8 +442,10 @@ export const VendorAllocationPage = () => {
         if (draftId || hasActiveDraft) return;
         if (businessDate && businessDate < minBusinessDate) {
             setBusinessDate(minBusinessDate);
+        } else if (businessDate && businessDate > maxBusinessDate) {
+            setBusinessDate(maxBusinessDate);
         }
-    }, [businessDate, minBusinessDate, draftId, hasActiveDraft]);
+    }, [businessDate, minBusinessDate, maxBusinessDate, draftId, hasActiveDraft]);
 
     useEffect(() => {
         if (hydratedProfileFromUrl || isLoadingProfiles || profiles.length === 0) return;
@@ -839,45 +845,89 @@ export const VendorAllocationPage = () => {
                             showClear={true}
                         >
                         </SelectSingle>
-                        <DisabledWithTooltip
-                            title={businessDateDisabledReason}
-                            disabled={!!businessDateDisabledReason}
-                            fullWidth
-                        >
-                            <AdminDatePicker
-                                label="Ngày kinh doanh"
-                                value={businessDate}
-                                required
-                                onChange={(next) => {
-                                    if (!next || next < minBusinessDate) return;
-                                    setBusinessDate(next);
-                                }}
-                                min={minBusinessDate}
+                        <Box>
+                            <DisabledWithTooltip
+                                title={businessDateDisabledReason}
                                 disabled={!!businessDateDisabledReason}
-                                helperText={businessDateDisabledReason ? undefined : businessDateCutoffHelperText}
-                                helperTextColor="warning"
-                            />
-                        </DisabledWithTooltip>
+                                fullWidth
+                            >
+                                <AdminDatePicker
+                                    label="Ngày kinh doanh"
+                                    value={businessDate}
+                                    required
+                                    onChange={(next) => {
+                                        if (!next || next < minBusinessDate || next > maxBusinessDate) return;
+                                        setBusinessDate(next);
+                                    }}
+                                    min={minBusinessDate}
+                                    max={maxBusinessDate}
+                                    disabled={!!businessDateDisabledReason}
+                                    helperText={businessDateDisabledReason ? undefined : businessDateCutoffHelperText}
+                                    helperTextColor="warning"
+                                />
+                            </DisabledWithTooltip>
+                            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                                <Chip
+                                    size="small"
+                                    label="Hôm nay"
+                                    clickable={!businessDateDisabledReason && minBusinessDate <= todayIso}
+                                    disabled={!!businessDateDisabledReason || minBusinessDate > todayIso}
+                                    color={businessDate === todayIso ? "primary" : "default"}
+                                    variant={businessDate === todayIso ? "filled" : "outlined"}
+                                    onClick={() => setBusinessDate(todayIso)}
+                                    sx={{ fontWeight: 600, fontSize: "0.75rem", cursor: minBusinessDate <= todayIso ? "pointer" : "default" }}
+                                />
+                                <Chip
+                                    size="small"
+                                    label="Ngày mai"
+                                    clickable={!businessDateDisabledReason}
+                                    disabled={!!businessDateDisabledReason}
+                                    color={businessDate === tomorrowIso ? "primary" : "default"}
+                                    variant={businessDate === tomorrowIso ? "filled" : "outlined"}
+                                    onClick={() => setBusinessDate(tomorrowIso)}
+                                    sx={{ fontWeight: 600, fontSize: "0.75rem", cursor: "pointer" }}
+                                />
+                            </Stack>
+                        </Box>
                     </Box>
 
                     {profile && (
-                        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 2 }} flexWrap="wrap">
-                            <Chip
-                                size="small"
-                                label={`Tin cậy: ${CONFIDENCE_TIER_LABELS[profile.confidenceTier || ""] || profile.confidenceTier || "—"}`}
-                                sx={getMetricChipSx("success")}
-                            />
-                            <Chip
-                                size="small"
-                                label={`Có thể giao trong phiếu này: ${availableForCurrentBatch == null ? "—" : `${availableForCurrentBatch} vé`}`}
-                                sx={getMetricChipSx("info")}
-                            />
-                            {Number(profile.depositBalance ?? 0) > 0 && (
+                        <Stack spacing={1} sx={{ mt: 2 }}>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} flexWrap="wrap" alignItems="center">
                                 <Chip
                                     size="small"
-                                    label={`Cọc đang giữ: ${formatCurrency(profile.depositBalance)}`}
-                                    sx={{ fontWeight: 600 }}
+                                    label={`Tin cậy: ${CONFIDENCE_TIER_LABELS[profile.confidenceTier || ""] || profile.confidenceTier || "—"}`}
+                                    sx={getMetricChipSx("success")}
                                 />
+                                <Chip
+                                    size="small"
+                                    label={`Có thể giao trong phiếu này: ${availableForCurrentBatch == null ? "—" : `${availableForCurrentBatch} vé`}`}
+                                    sx={getMetricChipSx("info")}
+                                />
+                                {Number(profile.depositBalance ?? 0) > 0 && (
+                                    <Chip
+                                        size="small"
+                                        label={`Cọc đang giữ: ${formatCurrency(profile.depositBalance)}`}
+                                        sx={{ fontWeight: 600 }}
+                                    />
+                                )}
+                            </Stack>
+
+                            {profile.contractMaxDailyCap != null && availableForCurrentBatch != null && (
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: "inline-flex", alignItems: "flex-start", gap: 0.5, fontStyle: "italic", mt: 0.5 }}
+                                >
+                                    <Box component="span" sx={{ color: "primary.main", fontWeight: 700 }}>*</Box>
+                                    <span>
+                                        Hạn mức phiếu này ({availableForCurrentBatch} vé) = Hạn mức hợp đồng ({profile.contractMaxDailyCap} vé) × Tỉ lệ mức tin cậy ({CONFIDENCE_TIER_LABELS[profile.confidenceTier || ""] || "Mới"}
+                                        {profile.contractMaxDailyCap > 0
+                                            ? `: ${Math.round((availableForCurrentBatch / profile.contractMaxDailyCap) * 100)}%`
+                                            : ""}
+                                        ).
+                                    </span>
+                                </Typography>
                             )}
                         </Stack>
                     )}

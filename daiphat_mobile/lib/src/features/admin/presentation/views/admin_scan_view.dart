@@ -444,42 +444,41 @@ class _AdminScanViewState extends State<AdminScanView> {
   Widget _buildRemoteStatusBar(BuildContext context) {
     final vm = widget.viewModel;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surfacePrimary,
         border: Border(
-          bottom: BorderSide(color: AppColors.borderDefault, width: 1),
+          bottom: BorderSide(color: AppColors.borderSubtle, width: 1),
         ),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.statusSuccessSurface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.statusSuccess.withValues(alpha: 0.3),
-              ),
+              color: const Color(0xFFDCFCE7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF86EFAC)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 7,
+                  height: 7,
                   decoration: const BoxDecoration(
-                    color: AppColors.statusSuccess,
+                    color: Color(0xFF16A34A),
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 6),
-                Text(
+                const Text(
                   'ĐÃ KẾT NỐI',
-                  style: AppTypography.caption(
-                    fontWeight: FontWeight.bold,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
                     fontSize: 11,
-                    color: AppColors.statusSuccessForeground,
+                    color: Color(0xFF15803D),
+                    letterSpacing: 0.3,
                   ),
                 ),
               ],
@@ -490,23 +489,25 @@ class _AdminScanViewState extends State<AdminScanView> {
             child: Text(
               'Phiên #${vm.remoteSessionCode}',
               style: AppTypography.subtitle2(
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textMain,
+                fontSize: 14,
               ),
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: AppColors.surfaceNeutral,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderDefault),
             ),
             child: Text(
               '${vm.remoteScannedCount} ảnh đã gửi',
               style: AppTypography.caption(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+                color: AppColors.contentSecondary,
               ),
             ),
           ),
@@ -524,15 +525,12 @@ class _AdminScanViewState extends State<AdminScanView> {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.35),
-          width: 1.5,
-        ),
+        border: Border.all(color: AppColors.borderDefault),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -542,68 +540,59 @@ class _AdminScanViewState extends State<AdminScanView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.fact_check_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ảnh chờ gửi (${_pendingPhotos.length} ảnh)',
-                      style: AppTypography.subtitle2(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    Text(
-                      'Bấm Xác nhận gửi bên dưới để truyền sang Web Admin',
-                      style: AppTypography.caption(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                      ),
+                    child: const Icon(
+                      Icons.collections_rounded,
+                      color: AppColors.primary,
+                      size: 18,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ảnh chờ gửi (${_pendingPhotos.length})',
+                    style: AppTypography.subtitle2(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                ],
               ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                onPressed: isScanning
-                    ? null
-                    : () {
-                        setState(() {
-                          _pendingPhotos.clear();
-                        });
-                      },
-                child: const Text(
-                  'Xóa hết',
-                  style: TextStyle(
-                    color: AppColors.statusError,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+              if (!isScanning)
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: AppColors.statusError,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    setState(() => _pendingPhotos.clear());
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded, size: 15),
+                  label: const Text(
+                    'Xóa tất cả',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 140,
+            height: 128,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _pendingPhotos.length + 1,
@@ -611,13 +600,13 @@ class _AdminScanViewState extends State<AdminScanView> {
               itemBuilder: (context, index) {
                 if (index == _pendingPhotos.length) {
                   return Container(
-                    width: 100,
+                    width: 90,
                     decoration: BoxDecoration(
                       color: AppColors.surfaceNeutral,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: AppColors.borderDefault,
-                        width: 1.5,
+                        width: 1.2,
                       ),
                     ),
                     child: InkWell(
@@ -637,12 +626,12 @@ class _AdminScanViewState extends State<AdminScanView> {
                             child: const Icon(
                               Icons.add_a_photo_rounded,
                               color: AppColors.primary,
-                              size: 20,
+                              size: 18,
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '+ Chụp thêm',
+                            '+ Thêm ảnh',
                             textAlign: TextAlign.center,
                             style: AppTypography.caption(
                               fontWeight: FontWeight.bold,
@@ -660,7 +649,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 return ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    width: 95,
+                    width: 90,
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColors.borderDefault),
                       borderRadius: BorderRadius.circular(12),
@@ -688,16 +677,16 @@ class _AdminScanViewState extends State<AdminScanView> {
                           ),
                         ),
                         Positioned(
-                          top: 4,
-                          left: 4,
+                          top: 5,
+                          left: 5,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
+                              horizontal: 6,
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.7),
-                              borderRadius: BorderRadius.circular(4),
+                              color: Colors.black.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               '#${index + 1}',
@@ -723,34 +712,13 @@ class _AdminScanViewState extends State<AdminScanView> {
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: AppColors.statusError,
+                                color: Colors.black.withValues(alpha: 0.65),
                                 shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 1,
-                                ),
                               ),
                               child: const Icon(
-                                Icons.close,
+                                Icons.close_rounded,
                                 color: Colors.white,
-                                size: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            color: Colors.black54,
-                            alignment: Alignment.center,
-                            child: const Text(
-                              'Chạm xem to',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
+                                size: 13,
                               ),
                             ),
                           ),
@@ -762,26 +730,18 @@ class _AdminScanViewState extends State<AdminScanView> {
               },
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            '💡 Chạm vào ảnh để phóng to soi số vé. Bấm (X) đỏ để xóa vé lỗi.',
-            style: AppTypography.caption(
-              fontSize: 11,
-              color: AppColors.textMuted,
-            ),
-          ),
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 48,
+                  height: 46,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
+                      foregroundColor: AppColors.textMain,
                       side: const BorderSide(
-                        color: AppColors.primary,
-                        width: 1.5,
+                        color: AppColors.borderDefault,
+                        width: 1.2,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -790,10 +750,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                     onPressed: isScanning
                         ? null
                         : () => _handleCaptureFromCamera(),
-                    icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                    icon: const Icon(Icons.add_a_photo_outlined, size: 17),
                     label: const Text(
                       'Chụp tiếp',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
                     ),
                   ),
                 ),
@@ -802,12 +762,12 @@ class _AdminScanViewState extends State<AdminScanView> {
               Expanded(
                 flex: 2,
                 child: SizedBox(
-                  height: 48,
+                  height: 46,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.surfacePrimary,
-                      elevation: 1,
+                      elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -824,14 +784,14 @@ class _AdminScanViewState extends State<AdminScanView> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.send_rounded, size: 18),
+                        : const Icon(Icons.send_rounded, size: 16),
                     label: Text(
                       isScanning
                           ? 'Đang gửi ảnh...'
-                          : 'GỬI ${_pendingPhotos.length} ẢNH SANG WEB',
+                          : 'Gửi ${_pendingPhotos.length} ảnh sang Web',
                       style: AppTypography.buttonMedium(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.5,
                       ),
                     ),
                   ),
@@ -839,21 +799,25 @@ class _AdminScanViewState extends State<AdminScanView> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Center(
             child: TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.contentSecondary,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              ),
               onPressed: isScanning ? null : () => _handlePickFromGallery(),
               icon: const Icon(
                 Icons.photo_library_outlined,
-                size: 14,
+                size: 15,
                 color: AppColors.contentSecondary,
               ),
               label: Text(
                 'Thêm ảnh từ thư viện',
                 style: AppTypography.caption(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: AppColors.contentSecondary,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

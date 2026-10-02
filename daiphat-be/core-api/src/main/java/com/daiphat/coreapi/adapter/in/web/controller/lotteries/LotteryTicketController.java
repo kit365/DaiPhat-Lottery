@@ -1,5 +1,8 @@
 package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
+import com.daiphat.coreapi.application.dto.response.lotteries.TicketInventoryResponse;
+import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
+
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
@@ -16,6 +19,9 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -110,6 +116,14 @@ public class LotteryTicketController {
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
         mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
         return mappingJacksonValue;
+    }
+
+    @PostMapping("/public/validate-inventory")
+    public ResponseEntity<ApiResponse<List<TicketInventoryResponse>>> validateInventory(
+            @RequestBody @NotEmpty List<@Valid OrderTicketItemRequest> items) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(ApiResponse.success(null, lotteryTicketServicePort.validateInventory(items)));
     }
 
     @GetMapping("/public")

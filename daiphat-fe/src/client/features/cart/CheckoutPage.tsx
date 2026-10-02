@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useQueryClient } from '@tanstack/react-query';
 import Link from "next/link";
 import React, { useCallback, useState } from 'react';
 import { Trash2, ChevronRight, ShieldCheck, ArrowLeft, Store, CreditCard, CheckCircle2 } from 'lucide-react';
@@ -29,6 +30,9 @@ const CHECKOUT_TICKET_GRID =
 
 export const CheckoutPage = () => {
     const router = useRouter();
+    const queryClient = useQueryClient();
+    const [checkingInventory, setCheckingInventory] = useState(false);
+    const inventoryBusy = React.useRef(false);
     const {
         items,
         buyNowItems,
@@ -115,13 +119,13 @@ export const CheckoutPage = () => {
         if (isBuyNow) return;
 
         const validateCartStock = async () => {
-            const hasAdjustment = await validateAndSyncCartStock();
+            const hasAdjustment = await validateAndSyncCartStock(undefined, queryClient);
             if (hasAdjustment) {
                 router.replace('/cart');
             }
         };
 
-        validateCartStock();
+        void validateCartStock().catch(() => toast.error('Không thể kiểm tra tồn kho. Vui lòng thử lại.'));
     }, [isBuyNow]);
 
     React.useEffect(() => {
@@ -189,7 +193,8 @@ export const CheckoutPage = () => {
     const deliveryFee = 0; // No delivery fee since it's pickup only
     const totalAmount = subTotal + deliveryFee;
 
-    const handleCheckout = () => {
+    const handleCheckout = async () => {
+        if (inventoryBusy.current || createOrderMutation.isPending || processPaymentMutation.isPending) return;
         if (activeItems.length === 0) {
             toast.error("Giỏ hàng không có vé hợp lệ để thanh toán!");
             return;
@@ -220,6 +225,18 @@ export const CheckoutPage = () => {
         if (dayjs(expectedDateObj).isBefore(dayjs().add(15, 'minute'))) {
             toast.error("Vui lòng chọn thời gian đến lấy sau ít nhất 15 phút để cửa hàng chuẩn bị vé!");
             return;
+        }
+
+        inventoryBusy.current = true;
+        setCheckingInventory(true);
+        try {
+            if (await validateAndSyncCartStock(activeItems, queryClient)) return;
+        } catch {
+            toast.error('Không thể kiểm tra tồn kho. Vui lòng thử lại.');
+            return;
+        } finally {
+            inventoryBusy.current = false;
+            setCheckingInventory(false);
         }
 
         const payload: CreateOnlineOrderRequest = {
@@ -335,7 +352,7 @@ export const CheckoutPage = () => {
         router.push('/cart');
     };
 
-    const isSubmitting = createOrderMutation.isPending || processPaymentMutation.isPending;
+    const isSubmitting = checkingInventory || createOrderMutation.isPending || processPaymentMutation.isPending;
 
     return (
         <div 

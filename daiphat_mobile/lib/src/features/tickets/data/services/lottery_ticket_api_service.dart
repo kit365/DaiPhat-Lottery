@@ -3,6 +3,7 @@ import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 import 'package:daiphat_mobile/src/shared/network/page_response.dart';
 import '../models/lottery_ticket.dart';
+import '../models/ticket_inventory.dart';
 
 class TicketStationOption {
   const TicketStationOption({required this.id, required this.name});
@@ -17,6 +18,35 @@ class LotteryTicketApiService {
   LotteryTicketApiService(this._apiClient);
 
   final ApiClient _apiClient;
+
+  Future<List<TicketInventory>> validateInventory(
+    Map<int, int> quantities,
+  ) async {
+    if (quantities.isEmpty) return const [];
+    final response = await _apiClient.post(
+      '$_baseLotteryTickets/public/validate-inventory',
+      data: quantities.entries
+          .map(
+            (entry) => {'lotteryTicketId': entry.key, 'quantity': entry.value},
+          )
+          .toList(),
+      includeAuth: false,
+    );
+    final result = ApiResponse<List<TicketInventory>>.fromJson(
+      response,
+      (json) => (json as List)
+          .map((item) => TicketInventory.fromJson(item as Map<String, dynamic>))
+          .toList(),
+    );
+    if (!result.isSuccess ||
+        result.data == null ||
+        result.data!.map((item) => item.id).toSet().length !=
+            quantities.length ||
+        !result.data!.every((item) => quantities.containsKey(item.id))) {
+      throw ApiException('Không thể kiểm tra tồn kho. Vui lòng thử lại.');
+    }
+    return result.data!;
+  }
 
   /// Catalog vé đang bán — khớp FE `GET /lottery-tickets/public`.
   Future<PageResponse<LotteryTicket>> getPublicLotteryTickets({
@@ -45,8 +75,8 @@ class LotteryTicketApiService {
       queryParameters['search'] = search.trim();
       queryParameters['searchMode'] =
           (searchMode != null && searchMode.trim().isNotEmpty)
-              ? searchMode.trim()
-              : 'SUFFIX';
+          ? searchMode.trim()
+          : 'SUFFIX';
     }
     if (tailRanges != null && tailRanges.isNotEmpty) {
       queryParameters['tailRanges'] = tailRanges;

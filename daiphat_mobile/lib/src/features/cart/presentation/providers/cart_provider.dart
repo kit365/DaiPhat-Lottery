@@ -1,3 +1,5 @@
+import '../../../tickets/data/models/ticket_inventory.dart';
+import '../../../tickets/presentation/viewmodels/buy_ticket_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -106,6 +108,49 @@ class CartNotifier extends Notifier<List<CartItemData>> {
     _save(state);
   }
 
+  /// Always reads the server; a failed request must block the caller.
+  Future<List<TicketInventory>> validateInventory(
+    Map<int, int> quantities,
+  ) async {
+    final inventory = await ref
+        .read(lotteryTicketApiServiceProvider)
+        .validateInventory(quantities);
+    final byId = {for (final item in inventory) item.id: item};
+    _update(
+      state
+          .where((item) => byId[item.lotteryTicketId]?.purchasable ?? true)
+          .map((item) {
+            final latest = byId[item.lotteryTicketId];
+            if (latest == null) return item;
+            return item.copyWith(
+              maxStock: latest.availableQuantity,
+              quantity: item.quantity > latest.availableQuantity
+                  ? latest.availableQuantity
+                  : item.quantity,
+            );
+          })
+          .toList(),
+    );
+    ref.read(buyNowItemsProvider.notifier).syncInventory(inventory);
+    ref.read(buyTicketViewModelProvider.notifier).syncInventory(inventory);
+    ref.read(allTicketsViewModelProvider.notifier).syncInventory(inventory);
+    return inventory;
+  }
+
+  Future<bool> validateCheckout(List<CartItemData> items) async {
+    if (items.isEmpty) return false;
+    final quantities = <int, int>{};
+    for (final item in items) {
+      quantities.update(
+        item.lotteryTicketId,
+        (value) => value + item.quantity,
+        ifAbsent: () => item.quantity,
+      );
+    }
+    final inventory = await validateInventory(quantities);
+    return inventory.every((item) => item.valid);
+  }
+
   void addItem(CartItemData item) {
     _update(ref.read(addCartItemProvider)(state, item));
   }
@@ -173,6 +218,24 @@ class BuyNowNotifier extends Notifier<List<CartItemData>?> {
 
   void start(List<CartItemData> items) {
     state = items.where((item) => item.quantity > 0).toList(growable: false);
+  }
+
+  void syncInventory(List<TicketInventory> inventory) {
+    if (state == null) return;
+    final byId = {for (final item in inventory) item.id: item};
+    state = state!
+        .where((item) => byId[item.lotteryTicketId]?.purchasable ?? true)
+        .map((item) {
+          final latest = byId[item.lotteryTicketId];
+          if (latest == null) return item;
+          return item.copyWith(
+            maxStock: latest.availableQuantity,
+            quantity: item.quantity > latest.availableQuantity
+                ? latest.availableQuantity
+                : item.quantity,
+          );
+        })
+        .toList();
   }
 
   void clear() {

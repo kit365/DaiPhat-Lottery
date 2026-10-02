@@ -1,5 +1,8 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.response.lotteries.TicketInventoryResponse;
+import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
+
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
@@ -31,6 +34,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
@@ -1169,6 +1173,66 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<TicketInventoryResponse> validateInventory(List<OrderTicketItemRequest> items) {
+        if (items == null || items.isEmpty()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        Map<Long, Integer> quantities = new LinkedHashMap<>();
+        for (OrderTicketItemRequest item : items) {
+            if (item == null || item.lotteryTicketId() == null || item.quantity() == null || item.quantity() < 1) {
+                throw new DomainException(ErrorCode.INVALID_INPUT);
+            }
+            quantities.merge(item.lotteryTicketId(), item.quantity(), (previous, next) -> {
+                if (previous > Integer.MAX_VALUE - next) {
+                    throw new DomainException(ErrorCode.INVALID_INPUT);
+                }
+                return previous + next;
+            });
+        }
+        Map<Long, LotteryTicketModel> tickets = new HashMap<>();
+        lotteryTicketRepositoryPort.findAllByIds(new ArrayList<>(quantities.keySet()))
+                .forEach(ticket -> tickets.put(ticket.getId(), ticket));
+        Map<Long, Long> available = lotteryTicketSerialService.countAvailableSerialsByTicketIds(quantities.keySet());
+        return quantities.entrySet().stream().map(entry -> {
+            LotteryTicketModel ticket = tickets.get(entry.getKey());
+            long count = available.getOrDefault(entry.getKey(), 0L);
+            boolean purchasable;
+            try {
+                ensureRequestedInventory(ticket, 1, count, false);
+                purchasable = true;
+            } catch (DomainException ex) {
+                purchasable = false;
+            }
+            String message = null;
+            try {
+                ensureRequestedInventory(ticket, entry.getValue(), count, false);
+            } catch (DomainException ex) {
+                message = !purchasable ? "Vé không còn đủ điều kiện mở bán."
+                        : "Chỉ còn " + count + " vé khả dụng. Vui lòng điều chỉnh số lượng.";
+            }
+            return new TicketInventoryResponse(entry.getKey(), count,
+                    ticket == null ? null : ticket.getStatus(),
+                    count > 0 ? TicketCondition.GOOD : null,
+                    purchasable, message == null, message);
+        }).toList();
+    }
+
+    private void ensureRequestedInventory(LotteryTicketModel ticket, int quantity, long available, boolean directSale) {
+        if (ticket == null || ticket.isDeleted()) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+        }
+        if (directSale) {
+            ensureTicketAvailableForDirectSale(ticket);
+        } else {
+            ensureTicketAvailableForReserve(ticket);
+        }
+        if (available < quantity) {
+            throw insufficientSerials(ticket, quantity, available);
+        }
+    }
+
     private void validateRequestedSerialAvailability(List<LotteryTicketModel> requestedTickets, boolean directSale) {
         Map<Long, Integer> requestedCounts = new LinkedHashMap<>();
         Map<Long, LotteryTicketModel> ticketById = new LinkedHashMap<>();
@@ -1180,17 +1244,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         for (Map.Entry<Long, Integer> entry : requestedCounts.entrySet()) {
             LotteryTicketModel ticket = ticketById.get(entry.getKey());
-            if (directSale) {
-                ensureTicketAvailableForDirectSale(ticket);
-            } else {
-                ensureTicketAvailableForReserve(ticket);
-            }
-
-            long availableSerials = lotteryTicketSerialService.countAvailableSerials(ticket.getId());
-            int requestedQuantity = entry.getValue();
-            if (availableSerials < requestedQuantity) {
-                throw insufficientSerials(ticket, requestedQuantity, availableSerials);
-            }
+            ensureRequestedInventory(ticket, entry.getValue(),
+                    lotteryTicketSerialService.countAvailableSerials(ticket.getId()), directSale);
         }
     }
 
