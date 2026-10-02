@@ -56,7 +56,8 @@ export const useTicketInventory = (
         () => ({
             search: filters.search || undefined,
             status: filters.status && filters.status.length > 0 ? filters.status.join(',') : undefined,
-            stationId: filters.provider && filters.provider.length > 0 ? filters.provider.join(',') : undefined,
+            stationId: filters.provider && filters.provider.length === 1 ? filters.provider[0] : undefined,
+            stationIds: filters.provider && filters.provider.length > 1 ? filters.provider.join(',') : undefined,
             drawDate: filters.drawDate && filters.drawDate.length > 0 ? filters.drawDate.join(',') : undefined,
             drawDateFrom: filters.drawDateFrom || undefined,
             drawDateTo: filters.drawDateTo || undefined,
@@ -70,7 +71,8 @@ export const useTicketInventory = (
     const statusDiscoveryParams = useMemo(
         () => ({
             search: filters.search || undefined,
-            stationId: filters.provider && filters.provider.length > 0 ? filters.provider.join(',') : undefined,
+            stationId: filters.provider && filters.provider.length === 1 ? filters.provider[0] : undefined,
+            stationIds: filters.provider && filters.provider.length > 1 ? filters.provider.join(',') : undefined,
             drawDate: filters.drawDate && filters.drawDate.length > 0 ? filters.drawDate.join(',') : undefined,
             drawDateFrom: filters.drawDateFrom || undefined,
             drawDateTo: filters.drawDateTo || undefined,

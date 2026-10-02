@@ -7,6 +7,8 @@ import {
     Checkbox,
     Chip,
     Divider,
+    Grid,
+    Paper,
     Stack,
     Table,
     TableBody,
@@ -270,6 +272,7 @@ const ReceiptRow = ({
 export const VendorSettlementBreakdown = ({
     allocatedQuantity,
     returnedQuantity,
+    rejectedQuantity,
     soldQuantity,
     grossCashRemitted,
     commissionPayable,
@@ -292,6 +295,7 @@ export const VendorSettlementBreakdown = ({
 }: {
     allocatedQuantity?: number | null;
     returnedQuantity?: number | null;
+    rejectedQuantity?: number | null;
     soldQuantity?: number | null;
     grossCashRemitted?: number | null;
     commissionPayable?: number | null;
@@ -312,13 +316,14 @@ export const VendorSettlementBreakdown = ({
     depositRate?: number | null;
     depositHeld?: number | null;
 }) => {
-    const detailsId = useId();
     const [helpOpen, setHelpOpen] = useState(false);
     const netCashDue = netCashDueFromVendor ?? 0;
     const netCashToVendor = netCashPayableToVendor ?? 0;
     const sold = soldQuantity ?? 0;
     const allocated = allocatedQuantity ?? 0;
     const returned = returnedQuantity ?? 0;
+    const rejected = rejectedQuantity ?? 0;
+    const unreturned = Math.max(0, allocated - returned - rejected);
     const unit = vendorUnitPrice ?? 0;
     const isForcePurchase = (forcedPurchaseAmount ?? 0) > 0;
     const soldQtyForLine = isForcePurchase ? allocated : sold;
@@ -330,94 +335,257 @@ export const VendorSettlementBreakdown = ({
         && (depositRefundAmount ?? 0) > 0;
 
     const headline = netCashDue > 0
-        ? { label: "Người bán còn phải trả", amount: netCashDue }
+        ? { label: "Người bán còn phải nộp thêm", amount: netCashDue, type: "due" as const }
         : isDepositRefundOnly
-            ? { label: "Hoàn cọc", amount: netCashToVendor }
+            ? { label: "Hoàn cọc cho người bán", amount: netCashToVendor, type: "payable" as const }
             : netCashToVendor > 0
-                ? { label: "Cần trả người bán", amount: netCashToVendor }
-                : { label: "Thanh toán", amount: 0 };
+                ? { label: "Cần hoàn trả cho người bán", amount: netCashToVendor, type: "payable" as const }
+                : { label: "Đã quyết toán hòa tiền cọc", amount: 0, type: "zero" as const };
+
+    const cọcHoàn = (depositRefundAmount ?? 0) > 0 ? (depositRefundAmount ?? 0) : 0;
+    const cọcTrừ = (depositAppliedAmount ?? 0) > 0 ? (depositAppliedAmount ?? 0) : 0;
+    const cọcHiện = cọcHoàn || cọcTrừ;
 
     return (
-        <Stack spacing={1.5}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                {late == null ? (
-                    <Box />
-                ) : (
-                    <AdminStatusBadge 
-                        label={late ? "Trễ hạn" : "Đúng hạn"} 
-                        modifier={late ? "admin-status-badge--pending" : "admin-status-badge--success"} 
-                    />
-                )}
-                <Tooltip title="Chi tiết cách tính">
-                    <IconButton size="small" aria-label="Chi tiết cách tính" onClick={() => setHelpOpen(true)}>
-                        <HelpOutlineIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-                    </IconButton>
-                </Tooltip>
-            </Stack>
-
-            <Accordion
-                elevation={0}
-                disableGutters
-                sx={{ bgcolor: "transparent", "&:before": { display: "none" } }}
-            >
-                <AccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
-                    sx={{ px: 0, minHeight: 32, "& .MuiAccordionSummary-content": { my: 0 } }}
-                    aria-controls={`${detailsId}-content`}
-                    id={`${detailsId}-header`}
-                >
-                    <Typography variant="body2" color="text.secondary">
-                        Xem chi tiết các khoản quyết toán
-                    </Typography>
-                </AccordionSummary>
-                <AccordionDetails id={`${detailsId}-content`} sx={{ px: 0, pt: 1, pb: 0 }}>
-                    <Stack spacing={1}>
-                        {(() => {
-                            const soldLine =
-                                soldQtyForLine > 0 && unit > 0
-                                    ? `${soldQtyForLine} × ${formatCurrency(unit)}`
-                                    : vendorSoldAmount > 0
-                                        ? formatCurrency(vendorSoldAmount)
-                                        : null;
-                            const soldLabel = isForcePurchase ? "Ép mua" : "Vé đã bán";
-                            const cọcHoàn = (depositRefundAmount ?? 0) > 0 ? (depositRefundAmount ?? 0) : 0;
-                            const cọcTrừ = (depositAppliedAmount ?? 0) > 0 ? (depositAppliedAmount ?? 0) : 0;
-                            const cọcHiện = cọcHoàn || cọcTrừ;
-                            const wePayVendor = netCashToVendor > 0;
-
-                            if (wePayVendor) {
-                                return (
-                                    <>
-                                        {cọcHiện > 0 ? (
-                                            <ReceiptRow label="Cọc" value={formatCurrency(cọcHiện)} />
-                                        ) : null}
-                                        {soldLine ? (
-                                            <ReceiptRow label={soldLabel} value={`−${soldLine}`} deduct />
-                                        ) : null}
-                                        {(depositExcessRefundAmount ?? 0) > 0 ? (
-                                            <ReceiptRow label="Cọc dư" value={formatCurrency(depositExcessRefundAmount)} />
-                                        ) : null}
-                                    </>
-                                );
-                            }
-
-                            return (
-                                <>
-                                    {soldLine ? <ReceiptRow label={soldLabel} value={soldLine} /> : null}
-                                    {cọcHiện > 0 ? (
-                                        <ReceiptRow label="Cọc" value={`−${formatCurrency(cọcHiện)}`} deduct />
-                                    ) : null}
-                                    {(depositExcessRefundAmount ?? 0) > 0 ? (
-                                        <ReceiptRow label="Cọc dư hoàn" value={formatCurrency(depositExcessRefundAmount)} />
-                                    ) : null}
-                                </>
-                            );
-                        })()}
+        <Stack spacing={2}>
+            {/* Header: Trạng thái & Cấu hình đơn giá */}
+            <Paper elevation={0} sx={{ p: 2, border: "1px solid #E5E8EB", borderRadius: 2, bgcolor: "#FAFBFC" }}>
+                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1.5}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            Chi tiết các khoản quyết toán
+                        </Typography>
+                        {late == null ? null : (
+                            <AdminStatusBadge 
+                                label={late ? "Trễ hạn" : "Đúng hạn"} 
+                                modifier={late ? "admin-status-badge--pending" : "admin-status-badge--success"} 
+                            />
+                        )}
                     </Stack>
-                </AccordionDetails>
-            </Accordion>
+                    <Tooltip title="Xem giải thích công thức chi tiết">
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="inherit"
+                            startIcon={<HelpOutlineIcon sx={{ fontSize: 16 }} />}
+                            onClick={() => setHelpOpen(true)}
+                            label="Công thức tính"
+                        />
+                    </Tooltip>
+                </Stack>
 
-            <ReceiptRow label={headline.label} value={formatCurrency(headline.amount)} total />
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" }, gap: 2, mt: 1, pt: 1.5, borderTop: "1px dashed #E5E8EB" }}>
+                    {faceValue != null && (
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">Mệnh giá vé</Typography>
+                            <Typography variant="body2" fontWeight={600}>{formatCurrency(faceValue)}/tờ</Typography>
+                        </Box>
+                    )}
+                    {vendorUnitPrice != null && (
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">Giá người bán</Typography>
+                            <Typography variant="body2" fontWeight={600} color="primary.main">{formatCurrency(vendorUnitPrice)}/tờ</Typography>
+                        </Box>
+                    )}
+                    {commissionRate != null && (
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">Hoa hồng</Typography>
+                            <Typography variant="body2" fontWeight={600}>{formatCommission(commissionRate)}</Typography>
+                        </Box>
+                    )}
+                    {depositRate != null && (
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">Tỷ lệ cọc</Typography>
+                            <Typography variant="body2" fontWeight={600}>{formatCommission(depositRate)}</Typography>
+                        </Box>
+                    )}
+                </Box>
+            </Paper>
+
+            {/* Bảng chi tiết các khoản - KHÔNG BỊ ẨN */}
+            <TableContainer sx={{ border: "1px solid #E5E8EB", borderRadius: 2, overflowX: "auto" }}>
+                <Table size="small" sx={{ minWidth: 540 }}>
+                    <TableHead sx={{ bgcolor: "#F4F6F8" }}>
+                        <TableRow>
+                            <TableCell sx={{ fontWeight: 700, py: 1.25, minWidth: 160 }}>Khoản mục</TableCell>
+                            <TableCell sx={{ fontWeight: 700, py: 1.25, minWidth: 280 }}>Diễn giải công thức</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, py: 1.25, minWidth: 130, whiteSpace: "nowrap" }}>Số tiền</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        <TableRow>
+                            <TableCell sx={{ fontWeight: 600 }}>
+                                {isForcePurchase ? "Tiền vé tính ép mua (Do trễ hạn)" : "Tiền vé tính đã bán"}
+                            </TableCell>
+                            <TableCell sx={{ color: "text.secondary", fontSize: "0.8125rem" }}>
+                                <Box sx={{ fontWeight: 700, color: "text.primary", mb: 0.75, fontSize: "0.875rem" }}>
+                                    {soldQtyForLine} tờ × {formatCurrency(unit)}/tờ
+                                </Box>
+                                {allocated > 0 && (
+                                    <Box sx={{ bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", p: 1.25, borderRadius: 2, mt: 0.5 }}>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary", display: "block", mb: 0.5 }}>
+                                            📊 Nguồn gốc số lượng {allocated} tờ bàn giao:
+                                        </Typography>
+                                        <Stack spacing={0.35} sx={{ fontSize: "0.75rem" }}>
+                                            <Stack direction="row" justifyContent="space-between">
+                                                <Typography variant="caption" color="text.secondary">• Vé không trả (bán trực tiếp):</Typography>
+                                                <Typography variant="caption" fontWeight={600}>{unreturned} tờ</Typography>
+                                            </Stack>
+                                            {rejected > 0 && (
+                                                <Stack direction="row" justifyContent="space-between">
+                                                    <Typography variant="caption" color="error.main">• Vé bị từ chối trả (tính đã bán):</Typography>
+                                                    <Typography variant="caption" fontWeight={600} color="error.main">+ {rejected} tờ</Typography>
+                                                </Stack>
+                                            )}
+                                            <Divider sx={{ my: 0.35, borderStyle: "dashed" }} />
+                                            <Stack direction="row" justifyContent="space-between" sx={{ bgcolor: "rgba(255, 171, 0, 0.12)", px: 0.75, py: 0.25, borderRadius: 1 }}>
+                                                <Typography variant="caption" sx={{ fontWeight: 700, color: "#B76E00" }}>
+                                                    👉 Vé tính đã bán (tính tiền):
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ fontWeight: 800, color: "#B76E00" }}>
+                                                    = {soldQtyForLine} tờ
+                                                </Typography>
+                                            </Stack>
+                                            <Stack direction="row" justifyContent="space-between" sx={{ pt: 0.35 }}>
+                                                <Typography variant="caption" color="success.main">• Vé nhận trả chấp nhận (hoàn vé):</Typography>
+                                                <Typography variant="caption" fontWeight={600} color="success.main">+ {returned} tờ</Typography>
+                                            </Stack>
+                                            <Divider sx={{ my: 0.35 }} />
+                                            <Stack direction="row" justifyContent="space-between" sx={{ px: 0.75, py: 0.15 }}>
+                                                <Typography variant="caption" fontWeight={700} color="text.primary">
+                                                    ✅ Tổng khớp vé giao:
+                                                </Typography>
+                                                <Typography variant="caption" fontWeight={800} color="text.primary">
+                                                    {soldQtyForLine} + {returned} = {allocated} tờ
+                                                </Typography>
+                                            </Stack>
+                                        </Stack>
+                                    </Box>
+                                )}
+                                {isForcePurchase && (
+                                    <Typography component="span" variant="caption" color="error.main" sx={{ display: "block", fontWeight: 600, mt: 0.75 }}>
+                                        ⚠️ Phạt trễ hạn theo policy: {latePolicyLabel(latePolicySnapshot)}
+                                    </Typography>
+                                )}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+                                {formatCurrency(vendorSoldAmount)}
+                            </TableCell>
+                        </TableRow>
+
+                        {(depositHeld ?? 0) > 0 && (
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 600 }}>Tiền cọc đã thu khi giao</TableCell>
+                                <TableCell sx={{ color: "text.secondary", fontSize: "0.8125rem" }}>
+                                    Cọc {depositRate != null ? formatCommission(depositRate) : ""} đã thu từ phiếu bàn giao
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 600, color: "text.secondary", whiteSpace: "nowrap" }}>
+                                    {formatCurrency(depositHeld)}
+                                </TableCell>
+                            </TableRow>
+                        )}
+
+                        {cọcHiện > 0 && (
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 600, color: "success.main" }}>
+                                    Cọc được khấu trừ / hoàn
+                                </TableCell>
+                                <TableCell sx={{ color: "text.secondary", fontSize: "0.8125rem" }}>
+                                    Trừ tiền cọc đã nộp vào tiền vé đã bán
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: "success.main", whiteSpace: "nowrap" }}>
+                                    −{formatCurrency(cọcHiện)}
+                                </TableCell>
+                            </TableRow>
+                        )}
+
+                        {(depositForfeitedAmount ?? 0) > 0 && (
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 600, color: "error.main" }}>
+                                    Tiền cọc bị giữ (tịch thu)
+                                </TableCell>
+                                <TableCell sx={{ color: "text.secondary", fontSize: "0.8125rem" }}>
+                                    Do quyết toán trễ hạn theo quy định
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: "error.main", whiteSpace: "nowrap" }}>
+                                    {formatCurrency(depositForfeitedAmount)}
+                                </TableCell>
+                            </TableRow>
+                        )}
+
+                        {(depositExcessRefundAmount ?? 0) > 0 && (
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 600, color: "success.main" }}>
+                                    Tiền cọc dư hoàn trả
+                                </TableCell>
+                                <TableCell sx={{ color: "text.secondary", fontSize: "0.8125rem" }}>
+                                    Số tiền cọc còn thừa sau khi trừ tiền bán vé
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: "success.main", whiteSpace: "nowrap" }}>
+                                    {formatCurrency(depositExcessRefundAmount)}
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+
+                {/* Khung tổng kết thanh toán */}
+                <Box
+                    sx={{
+                        p: 2,
+                        bgcolor: headline.type === "due"
+                            ? "rgba(255, 56, 56, 0.08)"
+                            : headline.type === "payable"
+                                ? "rgba(34, 197, 94, 0.08)"
+                                : "#F4F6F8",
+                        borderTop: "2px solid",
+                        borderColor: headline.type === "due"
+                            ? "#FF3030"
+                            : headline.type === "payable"
+                                ? "#22C55E"
+                                : "#DFE3E8",
+                    }}
+                >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Box>
+                            <Typography
+                                variant="subtitle1"
+                                sx={{
+                                    fontWeight: 700,
+                                    color: headline.type === "due"
+                                        ? "#B71D18"
+                                        : headline.type === "payable"
+                                            ? "#118D57"
+                                            : "text.primary",
+                                }}
+                            >
+                                {headline.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {headline.type === "due"
+                                    ? "Số tiền thu ngân cần thu bổ sung từ người bán vé số."
+                                    : headline.type === "payable"
+                                        ? "Số tiền thu ngân cần chi trả hoàn lại cho người bán vé số."
+                                        : "Không có chênh lệch dòng tiền phát sinh."}
+                            </Typography>
+                        </Box>
+                        <Typography
+                            variant="h5"
+                            sx={{
+                                fontWeight: 800,
+                                fontVariantNumeric: "tabular-nums",
+                                color: headline.type === "due"
+                                    ? "#B71D18"
+                                    : headline.type === "payable"
+                                        ? "#118D57"
+                                        : "text.primary",
+                            }}
+                        >
+                            {formatCurrency(headline.amount)}
+                        </Typography>
+                    </Stack>
+                </Box>
 
             <AdminDialog
                 open={helpOpen}
@@ -485,6 +653,7 @@ export const VendorSettlementBreakdown = ({
 export const mapPreviewToBreakdown = (preview: VendorSettlementPreview, batch?: VendorAllocationBatch) => ({
     allocatedQuantity: preview.allocatedQuantity,
     returnedQuantity: preview.returnedQuantity,
+    rejectedQuantity: batch?.returnWorkflow?.rejectedReturnQuantity ?? (batch?.serials || []).filter((s) => s.allocationStatus === "RETURN_REJECTED").length,
     soldQuantity: preview.soldQuantity,
     grossCashRemitted: preview.grossCashRemitted,
     commissionPayable: preview.commissionPayable,
@@ -1058,6 +1227,7 @@ export const VendorBatchSettlementSection = ({
                 <VendorSettlementBreakdown
                     allocatedQuantity={batch.allocatedQuantity}
                     returnedQuantity={batch.returnedQuantity}
+                    rejectedQuantity={batch.returnWorkflow?.rejectedReturnQuantity ?? (batch.serials || []).filter((s) => s.allocationStatus === "RETURN_REJECTED").length}
                     soldQuantity={batch.soldQuantity}
                     grossCashRemitted={batch.grossCashRemitted}
                     commissionPayable={batch.commissionPayable}
@@ -1315,6 +1485,224 @@ export const VendorBatchInspectionSection = ({
                 onClose={closeRejectDialog}
                 onConfirm={confirmReject}
             />
+        </Stack>
+    );
+};
+
+export const VendorBatchSerialListSection = ({
+    batch,
+    rejectedInspectionSerialIds = [],
+    inspectionNotes = {},
+}: {
+    batch: VendorAllocationBatch;
+    rejectedInspectionSerialIds?: number[];
+    inspectionNotes?: Record<number, string>;
+}) => {
+    const [currentTab, setCurrentTab] = useState<"ALL" | "ACCEPTED" | "REJECTED" | "SOLD">("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
+
+    const serialsWithStatus = useMemo(() => {
+        return (batch.serials || []).map((s) => {
+            const isLocalRejected = rejectedInspectionSerialIds.includes(s.serialId);
+            const isApiRejected = s.allocationStatus === "RETURN_REJECTED";
+            const isRejected = isLocalRejected || isApiRejected;
+
+            const isApiAccepted = s.allocationStatus === "RETURNED" || s.allocationStatus === "RETURNED_ACCEPTED";
+            const isPendingAccepted = s.allocationStatus === "RETURN_PENDING_INSPECTION" && !isLocalRejected;
+            const isAccepted = isApiAccepted || isPendingAccepted;
+
+            const isPending = s.allocationStatus === "RETURN_PENDING_INSPECTION" && !isLocalRejected;
+
+            const rejectionReason = (inspectionNotes[s.serialId] || s.returnRejectionReason || "").trim();
+
+            let statusCategory: "ACCEPTED" | "REJECTED" | "PENDING" | "SOLD" = "SOLD";
+            if (isRejected) statusCategory = "REJECTED";
+            else if (isApiAccepted) statusCategory = "ACCEPTED";
+            else if (isPending) statusCategory = "PENDING";
+            else statusCategory = "SOLD";
+
+            return {
+                ...s,
+                isRejected,
+                isAccepted,
+                isPending,
+                rejectionReason,
+                statusCategory,
+            };
+        });
+    }, [batch.serials, rejectedInspectionSerialIds, inspectionNotes]);
+
+    const counts = useMemo(() => {
+        let accepted = 0;
+        let rejected = 0;
+        let sold = 0;
+        let pending = 0;
+
+        serialsWithStatus.forEach((item) => {
+            if (item.statusCategory === "REJECTED") rejected++;
+            else if (item.statusCategory === "ACCEPTED") accepted++;
+            else if (item.statusCategory === "PENDING") pending++;
+            else sold++;
+        });
+
+        return {
+            total: serialsWithStatus.length,
+            accepted,
+            rejected,
+            sold: sold + pending,
+        };
+    }, [serialsWithStatus]);
+
+    const filteredSerials = useMemo(() => {
+        const query = searchQuery.toLowerCase().trim();
+        return serialsWithStatus.filter((item) => {
+            if (currentTab === "ACCEPTED" && item.statusCategory !== "ACCEPTED") return false;
+            if (currentTab === "REJECTED" && item.statusCategory !== "REJECTED") return false;
+            if (currentTab === "SOLD" && item.statusCategory !== "SOLD" && item.statusCategory !== "PENDING") return false;
+
+            if (!query) return true;
+            return (
+                item.ticketNumbers.toLowerCase().includes(query) ||
+                item.serialNumber.toLowerCase().includes(query) ||
+                item.stationName.toLowerCase().includes(query) ||
+                item.rejectionReason.toLowerCase().includes(query)
+            );
+        });
+    }, [serialsWithStatus, currentTab, searchQuery]);
+
+    return (
+        <Stack spacing={2} sx={{ mt: 3 }}>
+            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1.5}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    Danh sách chi tiết vé bàn giao & Kết quả kiểm nhận
+                </Typography>
+                <UncontrolledSearchField placeholder="Tìm theo số vé, seri, đài hoặc lý do từ chối..." onSearch={setSearchQuery} />
+            </Stack>
+
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Chip
+                    clickable
+                    label={`Tất cả (${counts.total})`}
+                    color={currentTab === "ALL" ? "primary" : "default"}
+                    variant={currentTab === "ALL" ? "filled" : "outlined"}
+                    onClick={() => setCurrentTab("ALL")}
+                    sx={{ fontWeight: 600 }}
+                />
+                <Chip
+                    clickable
+                    label={`Chấp nhận trả (${counts.accepted})`}
+                    color={currentTab === "ACCEPTED" ? "success" : "default"}
+                    variant={currentTab === "ACCEPTED" ? "filled" : "outlined"}
+                    onClick={() => setCurrentTab("ACCEPTED")}
+                    sx={{ fontWeight: 600 }}
+                />
+                <Chip
+                    clickable
+                    label={`Bị từ chối (${counts.rejected})`}
+                    color={currentTab === "REJECTED" ? "error" : counts.rejected > 0 ? "error" : "default"}
+                    variant={currentTab === "REJECTED" ? "filled" : "outlined"}
+                    onClick={() => setCurrentTab("REJECTED")}
+                    sx={{
+                        fontWeight: 700,
+                        ...(counts.rejected > 0 && currentTab !== "REJECTED" ? { bgcolor: "rgba(255, 86, 48, 0.12)", color: "#C62828" } : {}),
+                    }}
+                />
+                <Chip
+                    clickable
+                    label={`Tính đã bán / Không trả (${counts.sold})`}
+                    color={currentTab === "SOLD" ? "warning" : "default"}
+                    variant={currentTab === "SOLD" ? "filled" : "outlined"}
+                    onClick={() => setCurrentTab("SOLD")}
+                    sx={{ fontWeight: 600 }}
+                />
+            </Stack>
+
+            <TableContainer sx={{ border: "1px solid #F4F6F8", borderRadius: "16px", overflow: "hidden" }}>
+                <Table size="small">
+                    <TableHead sx={{ bgcolor: "#F4F6F8" }}>
+                        <TableRow>
+                            <TableCell sx={headCellSx}>Số vé</TableCell>
+                            <TableCell sx={headCellSx}>Số seri</TableCell>
+                            <TableCell sx={headCellSx}>Đài phát hành</TableCell>
+                            <TableCell align="center" sx={headCellSx}>Trạng thái vé</TableCell>
+                            <TableCell sx={headCellSx}>Chi tiết / Lý do từ chối</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {filteredSerials.map((s, index) => (
+                            <TableRow
+                                key={s.serialId}
+                                sx={{
+                                    bgcolor: s.isRejected
+                                        ? "rgba(255, 86, 48, 0.06)"
+                                        : index % 2 === 0
+                                        ? "#F9FAFB"
+                                        : "#FFFFFF",
+                                    "& td": { borderBottom: "1px dashed #F4F6F8", py: 1.25 },
+                                }}
+                            >
+                                <TableCell>
+                                    <LuckyTicketNumber value={s.ticketNumbers} fontSize="0.875rem" fontWeight={700} letterSpacing="0.04em" />
+                                    {s.lucky && (
+                                        <Typography variant="caption" sx={{ color: "#B76E00", fontWeight: 700, display: "block" }}>
+                                            Số đẹp
+                                        </Typography>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    <Typography sx={{ fontFamily: MONO, fontSize: "0.75rem", fontWeight: 500 }}>
+                                        {s.serialNumber}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell>
+                                    <Typography variant="body2">{s.stationName}</Typography>
+                                </TableCell>
+                                <TableCell align="center">
+                                    {s.isRejected ? (
+                                        <AdminStatusBadge label="Từ chối" modifier="admin-status-badge--inactive" />
+                                    ) : s.statusCategory === "ACCEPTED" ? (
+                                        <AdminStatusBadge label="Chấp nhận trả" modifier="admin-status-badge--success" />
+                                    ) : s.statusCategory === "PENDING" ? (
+                                        <AdminStatusBadge label="Chờ kiểm nhận" modifier="admin-status-badge--pending" />
+                                    ) : (
+                                        <AdminStatusBadge label="Tính đã bán" modifier="admin-status-badge--draft" />
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {s.isRejected ? (
+                                        <Box
+                                            sx={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 0.75,
+                                                px: 1.25,
+                                                py: 0.5,
+                                                borderRadius: 1.5,
+                                                bgcolor: "rgba(255, 86, 48, 0.12)",
+                                                border: "1px solid rgba(255, 86, 48, 0.25)",
+                                            }}
+                                        >
+                                            <HighlightOffIcon sx={{ fontSize: 16, color: "#C62828" }} />
+                                            <Typography variant="body2" sx={{ fontWeight: 700, color: "#C62828", fontSize: "0.8125rem" }}>
+                                                {s.rejectionReason || "Không đủ điều kiện nhận trả"}
+                                            </Typography>
+                                        </Box>
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary">—</Typography>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {filteredSerials.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={5} align="center" sx={{ py: 5, color: "text.secondary" }}>
+                                    Không tìm thấy tờ vé số nào.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
         </Stack>
     );
 };

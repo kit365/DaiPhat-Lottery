@@ -10,7 +10,7 @@ import {
     useUploadStreetAgentSignedContract,
 } from "../../hooks/useStreetAgent";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, FieldErrors } from "react-hook-form";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     createStreetAgentProfileSchema,
@@ -41,7 +41,7 @@ import {
     serializeCoverageAreaCodes,
 } from "../../constants/coverageAreas";
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
-import { openStreetAgentContractPrint, verifyStreetAgentEkyc } from "../../services/streetAgentService";
+import { openStreetAgentContractPrint, verifyStreetAgentEkyc, deleteStreetAgentProfile } from "../../services/streetAgentService";
 import { StreetAgentProfile } from "../../types/street-agent.type";
 import { ContractDocumentViewerDialog } from "../ContractDocumentViewerDialog";
 import { StreetAgentProfileEditModal } from "../StreetAgentProfileEditModal";
@@ -152,7 +152,13 @@ export const StreetAgentCreatePage = () => {
             return;
         }
 
-        if (resumeProfile.status === "PENDING" || resumeProfile.contractCode) {
+        const isEkycFailed =
+            resumeProfile.ekycStatus === "FAILED" ||
+            resumeProfile.ekycStatus === "REJECTED" ||
+            !resumeProfile.cccdFrontImageUrl ||
+            !resumeProfile.cccdBackImageUrl;
+
+        if (!isEkycFailed && (resumeProfile.status === "PENDING" || resumeProfile.contractCode)) {
             reset(toFormValues(resumeProfile));
             setCreatedProfile(resumeProfile);
             setActiveStep(1);
@@ -218,8 +224,75 @@ export const StreetAgentCreatePage = () => {
         }
     };
 
+    const handleVerifyEkycManual = async () => {
+        if (!profileId) return;
+        try {
+            setIsVerifyingEkyc(true);
+            const verifyRes = await verifyStreetAgentEkyc(profileId);
+            if (
+                verifyRes.success &&
+                verifyRes.data &&
+                verifyRes.data.ekycStatus !== "FAILED" &&
+                verifyRes.data.ekycStatus !== "REJECTED"
+            ) {
+                setCreatedProfile(verifyRes.data);
+                toast.success(verifyRes.message || "Xác thực eKYC thành công.");
+            } else {
+                const failReason = verifyRes.data?.ekycFailureReason || verifyRes.message || "Ảnh CCCD gửi không hợp lệ/không đọc được.";
+                if (verifyRes.data) {
+                    setCreatedProfile(verifyRes.data);
+                }
+                toast.error(`Xác thực CCCD thất bại: ${failReason}. Vui lòng tải lại ảnh CCCD!`);
+            }
+        } catch (error: any) {
+            toast.error(
+                error?.response?.data?.message ||
+                    error?.message ||
+                    "Gửi ảnh CCCD xác thực thất bại — Vui lòng kiểm tra và tải lại ảnh CCCD!"
+            );
+        } finally {
+            setIsVerifyingEkyc(false);
+        }
+    };
+
+    const onInvalidSubmit = (errors: FieldErrors<CreateStreetAgentProfileFormValues>) => {
+        if (errors.cccdFrontImageUrl || errors.cccdBackImageUrl) {
+            toast.error("Vui lòng tải đầy đủ ảnh Căn cước công dân (CCCD) mặt trước và mặt sau trước khi lưu!");
+            return;
+        }
+        if (errors.firstName || errors.lastName) {
+            toast.error("Vui lòng nhập đầy đủ Họ và Tên người bán!");
+            return;
+        }
+        if (errors.phone) {
+            toast.error((errors.phone.message as string) || "Số điện thoại không hợp lệ!");
+            return;
+        }
+        if (errors.contractStartDate || errors.contractEndDate) {
+            toast.error(
+                (errors.contractStartDate?.message as string) ||
+                (errors.contractEndDate?.message as string) ||
+                "Vui lòng chọn thời hạn hợp đồng hợp lệ!"
+            );
+            return;
+        }
+        const firstKey = Object.keys(errors)[0];
+        const firstMsg = errors[firstKey as keyof typeof errors]?.message;
+        toast.error((firstMsg as string) || "Vui lòng điền đầy đủ các thông tin bắt buộc trước khi lưu!");
+    };
+
     const onSaveAndCreateContract = (data: CreateStreetAgentProfileFormValues) => {
+        if (!data.cccdFrontImageUrl?.trim() || !data.cccdBackImageUrl?.trim()) {
+            toast.error("Vui lòng tải đầy đủ ảnh Căn cước công dân (CCCD) mặt trước và mặt sau trước khi lưu!");
+            return;
+        }
+
         if (profileId) {
+            const currentProfile = createdProfile ?? resumeProfile;
+            if (currentProfile?.ekycStatus === "FAILED" || currentProfile?.ekycStatus === "REJECTED") {
+                toast.error("Ảnh CCCD hiện tại chưa được xác thực thành công (thất bại/không đọc được). Vui lòng kiểm tra và tải lại ảnh CCCD trước khi chuyển sang bước 2!");
+                return;
+            }
             setActiveStep(1);
             return;
         }
@@ -247,25 +320,48 @@ export const StreetAgentCreatePage = () => {
                     return;
                 }
                 let profile = response.data;
-                const hasEkycImages = !!data.cccdFrontImageUrl && !!data.cccdBackImageUrl;
-                if (hasEkycImages) {
-                    try {
-                        setIsVerifyingEkyc(true);
-                        const verifyRes = await verifyStreetAgentEkyc(profile.id);
-                        if (verifyRes.success && verifyRes.data) {
+                let ekycVerified = false;
+
+                try {
+                    setIsVerifyingEkyc(true);
+                    const verifyRes = await verifyStreetAgentEkyc(profile.id);
+                    if (
+                        verifyRes.success &&
+                        verifyRes.data &&
+                        verifyRes.data.ekycStatus !== "FAILED" &&
+                        verifyRes.data.ekycStatus !== "REJECTED"
+                    ) {
+                        profile = verifyRes.data;
+                        ekycVerified = true;
+                        toast.success(verifyRes.message || "Xác thực eKYC thành công.");
+                    } else {
+                        const failReason = verifyRes.data?.ekycFailureReason || verifyRes.message || "Ảnh CCCD gửi không hợp lệ/không đọc được.";
+                        if (verifyRes.data) {
                             profile = verifyRes.data;
                             toast.success(verifyRes.message || "Đã đọc và kiểm tra thông tin CCCD.");
                         }
-                    } catch (error: any) {
-                        toast.error(
-                            error?.response?.data?.message ||
-                                error?.message ||
-                                "Chưa đọc đủ thông tin CCCD — có thể thử lại sau khi lưu."
-                        );
-                    } finally {
-                        setIsVerifyingEkyc(false);
+                        toast.error(failReason);
                     }
+                } catch (error: any) {
+                    toast.error(
+                        error?.response?.data?.message ||
+                            error?.message ||
+                            "Gửi ảnh CCCD xác thực thất bại — Vui lòng kiểm tra và tải lại ảnh CCCD!"
+                    );
+                } finally {
+                    setIsVerifyingEkyc(false);
                 }
+
+                if (!ekycVerified || profile.ekycStatus === "FAILED" || profile.ekycStatus === "REJECTED") {
+                    try {
+                        await deleteStreetAgentProfile(profile.id);
+                    } catch {
+                        // ignore cleanup error
+                    }
+                    setActiveStep(0);
+                    return;
+                }
+
                 toast.success(response.message || "Đã lưu hồ sơ PENDING và tạo mã hợp đồng.");
                 setCreatedProfile(profile);
                 setActiveStep(1);
@@ -382,7 +478,7 @@ export const StreetAgentCreatePage = () => {
             </Card>
 
             {activeStep === 0 && (
-                <form onSubmit={handleSubmit(onSaveAndCreateContract)}>
+                <form onSubmit={handleSubmit(onSaveAndCreateContract, onInvalidSubmit)}>
                     <StreetAgentProfileForm
                         mode="create"
                         control={control}
@@ -405,6 +501,7 @@ export const StreetAgentCreatePage = () => {
                         ekycOcrIssueDate={profile?.ekycOcrIssueDate}
                         ekycOcrExpiryDate={profile?.ekycOcrExpiryDate}
                         profileCccd={profile?.cccd}
+                        onVerifyEkyc={handleVerifyEkycManual}
                         isVerifyingEkyc={isVerifyingEkyc}
                         depositBalance={0}
                         statusChip="PENDING"

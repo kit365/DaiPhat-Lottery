@@ -70,6 +70,14 @@ export const updateStreetAgentProfile = async (
     return response.data;
 };
 
+export const deleteStreetAgentProfile = async (
+    id: number | string
+): Promise<ApiResponse<void>> => {
+    const response = await apiApp.delete(`${BASE_URL}/${id}`);
+    return response.data;
+};
+
+
 /** Same-origin path for printable contract PDF API. */
 export const getStreetAgentContractPdfUrl = (id: number | string): string =>
     `${API_PREFIX}${API_VERSION}${BASE_URL}/${id}/contract/pdf`;
