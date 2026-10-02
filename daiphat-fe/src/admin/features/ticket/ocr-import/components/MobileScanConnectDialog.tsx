@@ -183,11 +183,11 @@ export const MobileScanConnectDialog: React.FC<MobileScanConnectDialogProps> = (
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <ConfirmationNumberIcon color={scannedCount > 0 ? 'primary' : 'disabled'} />
                                     <Typography variant="body2" fontWeight="bold">
-                                        Số vé đã nhận từ điện thoại:
+                                        Số ảnh đã nhận từ điện thoại:
                                     </Typography>
                                 </Stack>
                                 <Chip
-                                    label={`${scannedCount} vé`}
+                                    label={`${scannedCount} ảnh`}
                                     color={scannedCount > 0 ? 'primary' : 'default'}
                                     size="small"
                                     sx={{ fontWeight: 'bold' }}
@@ -195,7 +195,7 @@ export const MobileScanConnectDialog: React.FC<MobileScanConnectDialogProps> = (
                             </Paper>
 
                             <Alert severity="info" sx={{ textAlign: 'left', width: '100%', fontSize: '0.8125rem' }}>
-                                Mỗi khi bạn chụp hoặc tải ảnh vé trên điện thoại, hệ thống sẽ tự động bóc tách và đẩy ngay vào danh sách đối soát trên máy tính.
+                                Ảnh gửi từ điện thoại sẽ nằm trong danh sách chờ. Kiểm tra ảnh trên máy tính rồi bấm “Bắt đầu quét” để nhận diện vé.
                             </Alert>
                         </Stack>
                     )}
@@ -225,7 +225,7 @@ export const MobileScanConnectDialog: React.FC<MobileScanConnectDialogProps> = (
                             width: isConnected && onEndSession ? 'auto' : '100%',
                         }}
                     >
-                        {scannedCount > 0 ? `Đóng và xem bảng duyệt (${scannedCount} vé đã nhận)` : (isConnected ? 'Hoàn tất quét vé' : 'Đóng')}
+                        {scannedCount > 0 ? `Xem ảnh chờ quét (${scannedCount} ảnh)` : (isConnected ? 'Về danh sách ảnh' : 'Đóng')}
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -1141,6 +1141,37 @@ class LotteryTicketServiceTest {
     }
 
     @Test
+    void reservingLastSerialAndReleasingItPersistsAggregateStatus() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .id(1L).ticketId(TICKET_ID).status(LotteryTicketSerialStatus.RESERVED).build();
+        when(lotteryTicketRepositoryPort.findAllByIds(anyList())).thenReturn(List.of(existingModel));
+        // Validation sees the last available serial; recomputation sees it reserved,
+        // then available again after the order releases its reservation.
+        when(lotteryTicketSerialService.countAvailableSerials(TICKET_ID)).thenReturn(1L, 0L, 1L);
+        when(lotteryTicketSerialService.reserveFirstAvailable(any(), any(), any())).thenReturn(serial);
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(serial));
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        lotteryTicketService.reserveForOrder(List.of(TICKET_ID));
+
+        verify(lotteryTicketRepositoryPort).save(argThat(ticket ->
+                ticket.getStatus() == LotteryTicketStatus.SOLD_OUT && ticket.getQuantity() == 0));
+
+        when(lotteryTicketSerialService.getByIdOrThrow(1L)).thenReturn(serial);
+        when(lotteryTicketSerialService.releaseReservation(eq(1L), anyBoolean())).thenAnswer(invocation -> {
+            serial.releaseReservation();
+            return serial;
+        });
+
+        lotteryTicketService.releaseReservationForOrder(1L);
+
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.IN_STOCK);
+        assertThat(existingModel.getQuantity()).isEqualTo(1);
+        verify(lotteryTicketRepositoryPort, times(2)).save(existingModel);
+    }
+
+    @Test
     @DisplayName("[DP-325] SELL_OFFLINE_FOR_ORDER: Thành công")
     void sellOfflineForOrder_success() {
         when(lotteryTicketRepositoryPort.findAllByIds(anyList())).thenReturn(List.of(existingModel));

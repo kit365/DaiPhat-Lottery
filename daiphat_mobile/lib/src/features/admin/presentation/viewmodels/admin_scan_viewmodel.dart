@@ -253,7 +253,10 @@ class AdminScanViewModel extends ChangeNotifier {
       int uploaded = 0;
       for (final photo in photos) {
         try {
-          final res = await service.uploadOcrSessionTicket(_remoteSessionCode!, photo);
+          final res = await service.uploadOcrSessionTicket(
+            _remoteSessionCode!,
+            photo,
+          );
           uploaded++;
           _remoteScannedCount++;
           final tickets = ocrMaps(res['tickets']);
@@ -291,7 +294,9 @@ class AdminScanViewModel extends ChangeNotifier {
           HapticFeedback.lightImpact();
           _notify();
         } catch (e) {
-          _errorMessage = e is ApiException ? e.message : 'Lỗi khi gửi ảnh lên Web: $e';
+          _errorMessage = e is ApiException
+              ? e.message
+              : 'Lỗi khi gửi ảnh lên Web: $e';
           _notify();
         }
       }
@@ -345,61 +350,50 @@ class AdminScanViewModel extends ChangeNotifier {
     }
   }
 
-  Future<int> uploadPickedPhotos(List<XFile> photos) async {
+  Future<Set<String>> uploadPickedPhotos(List<XFile> photos) async {
+    if (_isScanning) return {};
     if (!_isSessionConnected || _remoteSessionCode == null) {
       _errorMessage = 'Chưa kết nối với Web Admin.';
       _notify();
-      return 0;
+      return {};
     }
-    if (photos.isEmpty) return 0;
+    if (photos.isEmpty) return {};
+    final code = _remoteSessionCode!;
 
     _isScanning = true;
     _errorMessage = null;
     _notify();
 
-    int uploaded = 0;
+    final uploaded = <String>{};
     try {
       for (final photo in photos) {
+        if (_disposed || !_isSessionConnected || _remoteSessionCode != code) {
+          break;
+        }
         try {
-          final res = await service.uploadOcrSessionTicket(_remoteSessionCode!, photo);
-          uploaded++;
+          final res = await service.uploadOcrSessionTicket(code, photo);
+          uploaded.add(photo.path);
+          if (_disposed || _remoteSessionCode != code) break;
           _remoteScannedCount++;
-          final tickets = ocrMaps(res['tickets']);
-          if (tickets.isNotEmpty) {
-            for (final t in tickets) {
-              _remoteScannedTickets.insert(
-                0,
-                ScannedTicketItem(
-                  id: 'TICK-${DateTime.now().millisecondsSinceEpoch}',
-                  imagePath: photo.path,
-                  ticketNumber: t['numbers']?.toString() ?? '------',
-                  stationName: t['stationName']?.toString() ?? 'Đài chính',
-                  drawDate: t['drawDate']?.toString() ?? '',
-                  status: t['status']?.toString() ?? 'Hợp lệ',
-                  confidence: (t['confidence'] as num?)?.toDouble() ?? 1.0,
-                  scannedAt: DateTime.now(),
-                ),
-              );
-            }
-          } else {
-            _remoteScannedTickets.insert(
-              0,
-              ScannedTicketItem(
-                id: 'TICK-${DateTime.now().millisecondsSinceEpoch}',
-                imagePath: photo.path,
-                ticketNumber: 'Vé số',
-                stationName: 'Đã gửi sang Web',
-                drawDate: DateFormat('dd/MM/yyyy').format(DateTime.now()),
-                status: 'Thành công',
-                confidence: 1.0,
-                scannedAt: DateTime.now(),
-              ),
-            );
-          }
+          _remoteScannedTickets.insert(
+            0,
+            ScannedTicketItem(
+              id: res['id']?.toString() ?? photo.path,
+              imagePath: photo.path,
+              ticketNumber: 'Ảnh vé',
+              stationName: 'Chờ bắt đầu quét trên Web',
+              drawDate: '',
+              status: 'Đã gửi ảnh',
+              confidence: 0,
+              scannedAt: DateTime.now(),
+            ),
+          );
           HapticFeedback.lightImpact();
           _notify();
         } catch (e) {
-          _errorMessage = e is ApiException ? e.message : 'Lỗi khi gửi ảnh lên Web: $e';
+          _errorMessage = e is ApiException
+              ? e.message
+              : 'Lỗi khi gửi ảnh lên Web: $e';
           _notify();
         }
       }
@@ -410,6 +404,7 @@ class AdminScanViewModel extends ChangeNotifier {
       _notify();
     }
   }
+
   List<OcrReviewRow> get rows => List.unmodifiable(_rows);
   List<OcrQueuedImage> get images => List.unmodifiable(_images);
   List<OcrImportBatch> get batchOptions => _batches

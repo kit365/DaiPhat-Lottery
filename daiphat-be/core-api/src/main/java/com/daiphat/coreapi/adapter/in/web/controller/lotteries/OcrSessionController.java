@@ -6,7 +6,7 @@ import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.CreateOcrSessionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.JoinOcrSessionRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrSessionResponse;
-import com.daiphat.coreapi.application.dto.response.lotteries.scan.TicketScanResponse;
+import com.daiphat.coreapi.domain.model.lotteries.OcrSessionImage;
 import com.daiphat.coreapi.application.port.in.lotteries.OcrSessionServicePort;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -76,14 +76,14 @@ public class OcrSessionController {
 
     @PostMapping(value = "/{sessionCode}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_STAFF', 'importBatch:create', 'ticket:create')")
-    public ApiResponse<TicketScanResponse> uploadAndScan(
+    public ApiResponse<OcrSessionImage> uploadImage(
             @PathVariable String sessionCode,
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         log.info("REST request by user: {} to upload ticket image to session: {}", principal.getUsername(), sessionCode);
-        TicketScanResponse response = ocrSessionServicePort.uploadAndScan(sessionCode, file, principal.getId());
-        return ApiResponse.success("Tải và quét vé thành công.", response);
+        OcrSessionImage response = ocrSessionServicePort.uploadImage(sessionCode, file, principal.getId());
+        return ApiResponse.success("Đã gửi ảnh sang Web. Bấm Bắt đầu quét trên Web để nhận diện vé.", response);
     }
 
     @PostMapping("/{sessionCode}/close")
