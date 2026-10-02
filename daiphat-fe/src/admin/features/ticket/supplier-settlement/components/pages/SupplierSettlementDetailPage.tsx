@@ -16,6 +16,11 @@ import {
     Typography,
 } from '@mui/material';
 import AssignmentReturnOutlinedIcon from '@mui/icons-material/AssignmentReturnOutlined';
+import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
@@ -23,7 +28,10 @@ import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { Button } from '../../../../../components/ui/Button';
 import { ROUTES } from '../../../../../constants/routes';
-import { useSupplierSettlementOverview } from '../../hooks/useSupplierSettlement';
+import {
+    useDownloadSettlementReconciliationReport,
+    useSupplierSettlementOverview,
+} from '../../hooks/useSupplierSettlement';
 import {
     getSupplierSettlementStatusLabel,
     getSupplierSettlementStatusModifier,
@@ -35,7 +43,7 @@ import { PendingReturnBatchBanner, resolveReturnBatchPath } from '../sections/Pe
 import { ReconciliationWindowNoticeBanner } from '../sections/ReconciliationWindowNoticeBanner';
 import { SettlementConsolidatedDetails } from '../sections/SettlementConsolidatedDetails';
 
-import { SettlementOverviewSummary } from '../sections/SettlementOverviewSummary';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
 
 const cardSx = {
     p: 3,
@@ -46,7 +54,8 @@ const cardSx = {
 export const SupplierSettlementDetailPage = () => {
     const router = useAdminRouter();
     const { id } = useRouteParams();
-    const { data: overview, isLoading, isError } = useSupplierSettlementOverview(id);
+    const { data: overview, isLoading, isFetching, isError, refetch } = useSupplierSettlementOverview(id);
+    const downloadReport = useDownloadSettlementReconciliationReport(id);
 
     const [pendingReturnConfirmOpen, setPendingReturnConfirmOpen] = useState(false);
 
@@ -68,9 +77,23 @@ export const SupplierSettlementDetailPage = () => {
         [overview?.returnBatches]
     );
     const hasPendingReturnBatches = pendingReturnBatches.length > 0;
+    const returnBatches = overview?.returnBatches || [];
+    const isSettlementFinalized = settlement?.status === 'WAITING_FOR_PAYMENT' || settlement?.status === 'COMPLETED';
+    // Import/return-line metadata is only considered complete after the return ticket
+    // has been processed. Keep the detail card visible, but surface a lock state so
+    // operators do not mistake an empty/incomplete response for missing data.
+    const relatedDetailsLocked =
+        !returnBatches.length || hasPendingReturnBatches || isExpired;
 
     const goToInspect = () => {
         router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.INSPECT(id || ''));
+    };
+
+    const goToReadOnlyInspect = () => {
+        if (!isSettlementFinalized) {
+            return;
+        }
+        router.push(`${ROUTES.ADMIN.SUPPLIER_SETTLEMENT.INSPECT(id || '')}?review=1`);
     };
 
     const handleStartReconciliation = () => {
@@ -123,6 +146,7 @@ export const SupplierSettlementDetailPage = () => {
         ? dayjs(settlement.periodFrom).format('DD/MM/YYYY')
         : '—';
     const periodTo = settlement.periodTo ? dayjs(settlement.periodTo).format('DD/MM/YYYY') : '—';
+    const periodLabel = periodFrom === periodTo || !periodTo || periodTo === '—' ? periodFrom : `${periodFrom} — ${periodTo}`;
     const primaryPendingBatch = pendingReturnBatches[0];
 
     return (
@@ -159,22 +183,66 @@ export const SupplierSettlementDetailPage = () => {
                 }
                 description={
                     <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)' }}>
-                        Kỳ đối soát {periodFrom} — {periodTo}
+                        Kỳ đối soát {periodLabel}
                         {settlement.transactionId ? ` · Mã sổ cái #${settlement.transactionId}` : ''}
                     </Typography>
                 }
                 breadcrumbItems={breadcrumbItems}
                 action={
-                    settlement?.status !== 'COMPLETED' && settlement?.reconciliationPhase !== 'COMPLETED' ? (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent="flex-end">
                         <Button
-                            variant="contained"
-                            className="btn-primary-admin"
-                            disabled={!canStartReconciliation}
-                            onClick={handleStartReconciliation}
+                            variant="outlined"
+                            startIcon={<RefreshOutlinedIcon />}
+                            loading={isFetching}
+                            onClick={async () => {
+                                const result = await refetch();
+                                if (result.isError) {
+                                    toast.error('Không thể tải lại dữ liệu đối soát.');
+                                    return;
+                                }
+                                toast.success('Đã cập nhật dữ liệu mới nhất.');
+                            }}
                         >
-                            Tiến hành kiểm tra
+                            Tải lại dữ liệu
                         </Button>
-                    ) : undefined
+                        {isSettlementFinalized ? (
+                            <>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<PictureAsPdfOutlinedIcon />}
+                                    loading={downloadReport.isPending}
+                                    onClick={() =>
+                                        downloadReport.mutate(
+                                            `bao-cao-doi-soat-${settlement.supplierSettlementCode || settlement.id}.pdf`,
+                                            {
+                                                onError: (err: any) =>
+                                                    toast.error(err?.response?.data?.message || err?.message || 'Xuất tệp PDF thất bại.'),
+                                            }
+                                        )
+                                    }
+                                >
+                                    Xuất tệp PDF
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    className="btn-primary-admin"
+                                    startIcon={<VisibilityOutlinedIcon />}
+                                    onClick={goToReadOnlyInspect}
+                                >
+                                    Xem lại tiến hành đối soát
+                                </Button>
+                            </>
+                        ) : settlement?.reconciliationPhase !== 'COMPLETED' ? (
+                            <Button
+                                variant="contained"
+                                className="btn-primary-admin"
+                                disabled={!canStartReconciliation}
+                                onClick={handleStartReconciliation}
+                            >
+                                Tiến hành kiểm tra
+                            </Button>
+                        ) : null}
+                    </Stack>
                 }
             />
 
@@ -206,16 +274,43 @@ export const SupplierSettlementDetailPage = () => {
             )}
 
             <Card elevation={0} sx={cardSx}>
-                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, mb: 1 }}>
+                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, mb: 2 }}>
                     Tổng quan giá trị
                 </Typography>
-                <SettlementOverviewSummary settlement={settlement} />
+                <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3, lg: 3 }}>
+                    <AdminKpiCard
+                        label="Ngày quay"
+                        value={settlement.periodFrom ? dayjs(settlement.periodFrom).format('DD/MM/YYYY') : '—'}
+                        icon={<CalendarTodayOutlinedIcon />}
+                        tone="cyan"
+                    />
+                    <AdminKpiCard
+                        label="Vé nhập hệ thống"
+                        value={`${Number(overview.kpis?.totalImportedTickets || settlement.systemImportQuantity || 0).toLocaleString('vi-VN')} vé`}
+                        icon={<ConfirmationNumberOutlinedIcon />}
+                        tone="blue"
+                    />
+                    <AdminKpiCard
+                        label="Vé trả đã ghi nhận"
+                        value={`${Number(overview.kpis?.totalPreparedForReturnTickets || settlement.systemReturnQuantity || 0).toLocaleString('vi-VN')} vé`}
+                        icon={<AssignmentReturnOutlinedIcon />}
+                        tone="amber"
+                    />
+                </AdminKpiCardsGrid>
             </Card>
 
             <SettlementConsolidatedDetails
                 inventoryRows={overview.inventoryByStation || []}
                 importBatches={overview.importBatches || []}
                 returnBatches={overview.returnBatches || []}
+                returnDetailsLocked={relatedDetailsLocked}
+                returnLockMessage={
+                    isExpired
+                        ? 'Phiếu trả đã quá hạn hoặc đã bị hủy. Thông tin vẫn được hiển thị để đối chiếu nhưng không còn khả dụng để thao tác.'
+                        : hasPendingReturnBatches
+                            ? 'Phiếu trả chưa được kiểm tra hoặc bàn giao hoàn tất. Thông tin hiện tại vẫn được hiển thị và sẽ được cập nhật sau khi xử lý xong.'
+                            : 'Chưa có phiếu trả được xử lý cho kỳ này. Dữ liệu phiếu nhập và số lượng hiện tại vẫn được giữ để đối chiếu.'
+                }
             />
 
             <Dialog

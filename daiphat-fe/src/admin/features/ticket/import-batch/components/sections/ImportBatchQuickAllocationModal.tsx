@@ -41,8 +41,8 @@ import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
-import { useStations } from '../../../../station/hooks/useStation';
-import { useEligibleImportBatchStations, useUpdateImportBatch } from '../../hooks/useImportBatch';
+import { useStations, useStationsByDrawDate } from '../../../../station/hooks/useStation';
+import { useUpdateImportBatch } from '../../hooks/useImportBatch';
 import { computeImportCostFromStation, formatImportCost, formatVnd } from '../../utils/importCostCalculator';
 import { getFileAllocationCoverageIssues } from '../../utils/importBatchFileAllocationCoverage';
 import { formatViInteger, parseNonNegativeIntegerInput, preventNumberInputWheel } from '../../../../supplier';
@@ -71,7 +71,7 @@ export interface ImportBatchQuickAllocationModalProps {
     batch: ImportBatch | null;
     fileStations?: ImportBatchFileStationSummary[];
     sourceLabel?: string;
-    onBatchUpdated: () => Promise<void> | void;
+    onBatchUpdated: (updatedBatch?: ImportBatch) => Promise<void> | void;
 }
 
 const formatDate = (val?: string) => (val ? dayjs(val).format('DD/MM/YYYY') : '—');
@@ -89,16 +89,20 @@ export const ImportBatchQuickAllocationModal = ({
     const batchId = batch?.id;
     const { mutateAsync: updateBatchAsync, isPending: isUpdating } = useUpdateImportBatch(batchId);
 
-    const { data: eligibleData, isLoading: isLoadingStations } = useEligibleImportBatchStations(
-        batch?.drawDate,
-        batch?.importMode ?? 'IN_DAY',
-        batch?.id
-    );
-
-    const eligibleStations: ImportBatchEligibleStation[] = useMemo(
-        () => eligibleData?.eligible ?? [],
-        [eligibleData]
-    );
+    const { data: scheduledStations = [], isLoading: isLoadingStations, refetch: refetchScheduledStations } =
+        useStationsByDrawDate(batch?.drawDate);
+    const eligibleStations: ImportBatchEligibleStation[] = useMemo(() =>
+        scheduledStations.map((station) => ({
+            lotteryStationId: Number(station.id ?? station._id),
+            name: station.name,
+            code: station.code,
+            drawSchedule: station.drawSchedule,
+            resolvedBatchType:
+                batch?.lines?.find((line) => line.lotteryStationId === Number(station.id ?? station._id))?.batchType ?? 'NEW',
+            price: station.price,
+            commissionRate: station.commissionRate,
+        })),
+    [batch?.lines, scheduledStations]);
     const { data: stationResult } = useStations({ limit: 1000 });
     const stationById = useMemo(() => {
         const stationMap = new Map<number, { name: string; price?: number; commissionRate?: number }>();
@@ -133,7 +137,12 @@ export const ImportBatchQuickAllocationModal = ({
                     tempKey: `line-${line.id}-${line.lotteryStationId}`,
                     id: line.id,
                     lotteryStationId: line.lotteryStationId,
-                    stationName: `Nhà đài #${line.lotteryStationId}`,
+                    stationName:
+                        eligibleStations.find((s) => s.lotteryStationId === line.lotteryStationId)?.name ||
+                        stationById.get(line.lotteryStationId)?.name ||
+                        line.lotteryStationName ||
+                        line.stationName ||
+                        `Đài số ${line.lotteryStationId}`,
                     declareQuantity: line.declareQuantity ?? 0,
                     importCost: line.importCost ?? 9500,
                     totalQuantity: line.totalQuantity ?? 0,
@@ -144,6 +153,12 @@ export const ImportBatchQuickAllocationModal = ({
         setLines(existingLines);
     }, [open, batch]);
 
+    useEffect(() => {
+        if (open && batch?.drawDate) {
+            void refetchScheduledStations();
+        }
+    }, [batch?.drawDate, open, refetchScheduledStations]);
+
     // Active (non-removed) lines
     const activeLines = useMemo(() => lines.filter((l) => !l.isRemoved), [lines]);
 
@@ -151,6 +166,10 @@ export const ImportBatchQuickAllocationModal = ({
     const selectedStationIds = useMemo(
         () => activeLines.map((l) => l.lotteryStationId).filter((id) => id > 0),
         [activeLines]
+    );
+    const availableScheduledStations = useMemo(
+        () => eligibleStations.filter((station) => !selectedStationIds.includes(station.lotteryStationId)),
+        [eligibleStations, selectedStationIds]
     );
 
     // Identify stations in file that are missing in the current lines
@@ -163,8 +182,11 @@ export const ImportBatchQuickAllocationModal = ({
 
     // Add empty line
     const handleAddLine = () => {
-        const available = eligibleStations.filter((s) => !selectedStationIds.includes(s.lotteryStationId));
-        const firstAvailable = available[0];
+        const firstAvailable = availableScheduledStations[0];
+        if (!firstAvailable) {
+            toast.info('Tất cả nhà đài trong lịch quay đã có trên phiếu nhập lô.');
+            return;
+        }
 
         const firstPricing = firstAvailable ? stationById.get(firstAvailable.lotteryStationId) : undefined;
         const defaultCost = firstAvailable
@@ -352,7 +374,7 @@ export const ImportBatchQuickAllocationModal = ({
             const res = await updateBatchAsync(payload);
             if (res.success) {
                 toast.success(res.message || 'Cập nhật phân bổ số lượng nhà đài thành công.');
-                await onBatchUpdated();
+                await onBatchUpdated(res.data);
                 onClose();
             } else {
                 toast.error(res.message || 'Không thể cập nhật phiếu nhập.');
@@ -449,7 +471,7 @@ export const ImportBatchQuickAllocationModal = ({
                             variant="contained"
                             startIcon={<AddIcon />}
                             onClick={handleAddLine}
-                            disabled={isLoadingStations}
+                            disabled={isLoadingStations || availableScheduledStations.length === 0}
                             sx={{
                                 textTransform: 'none',
                                 fontWeight: 700,
@@ -523,6 +545,11 @@ export const ImportBatchQuickAllocationModal = ({
                                                                     {st.name}
                                                                 </MenuItem>
                                                             ))}
+                                                            {availableStations.length === 0 && (
+                                                                <MenuItem disabled>
+                                                                    <em>Không còn nhà đài phù hợp trong lịch quay</em>
+                                                                </MenuItem>
+                                                            )}
                                                         </Select>
                                                     </FormControl>
                                                 )}

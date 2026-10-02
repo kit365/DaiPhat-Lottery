@@ -77,8 +77,8 @@ def test_reconcile_moves_batch_code_out_of_serial_number():
     assert batch == "08D"
 
     serial, batch = reconcile_serial_and_batch_code(None, "A123456")
-    assert serial == "A123456"
-    assert batch is None
+    assert serial is None
+    assert batch == "A123456"
 
     serial, batch = reconcile_serial_and_batch_code("26-T05K4", None)
     assert serial is None

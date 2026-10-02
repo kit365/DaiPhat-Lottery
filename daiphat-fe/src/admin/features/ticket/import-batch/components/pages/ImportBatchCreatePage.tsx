@@ -205,6 +205,8 @@ export const ImportBatchCreatePage = () => {
     );
     const eligibleStations = stationsResult?.eligible ?? [];
     const blockedStations = stationsResult?.blocked ?? [];
+    const unfinishedBatch = stationsResult?.unfinishedBatch ?? null;
+    const hasUnfinishedBatchForDrawDate = !!unfinishedBatch;
     const drawDateBounds = getDrawDateInputBounds();
     const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
     const { mutateAsync: createAsync, isPending } = useCreateImportBatch();
@@ -228,7 +230,7 @@ export const ImportBatchCreatePage = () => {
         }
     }, []);
 
-    const buildCreatePayload = async (formData: CreateImportBatchFormValues, forceCreate?: boolean) => {
+    const buildCreatePayload = async (formData: CreateImportBatchFormValues) => {
         let invoiceEvidenceUrl: string | undefined;
         try {
             invoiceEvidenceUrl =
@@ -258,7 +260,6 @@ export const ImportBatchCreatePage = () => {
             supplierId: formData.supplierId,
             importMode: formData.importMode,
             totalDeclareQuantity: formData.totalDeclareQuantity,
-            ...(forceCreate ? { forceCreate: true } : {}),
             invoiceEvidenceUrl,
             ticketListImageUrls,
             lines: formData.lines.map((line) => ({
@@ -479,6 +480,7 @@ export const ImportBatchCreatePage = () => {
     );
 
     const canSubmit =
+        !hasUnfinishedBatchForDrawDate &&
         eligibleStations.length > 0 &&
         lines.some((line) => line.lotteryStationId && eligibleStationIds.has(line.lotteryStationId)) &&
         declaredQuantitiesMatch(totalDeclareQuantity ?? 0, lines) &&
@@ -546,6 +548,12 @@ export const ImportBatchCreatePage = () => {
     );
 
     const onSubmit = (data: CreateImportBatchFormValues) => {
+        if (hasUnfinishedBatchForDrawDate) {
+            toast.error(
+                'Đã có phiếu nhập lô chưa hoàn tất cho ngày quay này. Vui lòng hoàn tất hoặc hủy phiếu hiện tại trước khi tạo phiếu mới.'
+            );
+            return;
+        }
         if (isFormBlocked) {
             if (isImportAllowBlocked) {
                 toast.error('Chưa đến giờ cho phép nhập vé của nhà cung cấp đã chọn.');
@@ -621,36 +629,6 @@ export const ImportBatchCreatePage = () => {
             return;
         }
         router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(duplicateExistingBatch.id));
-    };
-
-    const handleCreateNewAnyway = async () => {
-        if (!pendingFormData) return;
-
-        try {
-            setIsSaving(true);
-            const res = await createAsync(await buildCreatePayload(pendingFormData, true));
-
-            if (res.success) {
-                clearDraft();
-                toast.success(res.message || 'Tạo phiếu nhập lô thành công.');
-                setConfirmOpen(false);
-                setPendingFormData(null);
-                handleCloseDuplicate();
-                redirectAfterCreate(res.data?.id ?? null);
-            } else {
-                toast.error(res.message || 'Tạo phiếu nhập lô thất bại.');
-            }
-        } catch (err: unknown) {
-            toast.error(
-                axiosRequestErrorMessage(
-                    err,
-                    'Tạo phiếu nhập lô thất bại.',
-                    CREATE_IMPORT_BATCH_TIMEOUT_MESSAGE
-                )
-            );
-        } finally {
-            setIsSaving(false);
-        }
     };
 
     const handleConfirmCreate = async () => {
@@ -806,6 +784,26 @@ export const ImportBatchCreatePage = () => {
 
                 <form id="import-batch-create-form" onSubmit={handleSubmit(onSubmit)}>
                     <Stack spacing={3}>
+
+                        {hasUnfinishedBatchForDrawDate && (
+                            <Alert
+                                severity="warning"
+                                action={
+                                    unfinishedBatch?.id ? (
+                                        <Button
+                                            size="small"
+                                            color="inherit"
+                                            onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(unfinishedBatch.id))}
+                                        >
+                                            Tiếp tục phiếu hiện tại
+                                        </Button>
+                                    ) : undefined
+                                }
+                            >
+                                Đã có phiếu nhập lô chưa hoàn tất cho ngày quay này
+                                {unfinishedBatch?.batchCode ? ` (${unfinishedBatch.batchCode})` : ''}. Hoàn tất hoặc hủy phiếu này trước khi tạo phiếu mới.
+                            </Alert>
+                        )}
 
                         {/* ── Card 1: Thông tin phiếu nhập lô & Chứng từ ── */}
                         <Paper
@@ -1392,8 +1390,6 @@ export const ImportBatchCreatePage = () => {
                     existingBatch={duplicateExistingBatch}
                     onClose={handleCloseDuplicate}
                     onContinue={handleContinueExistingBatch}
-                    onCreateNew={handleCreateNewAnyway}
-                    isCreatingNew={isPending || isSaving}
                 />
 
                 {/* ── Dialog Kết nối Quét vé số từ Mobile App ── */}

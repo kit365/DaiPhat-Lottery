@@ -16,6 +16,7 @@ import {
     DialogContent,
     DialogTitle,
     DialogActions,
+    Grid,
     IconButton,
     Paper,
     Stack,
@@ -28,6 +29,7 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
+import { useSearchParams } from 'next/navigation';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { useRouteParams } from '@/hooks/useRouteParams';
 import { AppToast } from '../../../../../../utils/toast.util';
@@ -61,14 +63,11 @@ import {
     isReturnBatchOverdue,
     weightedStationNetUnitPrice,
 } from '../../utils/settlementLabels';
-import { ImportDiscrepancyPanel } from '../sections/ImportDiscrepancyPanel';
-import { UnitPriceDiscrepancyPanel } from '../sections/UnitPriceDiscrepancyPanel';
 import { MatchingActualsForm } from '../sections/MatchingActualsForm';
-import { MissingReturnTicketsPanel } from '../sections/MissingReturnTicketsPanel';
 import { SettlementPaymentEvidencePanel } from '../sections/SettlementPaymentEvidencePanel';
-import { SettlementReconciliationSummaryCard } from '../sections/SettlementReconciliationSummaryCard';
-import { SettlementReconciliationTabs } from '../sections/SettlementReconciliationTabs';
 import { ReconciliationWindowNoticeBanner } from '../sections/ReconciliationWindowNoticeBanner';
+import { SettlementDiscrepancyResolutionSection } from '../sections/SettlementDiscrepancyResolutionSection';
+import { SettlementCompletionSection } from '../sections/SettlementCompletionSection';
 
 const formatDate = (dStr?: string) => {
     if (!dStr) return '';
@@ -98,6 +97,8 @@ const phaseStepIndex = (phase?: SupplierSettlementReconciliationPhase | null) =>
 export const SupplierSettlementInspectPage = () => {
     const router = useAdminRouter();
     const { id } = useRouteParams();
+    const searchParams = useSearchParams();
+    const requestedReview = searchParams.get('review') === '1';
     const { data: overview, isLoading, isError, refetch } = useSupplierSettlementOverview(id);
 
     const settlement = overview?.settlement;
@@ -160,6 +161,8 @@ export const SupplierSettlementInspectPage = () => {
     const [isEditingMatching, setIsEditingMatching] = useState(false);
     /** Local UI: return from Hoàn tất to bước xử lý chênh lệch. */
     const [reviewingDiscrepancy, setReviewingDiscrepancy] = useState(false);
+    /** Local UI: explicitly advance to completion step only after user clicks button. */
+    const [advancedToCompletion, setAdvancedToCompletion] = useState(false);
     const [isImportDirty, setIsImportDirty] = useState(false);
     const [confirmBackDialogOpen, setConfirmBackDialogOpen] = useState(false);
     const [importDraft, setImportDraft] = useState<ResolveImportDiscrepancyPayload | null>(null);
@@ -206,7 +209,12 @@ export const SupplierSettlementInspectPage = () => {
             ? 'Chênh lệch giá nhập'
             : null,
     ].filter((item): item is string => Boolean(item));
-    const canCompleteDiscrepancyProcessing = hasPendingDiscrepancies && remainingDiscrepancies.length === 0;
+    // The completion action is available only after every discrepancy that was
+    // detected in the reconciliation has either been persisted as resolved or
+    // confirmed in the current (still local) draft. Keep this separate from
+    // `hasPendingDiscrepancies`: a settlement may have detected discrepancies
+    // that were already resolved on a previous request.
+    const allDiscrepanciesProcessed = remainingDiscrepancies.length === 0;
 
     useEffect(() => {
         if (settlement?.status === 'WAITING_FOR_PAYMENT' || settlement?.status === 'COMPLETED') {
@@ -235,9 +243,9 @@ export const SupplierSettlementInspectPage = () => {
 
     const rawActiveStep = isEditingMatching
         ? 0
-        : localProcessingReady && !reviewingDiscrepancy
+        : (phaseStepIndex(phase) === 2 || (localProcessingReady && advancedToCompletion)) && !reviewingDiscrepancy
             ? 2
-        : reviewingDiscrepancy && phase !== 'MATCHING' && phase !== 'COMPLETED'
+        : phaseStepIndex(phase) >= 1 || reviewingDiscrepancy
             ? 1
             : phaseStepIndex(phase);
     const hasDiscrepancyMilestone = detectedItems.length > 0 || hasPendingDiscrepancies;
@@ -249,6 +257,7 @@ export const SupplierSettlementInspectPage = () => {
         : [];
     const paid = settlement.status === 'COMPLETED';
     const waitingForPayment = settlement.status === 'WAITING_FOR_PAYMENT';
+    const isReadOnlyReview = requestedReview && (waitingForPayment || paid);
     const finalizedPaymentAmount = Math.abs(Number(
         settlement.finalSettlementValue
         ?? settlement.recalculatedTotalPaidAmount
@@ -303,7 +312,7 @@ export const SupplierSettlementInspectPage = () => {
                 />
             )}
 
-            <Paper
+                <Paper
                 elevation={0}
                 sx={{
                     p: 3,
@@ -312,7 +321,13 @@ export const SupplierSettlementInspectPage = () => {
                     bgcolor: '#ffffff',
                     boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
                 }}
-            >
+                >
+                {isReadOnlyReview && (
+                    <Alert severity="info" sx={{ mb: 2, borderRadius: '12px' }}>
+                        Đây là chế độ xem lại tiến hành đối soát. Kỳ đối soát đã chuyển sang{' '}
+                        {waitingForPayment ? 'Chờ thanh toán' : 'Đã thanh toán'} nên toàn bộ thông tin chỉ được xem, không thể chỉnh sửa hoặc xử lý lại.
+                    </Alert>
+                )}
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }} flexWrap="wrap">
                     <AdminStatusBadge
                         label={getReconciliationPhaseLabel(phase, settlement.reconciliationPhaseLabel)}
@@ -376,6 +391,7 @@ export const SupplierSettlementInspectPage = () => {
                                 try {
                                     await confirmMatching.mutateAsync(payload);
                                     setIsEditingMatching(false);
+                                    setAdvancedToCompletion(false);
                                     setReviewingDiscrepancy(false);
                                     AppToast.success('Đã xác nhận đối chiếu số liệu.');
                                 } catch (err: any) {
@@ -389,364 +405,119 @@ export const SupplierSettlementInspectPage = () => {
                     </Box>
                 )}
 
-                {showPostMatchingContent && (
-                    <Box sx={{ mb: 3 }}>
-                        {isCompletionStep && paid && (
-                            <Alert severity="success" icon={<CheckCircleOutlinedIcon />} sx={{ mb: 2.5, borderRadius: '12px' }}>
-                                Kỳ đối soát đã thanh toán. Số liệu dưới đây là bản chốt của kỳ.
-                            </Alert>
-                        )}
-                        <SettlementReconciliationSummaryCard
-                            settlement={settlement}
-                            kpis={overview?.kpis}
-                            adjustments={overview?.adjustments || []}
-                            stationPricing={stationPricing}
-                            inventoryByStation={inventoryByStation}
-                            importBatches={importBatches}
-                            returnBatches={returnBatches}
-                            canRematch={canRematch}
-                            mode={isCompletionStep ? 'completion_min' : 'discrepancy_summary'}
-                            draftResolution={{
-                                import: Boolean(importDraft),
-                                return: Boolean(returnDraft),
-                                unitPrice: Boolean(unitPriceDraft),
-                            }}
-                            onEditMatching={() => {
-                                if (isImportDirty || hasLocalDraft) {
-                                    setConfirmBackDialogOpen(true);
-                                } else {
-                                    setIsEditingMatching(true);
-                                }
-                            }}
-                        />
-
-                        {!isCompletionStep && (
-                            <SettlementReconciliationTabs
-                                inventoryByStation={inventoryByStation}
-                                importBatches={importBatches}
-                                returnBatches={returnBatches}
-                                remainingPayableAmount={remainingAmount}
-                                settlement={settlement}
-                                hideAllStationsTab
-                            />
-                        )}
-                    </Box>
-                )}
-
-                {showPostMatchingContent && !waitingForPayment && !paid && (
-                    hasPendingDiscrepancies
-                    || hasUnitPriceDiscrepancy
-                ) && (
-                    <Paper
-                        elevation={0}
-                        sx={{
-                            mb: 3,
-                            borderRadius: '16px',
-                            border: '1px solid #dbe4f0',
-                            bgcolor: '#ffffff',
-                            overflow: 'hidden',
-                            boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)',
+                {showPostMatchingContent && !isCompletionStep && (
+                    <SettlementDiscrepancyResolutionSection
+                        settlement={settlement}
+                        kpis={overview?.kpis}
+                        importBatches={importBatches}
+                        returnBatches={returnBatches}
+                        stationPricing={stationPricing}
+                        inventoryByStation={inventoryByStation}
+                        adjustments={overview?.adjustments || []}
+                        returnCutOffContext={returnCutOffContext}
+                        needsImport={needsImport}
+                        needsReturn={needsReturn}
+                        needsUnitPrice={needsUnitPrice}
+                        hasUnitPriceDiscrepancy={hasUnitPriceDiscrepancy}
+                        importItem={importItem}
+                        returnItem={returnItem}
+                        unitPriceItem={unitPriceItem}
+                        returnShortfall={returnShortfall}
+                        returnExcess={returnExcess}
+                        showReturnLockBanner={showReturnLockBanner}
+                        returnLockDetails={returnLockDetails}
+                        importTicketsQuery={importTicketsQuery}
+                        missingReturnQuery={missingReturnQuery}
+                        importDraft={importDraft}
+                        returnDraft={returnDraft}
+                        unitPriceDraft={unitPriceDraft}
+                        onSetImportDraft={setImportDraft}
+                        onSetReturnDraft={setReturnDraft}
+                        onSetUnitPriceDraft={setUnitPriceDraft}
+                        onImportDirtyChange={setIsImportDirty}
+                        onBackToMatching={() => {
+                            if (isImportDirty || hasLocalDraft) {
+                                setConfirmBackDialogOpen(true);
+                            } else {
+                                setIsEditingMatching(true);
+                            }
                         }}
-                    >
-                        <Stack
-                            direction="row"
-                            spacing={1.25}
-                            alignItems="flex-start"
-                            sx={{ px: { xs: 2, md: 2.5 }, py: 2, bgcolor: '#fffaf5', borderBottom: '1px solid #fed7aa' }}
-                        >
-                            <Box
-                                sx={{
-                                    width: 38,
-                                    height: 38,
-                                    borderRadius: '10px',
-                                    bgcolor: '#fff7ed',
-                                    color: '#ea580c',
-                                    display: 'grid',
-                                    placeItems: 'center',
-                                    flexShrink: 0,
-                                }}
-                            >
-                                <RuleOutlinedIcon sx={{ fontSize: '1.35rem' }} />
-                            </Box>
-                            <Box>
-                                <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ lineHeight: 1.3 }}>
-                                    Xử lý chênh lệch
-                                </Typography>
-                            </Box>
-                        </Stack>
-
-                        <Box sx={{ p: { xs: 2, md: 2.5 } }}>
-                            {hasUnitPriceDiscrepancy && (
-                                <Box sx={{ mb: 2 }}>
-                                    <UnitPriceDiscrepancyPanel
-                                        settlement={settlement}
-                                        afterCommissionUnitPrice={afterCommissionUnitPrice}
-                                        direction={unitPriceItem?.direction || 'NEGATIVE'}
-                                        difference={Number(unitPriceItem?.difference ?? 0)}
-                                        resolved={Boolean(settlement.unitPriceDiscrepancyResolved || unitPriceDraft)}
-                                        draftOnly={Boolean(unitPriceDraft && !settlement.unitPriceDiscrepancyResolved)}
-                                        submitting={false}
-                                        onBackToEdit={() => {
-                                            setUnitPriceDraft(null);
-                                            setReviewingDiscrepancy(true);
-                                        }}
-                                        onResolve={(payload) => {
-                                            setUnitPriceDraft(payload);
-                                            setReviewingDiscrepancy(false);
-                                            AppToast.success('Đã giữ tạm thông tin xử lý giá.');
-                                        }}
-                                    />
-                                </Box>
-                            )}
-
-                        {needsImport && (
-                            <Box sx={{ mb: 2 }}>
-                                <ImportDiscrepancyPanel
-                                    serials={importTicketsQuery.data || []}
-                                    inventoryByStation={inventoryByStation}
-                                    importBatches={importBatches}
-                                    supplierId={settlement.lotterySupplierId}
-                                    settlementReceiptUrl={settlement.supplierSettlementReceiptUrl}
-                                    drawDate={settlement.periodFrom}
-                                    returnCutOffContext={returnCutOffContext}
-                                    reconciliationWindowStartAt={settlement.reconciliationWindowStartAt}
-                                    inReconciliationWindow={settlement.inReconciliationWindow}
-                                    direction={importItem?.direction || 'NEGATIVE'}
-                                    difference={Number(importItem?.difference ?? 0)}
-                                    loading={importTicketsQuery.isLoading}
-                                    submitting={false}
-                                    collapsed={Boolean(importDraft)}
-                                    onBackToEdit={() => {
-                                        setImportDraft(null);
-                                        setReviewingDiscrepancy(true);
-                                    }}
-                                    onResolve={(payload) => {
-                                        setImportDraft(payload);
-                                        setIsImportDirty(false);
-                                        setReviewingDiscrepancy(false);
-                                        AppToast.success('Đã giữ tạm thông tin xử lý vé nhập.');
-                                    }}
-                                    onDirtyChange={setIsImportDirty}
-                                />
-                            </Box>
-                        )}
-
-                        {showReturnLockBanner && (
-                            <Alert
-                                severity={returnLockDetails.overdue || returnLockDetails.allCancelled ? 'error' : 'warning'}
-                                icon={<WarningAmberOutlinedIcon />}
-                                sx={{ mb: 2, borderRadius: '12px', fontWeight: 600 }}
-                            >
-                                {returnLockDetails.overdue || returnLockDetails.allCancelled ? (
-                                    <>
-                                        {returnLockDetails.summaryMessage} Không thể xử lý chênh lệch trả khi phiếu đã quá hạn / hủy.
-                                    </>
-                                ) : returnLockDetails.blockers.length <= 1 ? (
-                                    <>
-                                        {returnLockDetails.summaryMessage || returnLockDetails.blockers[0]?.message}
-                                    </>
-                                ) : (
-                                    <Box component="div">
-                                        <Typography variant="body2" fontWeight={700} sx={{ mb: 0.75 }}>
-                                            {returnLockDetails.summaryMessage}
-                                        </Typography>
-                                        <Box component="ul" sx={{ m: 0, pl: 2.25 }}>
-                                            {returnLockDetails.blockers.map((blocker) => (
-                                                <Box component="li" key={`${blocker.batchCode}-${blocker.status}`} sx={{ mb: 0.35 }}>
-                                                    <Typography variant="body2">{blocker.message}</Typography>
-                                                </Box>
-                                            ))}
-                                        </Box>
-                                    </Box>
-                                )}
-                            </Alert>
-                        )}
-
-                        {needsReturn && returnShortfall && (
-                            <Box sx={{ mb: 2, opacity: returnLockDetails.inputsLocked ? 0.72 : 1 }}>
-                                <MissingReturnTicketsPanel
-                                    serials={missingReturnQuery.data || []}
-                                    difference={Number(returnItem?.difference ?? 0)}
-                                    loading={missingReturnQuery.isLoading}
-                                    submitting={false}
-                                    disabled={returnLockDetails.inputsLocked}
-                                    collapsed={Boolean(returnDraft)}
-                                    onBackToEdit={() => {
-                                        setReturnDraft(null);
-                                        setReviewingDiscrepancy(true);
-                                    }}
-                                    onResolve={(payload) => {
-                                        if (returnLockDetails.inputsLocked) {
-                                            AppToast.warning(returnLockDetails.summaryMessage || 'Phiếu trả chưa sẵn sàng.');
-                                            return;
-                                        }
-                                        setReturnDraft(payload);
-                                        setReviewingDiscrepancy(false);
-                                        AppToast.success('Đã giữ tạm thông tin xử lý vé trả.');
-                                    }}
-                                />
-                            </Box>
-                        )}
-
-                        {needsReturn && returnExcess && (
-                            <Alert severity="warning" sx={{ mb: 2, borderRadius: '12px' }}>
-                                Số lượng vé trả thực tế đang lớn hơn số lượng hệ thống. Hệ thống không xử lý thừa trả —
-                                hãy chỉnh lại đối chiếu số liệu và nhập số lượng trả bằng hoặc ít hơn số lượng hệ thống.
-                            </Alert>
-                        )}
-
-                            {needsReturn && !returnShortfall && !returnExcess && (
-                                <Alert severity="warning" sx={{ borderRadius: '12px' }}>
-                                    Có chênh lệch số lượng trả nhưng chưa xác định thiếu hay thừa. Hãy chỉnh lại số liệu đối chiếu.
-                                </Alert>
-                            )}
-                        </Box>
-                    </Paper>
+                        onAdvanceToCompletion={() => {
+                            setAdvancedToCompletion(true);
+                            setReviewingDiscrepancy(false);
+                        }}
+                        remainingDiscrepancies={remainingDiscrepancies}
+                        allDiscrepanciesProcessed={allDiscrepanciesProcessed}
+                        remainingAmount={remainingAmount}
+                    />
                 )}
 
-                {showPostMatchingContent && !waitingForPayment && !paid && (
-                    isCompletionStep
-                    || hasPendingDiscrepancies
-                    || hasUnitPriceDiscrepancy
-                ) && (
-                    <Paper
-                        variant="outlined"
-                        sx={{ p: { xs: 2, md: 2.5 }, mb: 2.5, borderRadius: '16px', borderColor: '#bbf7d0', bgcolor: '#f0fdf4' }}
-                    >
-                        <Stack
-                            direction={{ xs: 'column', md: 'row' }}
-                            spacing={2}
-                            alignItems={{ xs: 'stretch', md: 'center' }}
-                            justifyContent="space-between"
-                        >
-                            <Box sx={{ flex: 1 }}>
-                                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} />
-                                    <Typography variant="subtitle1" fontWeight={800} color="#166534">
-                                        Hoàn tất xử lý
-                                    </Typography>
-                                </Stack>
-                                {remainingDiscrepancies.length > 0 ? (
-                                    <Box>
-                                        <Typography variant="body2" color="#b45309" sx={{ lineHeight: 1.55, mb: 0.75 }}>
-                                            Vui lòng xử lý tất cả chênh lệch trước khi hoàn tất. Còn lại:
-                                        </Typography>
-                                        <Box component="ul" sx={{ m: 0, pl: 2.25, color: '#92400e' }}>
-                                            {remainingDiscrepancies.map((item) => (
-                                                <Box component="li" key={item}>
-                                                    <Typography variant="body2" color="#92400e">{item}</Typography>
-                                                </Box>
-                                            ))}
-                                        </Box>
-                                    </Box>
-                                ) : (
-                                    <Typography variant="body2" color="#15803d" sx={{ lineHeight: 1.55 }}>
-                                        Tất cả chênh lệch đã được xác nhận tạm. Bấm Xác nhận hoàn tất để lưu và chuyển kỳ đối soát sang Chờ thanh toán.
-                                    </Typography>
-                                )}
-                            </Box>
-                            <Stack direction={{ xs: 'column-reverse', sm: 'row' }} spacing={1.25} flexShrink={0}>
-                                {isCompletionStep && (
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<ArrowBackOutlinedIcon />}
-                                        disabled={finalizeProcessing.isPending}
-                                        onClick={() => {
-                                            if (remainingDiscrepancies.length > 0) {
-                                                setReviewingDiscrepancy(true);
-                                                return;
-                                            }
-                                            if (isImportDirty || hasLocalDraft) {
-                                                setConfirmBackDialogOpen(true);
-                                            } else {
-                                                setIsEditingMatching(true);
-                                            }
-                                        }}
-                                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px' }}
-                                    >
-                                        Quay lại
-                                    </Button>
-                                )}
-                                <Button
-                                    variant="contained"
-                                    color="success"
-                                    startIcon={finalizeProcessing.isPending ? <CircularProgress size={16} color="inherit" /> : <CheckCircleOutlinedIcon />}
-                                    disabled={(hasPendingDiscrepancies && !canCompleteDiscrepancyProcessing) || finalizeProcessing.isPending}
-                                    onClick={() => {
-                                        finalizeProcessing.mutate(
-                                            {
-                                                importResolution: importDraft || undefined,
-                                                returnResolution: returnDraft || undefined,
-                                                unitPriceResolution: unitPriceDraft || undefined,
-                                            },
-                                            {
-                                                onSuccess: () => {
-                                                    setReviewingDiscrepancy(false);
-                                                    AppToast.success('Đã hoàn tất xử lý và chuyển sang chờ thanh toán.');
-                                                },
-                                                onError: (err: any) =>
-                                                    AppToast.error(err?.response?.data?.message || 'Hoàn tất xử lý thất bại.'),
-                                            }
-                                        );
-                                    }}
-                                    sx={{ textTransform: 'none', fontWeight: 800, borderRadius: '10px', whiteSpace: 'nowrap' }}
-                                >
-                                    {finalizeProcessing.isPending ? 'Đang lưu...' : 'Xác nhận hoàn tất'}
-                                </Button>
-                            </Stack>
-                        </Stack>
-                    </Paper>
-                )}
-
-                {showPostMatchingContent && isCompletionStep && (waitingForPayment || paid) && (
-                    <>
-                        <Stack
-                            direction="row"
-                            spacing={1.5}
-                            justifyContent="flex-end"
-                            flexWrap="wrap"
-                            useFlexGap
-                            sx={{ mb: 1 }}
-                        >
-                            <Button
-                                variant="outlined"
-                                startIcon={downloadReport.isPending ? <CircularProgress size={16} /> : <PictureAsPdfOutlinedIcon />}
-                                disabled={downloadReport.isPending}
-                                onClick={() =>
-                                    downloadReport.mutate(
-                                        `bao-cao-doi-soat-${settlement.supplierSettlementCode || settlement.id}.pdf`,
-                                        {
-                                            onError: (err: any) =>
-                                                AppToast.error(err?.message || err?.response?.data?.message || 'Tải PDF thất bại.'),
-                                        }
-                                    )
+                {showPostMatchingContent && isCompletionStep && (
+                    <SettlementCompletionSection
+                        settlement={settlement}
+                        kpis={overview?.kpis}
+                        importBatches={importBatches}
+                        returnBatches={returnBatches}
+                        stationPricing={stationPricing}
+                        inventoryByStation={inventoryByStation}
+                        adjustments={overview?.adjustments || []}
+                        hasDiscrepancyMilestone={hasDiscrepancyMilestone}
+                        waitingForPayment={waitingForPayment}
+                        paid={paid}
+                        isReadOnlyReview={isReadOnlyReview}
+                        draftResolution={{
+                            import: Boolean(importDraft),
+                            return: Boolean(returnDraft),
+                            unitPrice: Boolean(unitPriceDraft),
+                        }}
+                        onBackToDiscrepancy={() => {
+                            setAdvancedToCompletion(false);
+                            setReviewingDiscrepancy(true);
+                        }}
+                        onBackToMatching={() => {
+                            if (isImportDirty || hasLocalDraft) {
+                                setConfirmBackDialogOpen(true);
+                            } else {
+                                setIsEditingMatching(true);
+                                setAdvancedToCompletion(false);
+                                setReviewingDiscrepancy(false);
+                            }
+                        }}
+                        onFinalize={() => {
+                            finalizeProcessing.mutate(
+                                {
+                                    importResolution: importDraft || undefined,
+                                    returnResolution: returnDraft || undefined,
+                                    unitPriceResolution: unitPriceDraft || undefined,
+                                },
+                                {
+                                    onSuccess: () => {
+                                        setReviewingDiscrepancy(false);
+                                        AppToast.success('Đã hoàn tất xử lý và chuyển sang chờ thanh toán.');
+                                    },
+                                    onError: (err: any) =>
+                                        AppToast.error(err?.response?.data?.message || 'Hoàn tất xử lý thất bại.'),
                                 }
-                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px' }}
-                            >
-                                {downloadReport.isPending ? 'Đang tạo PDF...' : 'Tải báo cáo PDF'}
-                            </Button>
-                            {waitingForPayment && (
-                                <Button
-                                    variant="contained"
-                                    color="success"
-                                    onClick={() => {
-                                        setPaymentMethod('OFFLINE');
-                                        setCashPaidAmount(formatPaymentAmount(finalizedPaymentAmount));
-                                        setPaymentDialogOpen(true);
-                                    }}
-                                    sx={{
-                                        textTransform: 'none',
-                                        fontWeight: 800,
-                                        borderRadius: '10px',
-                                        bgcolor: '#16a34a',
-                                        '&:hover': { bgcolor: '#15803d' },
-                                    }}
-                                >
-                                    Tiến hành thanh toán
-                                </Button>
-                            )}
-                        </Stack>
-                    </>
+                            );
+                        }}
+                        isFinalizing={finalizeProcessing.isPending}
+                        onOpenPaymentDialog={() => {
+                            setPaymentMethod('OFFLINE');
+                            setCashPaidAmount(formatPaymentAmount(finalizedPaymentAmount));
+                            setPaymentDialogOpen(true);
+                        }}
+                        onDownloadReport={() => {
+                            downloadReport.mutate(
+                                `bao-cao-doi-soat-${settlement.supplierSettlementCode || settlement.id}.pdf`,
+                                {
+                                    onError: (err: any) =>
+                                        AppToast.error(err?.message || err?.response?.data?.message || 'Tải PDF thất bại.'),
+                                }
+                            );
+                        }}
+                        isDownloadingReport={downloadReport.isPending}
+                        onZoomImage={setZoomImage}
+                    />
                 )}
             </Paper>
 
@@ -758,16 +529,27 @@ export const SupplierSettlementInspectPage = () => {
             >
                 <DialogTitle sx={{ fontWeight: 800 }}>Tiến hành thanh toán</DialogTitle>
                 <DialogContent dividers sx={{ bgcolor: '#f8fafc' }}>
-                    <SettlementReconciliationSummaryCard
-                        settlement={settlement}
-                        kpis={overview?.kpis}
-                        adjustments={overview?.adjustments || []}
-                        stationPricing={stationPricing}
-                        inventoryByStation={inventoryByStation}
-                        importBatches={importBatches}
-                        returnBatches={returnBatches}
-                        mode="completion_min"
-                    />
+                    <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: '12px', bgcolor: '#ffffff', borderColor: '#e2e8f0' }}>
+                        <Typography variant="caption" fontWeight={800} color="#64748b" sx={{ textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', mb: 1 }}>
+                            Thông tin quyết toán kỳ đối soát
+                        </Typography>
+                        <Grid container spacing={2}>
+                            <Grid size={{ xs: 12, sm: 4 }}>
+                                <Typography variant="caption" color="#64748b" display="block">Nhà cung cấp:</Typography>
+                                <Typography variant="body2" fontWeight={700} color="#0f172a">{settlement.supplierName}</Typography>
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 4 }}>
+                                <Typography variant="caption" color="#64748b" display="block">Lịch quay thưởng:</Typography>
+                                <Typography variant="body2" fontWeight={700} color="#0f172a">{formatDate(drawDate)}</Typography>
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 4 }}>
+                                <Typography variant="caption" color="#64748b" display="block">Số tiền quyết toán:</Typography>
+                                <Typography variant="body2" fontWeight={900} color="#166534">
+                                    {formatPaymentAmount(finalizedPaymentAmount)} VNĐ
+                                </Typography>
+                            </Grid>
+                        </Grid>
+                    </Paper>
 
                     <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: '14px', bgcolor: '#ffffff' }}>
                         <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
@@ -924,6 +706,8 @@ export const SupplierSettlementInspectPage = () => {
                             setUnitPriceDraft(null);
                             setIsImportDirty(false);
                             setIsEditingMatching(true);
+                            setAdvancedToCompletion(false);
+                            setReviewingDiscrepancy(false);
                         }}
                     >
                         Quay lại và xóa dữ liệu

@@ -29,6 +29,7 @@ TICKET_TYPE_ALLOWLIST = "0123456789.dDđ "
 
 DEFAULT_FIELD_ALLOWLISTS: dict[str, str] = {
     "serialNumber": SERIAL_ALLOWLIST,
+    "serialSymbol": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
     "numbers": NUMBERS_ALLOWLIST,
     "drawDate": DRAW_DATE_ALLOWLIST,
     "ticketType": TICKET_TYPE_ALLOWLIST,

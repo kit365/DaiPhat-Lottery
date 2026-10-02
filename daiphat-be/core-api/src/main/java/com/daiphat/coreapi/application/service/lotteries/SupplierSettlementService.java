@@ -676,7 +676,10 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             }
         }
 
-        SupplierSettlementResponse settlementResponse = supplierSettlementApplicationMapper.toResponse(settlement);
+        SupplierSettlementResponse settlementResponse = supplierSettlementApplicationMapper.toResponse(
+                settlement,
+                resolveActorDisplayName(settlement.getCompletedBy())
+        );
 
         List<ImportBatchResponse> importBatches = importBatchRepositoryPort.findBySupplierSettlementId(id).stream()
                 .map(batch -> importBatchApplicationMapper.toResponse(
@@ -722,7 +725,10 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         );
         if (settlement.getMatchingConfirmedAt() == null && settlement.getSystemTicketImportPrice() == null) {
             applyAfterCommissionMatchingBaseline(settlement, stationPricing);
-            settlementResponse = supplierSettlementApplicationMapper.toResponse(settlement);
+            settlementResponse = supplierSettlementApplicationMapper.toResponse(
+                    settlement,
+                    resolveActorDisplayName(settlement.getCompletedBy())
+            );
         }
 
         int imported = inventoryByStation.stream().mapToInt(SettlementStationInventoryResponse::importedQuantity).sum();
@@ -1009,9 +1015,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         if (importItem != null && importItem.isNegative()) {
             ensureExcessImportWindowOpen(settlement);
         }
-        return mapResolvableRows(
-                supplierSettlementRepositoryPort.findImportResolvableSerialsBySettlementId(settlementId)
-        );
+        return mapResolvableRows(findEligibleImportResolvableSerials(settlementId));
     }
 
     @Override
@@ -1066,6 +1070,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             ResolveImportDiscrepancyRequest request,
             UUID actorId
     ) {
+        validateOtherReasonNote(request.reasonCode(), request.note());
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
         ensureReconciliationWindowOpen(settlement);
         if (!settlement.needsImportResolution()) {
@@ -1116,8 +1121,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                                 + " sê-ri đã nhập trong ngày và ghi tình trạng vé để xử lý số vé hệ thống ghi thừa."
                 );
             }
-            java.util.Set<Long> eligibleSerialIds = supplierSettlementRepositoryPort
-                    .findImportResolvableSerialsBySettlementId(settlementId)
+            java.util.Set<Long> eligibleSerialIds = findEligibleImportResolvableSerials(settlementId)
                     .stream()
                     .filter(Objects::nonNull)
                     .map(com.daiphat.coreapi.application.port.out.lotteries.SettlementResolvableSerialRow::serialId)
@@ -1125,7 +1129,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             if (!eligibleSerialIds.containsAll(requestedSerialIds)) {
                 throw new DomainException(
                         ErrorCode.INVALID_INPUT,
-                        "Chỉ được chọn sê-ri thuộc các lô nhập của ngày đối soát và đang ở trạng thái GOOD."
+                        "Chỉ được chọn vé hợp lệ, chưa bán và có tình trạng vật lý GOOD thuộc lô nhập của ngày đối soát."
                 );
             }
         }
@@ -2685,6 +2689,28 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         // Monetary impact of serial-linked resolutions is primarily reflected via ticket state
         // after recalculateAmounts; amount here is audit metadata (0 when not supplied).
         return BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
+    }
+
+    private List<SettlementResolvableSerialRow> findEligibleImportResolvableSerials(Long settlementId) {
+        return supplierSettlementRepositoryPort.findImportResolvableSerialsBySettlementId(settlementId).stream()
+                .filter(Objects::nonNull)
+                .filter(row -> row.status() == LotteryTicketSerialStatus.IN_STOCK
+                        || row.status() == LotteryTicketSerialStatus.EXPIRED)
+                .filter(row -> row.ticketCondition() == TicketCondition.GOOD)
+                .toList();
+    }
+
+    private void validateOtherReasonNote(
+            SupplierSettlementAdjustmentReasonCode reasonCode,
+            String note
+    ) {
+        if (reasonCode == SupplierSettlementAdjustmentReasonCode.OTHER
+                && (note == null || note.isBlank())) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Vui lòng nhập ghi chú điều chỉnh khi chọn lý do Khác."
+            );
+        }
     }
 
     private List<SettlementResolvableSerialResponse> mapResolvableRows(List<SettlementResolvableSerialRow> rows) {

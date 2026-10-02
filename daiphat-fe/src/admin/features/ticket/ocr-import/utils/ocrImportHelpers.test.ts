@@ -4,20 +4,52 @@ import {
     buildReviewImageGroups,
     buildReviewStationGroups,
     canConfirmReviewRow,
+    canOperateOcrImportBatch,
     collectOcrBatchOptions,
     createFailedReviewRow,
+    evaluateOcrFieldUiStatus,
     formatConfidence,
     formatDenomination,
     getOcrReviewFieldConfidence,
     getOcrReviewIssueCounts,
+    getOcrImportResultPresentation,
     hasHighConfidenceOcrFields,
+    mapScannedTicketToReviewRow,
     getScanStatusLabel,
     getUnreadableFieldCaption,
     reconcileOcrSerialAndBatchCode,
     resolveFieldDisplayConfidence,
     toShortFieldHint,
 } from './ocrImportHelpers';
-import type { OcrReviewRow } from '../types/ticketOcr.type';
+import type { OcrReviewRow, ScannedTicket } from '../types/ticketOcr.type';
+
+describe('OCR serial response mapping', () => {
+    it.each(['188435S', '123456G'])('renders valid backend Serial %s unchanged', (serial) => {
+        const ticket: ScannedTicket = {
+            ticketIndex: 0,
+            status: 'PARTIAL',
+            confidence: 0.9,
+            extracted: { numbers: '123456', serialNumber: serial, batchCode: '6K2' },
+            fieldConfidences: { serialNumber: 0.9 },
+        };
+        const row = mapScannedTicketToReviewRow(ticket, 'image-1', 'ticket.jpg');
+        expect(row.serialNumber).toBe(serial);
+        expect(row.batchCode).toBe('6K2');
+    });
+});
+
+describe('OCR import-batch authorization', () => {
+    const batch = { importedBy: 'owner-1' };
+
+    it('allows the assigned operator and an administrator', () => {
+        expect(canOperateOcrImportBatch(batch, 'owner-1', false)).toBe(true);
+        expect(canOperateOcrImportBatch(batch, 'admin-1', true)).toBe(true);
+    });
+
+    it('blocks another non-admin operator', () => {
+        expect(canOperateOcrImportBatch(batch, 'operator-2', false)).toBe(false);
+    });
+});
 
 describe('OCR confidence display', () => {
     it('formats 0..1 fractions and legacy over-1 ranking scores as percentages', () => {
@@ -94,7 +126,19 @@ describe('OCR confidence display', () => {
         expect(getOcrReviewFieldConfidence({
             ...row,
             fieldConfidences: { stationName: 0.8, drawDate: 0.8, numbers: 0.8, ticketType: 0.8 },
+        })).toBeCloseTo(0.8);
+        expect(getOcrReviewFieldConfidence({
+            ...row,
+            expectedOcrFields: ['stationName', 'numbers', 'drawDate', 'ticketType', 'batchCode'],
         })).toBeCloseTo(0.64);
+        expect(getOcrReviewFieldConfidence({ ...row, ocrAccuracy: 0.64 })).toBeCloseTo(0.64);
+    });
+
+    it('marks a tagged but unreadable lot code as unreadable, while displaying a read value', () => {
+        const tagged = scannedRow({ expectedOcrFields: ['numbers', 'batchCode'], batchCode: null });
+        expect(evaluateOcrFieldUiStatus(tagged, 'batchCode').status).toBe('unreadable');
+        expect(evaluateOcrFieldUiStatus({ ...tagged, batchCode: '47VL33' }, 'batchCode').status).toBe('valid');
+        expect(evaluateOcrFieldUiStatus({ ...tagged, expectedOcrFields: null }, 'batchCode').status).toBe('valid');
     });
 
     it('counts invalid fields once when system warnings repeat them', () => {
@@ -207,6 +251,7 @@ describe('collectOcrBatchOptions', () => {
                 supplierId: 7,
                 supplierName: 'NCC A',
                 status: 'DRAFT',
+                lines: [],
             },
         ]);
     });
@@ -356,6 +401,35 @@ describe('canConfirmReviewRow & evaluateOcrFieldUiStatus', () => {
         expect(canConfirmReviewRow({ ...validRow, serialNumber: '123456B' } as any)).toBe(true);
     });
 
+    it('allows a manually corrected OCR field once the corrected value passes validation', () => {
+        expect(canConfirmReviewRow({
+            ...validRow,
+            serialNumber: '123456B',
+            edited: true,
+            editedFields: { serialNumber: true },
+            fieldValidations: {
+                serialNumber: {
+                    status: 'UNREADABLE',
+                    message: 'Không nhận diện được số sê-ri.',
+                },
+            },
+        } as any)).toBe(true);
+    });
+
+    it('does not block warehouse confirmation because Ký hiệu/Lô is unreadable', () => {
+        expect(canConfirmReviewRow({
+            ...validRow,
+            batchCode: null,
+            expectedOcrFields: ['numbers', 'serialNumber', 'stationName', 'drawDate', 'ticketType', 'batchCode'],
+            fieldValidations: {
+                batchCode: {
+                    status: 'UNREADABLE',
+                    message: 'Không nhận diện được Ký hiệu/Lô.',
+                },
+            },
+        } as any)).toBe(true);
+    });
+
     it('reconciles misplaced batch codes out of serialNumber', () => {
         expect(reconcileOcrSerialAndBatchCode('XSCMG997', null)).toEqual({
             serialNumber: '',
@@ -370,8 +444,8 @@ describe('canConfirmReviewRow & evaluateOcrFieldUiStatus', () => {
             batchCode: '08D',
         });
         expect(reconcileOcrSerialAndBatchCode(null, 'A123456')).toEqual({
-            serialNumber: 'A123456',
-            batchCode: null,
+            serialNumber: '',
+            batchCode: 'A123456',
         });
     });
 
@@ -397,6 +471,30 @@ describe('canConfirmReviewRow & evaluateOcrFieldUiStatus', () => {
         const ctx = { stationPriceById: new Map([[10, 10000]]) };
         expect(canConfirmReviewRow({ ...validRow, ticketType: '50.000' } as any, ctx)).toBe(false);
         expect(canConfirmReviewRow({ ...validRow, ticketType: '10.000' } as any, ctx)).toBe(true);
+    });
+});
+
+describe('OCR warehouse import result presentation', () => {
+    const result = (successCount: number, duplicateCount: number, failedCount: number) => ({
+        mode: 'MANUAL' as const,
+        totalRequested: successCount + duplicateCount + failedCount,
+        successCount,
+        duplicateCount,
+        failedCount,
+        batches: [],
+    });
+
+    it('shows success only when every requested ticket was imported', () => {
+        expect(getOcrImportResultPresentation(result(1, 0, 0))).toEqual({
+            tone: 'success',
+            title: 'Hoàn tất nhập vé vào kho thành công!',
+        });
+        expect(getOcrImportResultPresentation(result(0, 0, 1)).tone).toBe('error');
+    });
+
+    it('distinguishes partial and duplicate-only outcomes', () => {
+        expect(getOcrImportResultPresentation(result(1, 0, 1)).tone).toBe('warning');
+        expect(getOcrImportResultPresentation(result(0, 1, 0)).tone).toBe('warning');
     });
 });
 

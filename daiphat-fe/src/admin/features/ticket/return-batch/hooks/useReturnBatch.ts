@@ -8,6 +8,7 @@ import {
     confirmReturnInspection,
     detachReturnSerial,
     getInspectableReturnSerials,
+    getInspectableReturnTickets,
     getReturnBatchById,
     getReturnBatches,
     startReturnInspection,
@@ -17,6 +18,7 @@ import type {
     AttachReturnSerialsPayload,
     ConfirmReturnHandoverPayload,
     ConfirmReturnInspectionPayload,
+    InspectableReturnTicketParams,
     ReturnBatchLineStatus,
     ReturnBatchListParams,
     ReturnBatchStatus,
@@ -60,6 +62,27 @@ export const useInspectableReturnSerials = (batchId?: string | number, enabled =
         enabled: !!normalizedId && enabled,
         select: (res) => res.data ?? [],
         staleTime: 0,
+    });
+};
+
+export const useInspectableReturnTickets = (
+    batchId?: string | number,
+    params?: InspectableReturnTicketParams,
+    enabled = false
+) => {
+    const normalizedId =
+        batchId !== undefined && batchId !== null && String(batchId).trim() !== ''
+            ? String(batchId)
+            : undefined;
+
+    return useQuery({
+        queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, normalizedId, 'inspectable-tickets', params],
+        queryFn: () => getInspectableReturnTickets(normalizedId!, params),
+        enabled: !!normalizedId && enabled,
+        select: (res) => res.data,
+        placeholderData: keepPreviousData,
+        staleTime: 0,
+        retry: false,
     });
 };
 

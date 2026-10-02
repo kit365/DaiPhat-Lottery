@@ -51,4 +51,15 @@ public record ImportBatchFileImportCommitRequest(
                 .findFirst()
                 .orElse(null);
     }
+
+    public ImportBatchSelectionSnapshotRequest selectionSnapshotFor(LocalDate drawDate) {
+        if (manualBatchBindings == null || drawDate == null) {
+            return null;
+        }
+        return manualBatchBindings.stream()
+                .filter(b -> drawDate.equals(b.drawDate()))
+                .map(ImportBatchFileManualBatchBinding::selectionSnapshot)
+                .findFirst()
+                .orElse(null);
+    }
 }

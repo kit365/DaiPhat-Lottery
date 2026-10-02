@@ -40,7 +40,7 @@ public class ReturnBatchApplicationMapper {
         return toResponse(model, null, null, returnedByDisplayName);
     }
 
-    private ReturnBatchResponse toResponse(
+    public ReturnBatchResponse toResponse(
             ReturnBatchModel model,
             List<ReturnBatchLineResponse> lines,
             Integer remainingInspectableQuantity,

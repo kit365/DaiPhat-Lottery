@@ -12,8 +12,8 @@ export const getCategories = async (params?: BlogCategoryQueryParams): Promise<A
         params: {
             page: params?.page || 1,
             limit: params?.limit || 10,
-            search: params?.keyword || params?.keyword || '',
-            isTrash: params?.is_trash || params?.is_trash || false,
+            search: params?.keyword || '',
+            isTrash: params?.is_trash || false,
             status: params?.status || undefined
         }
     });
@@ -89,10 +89,11 @@ export interface CategoryStatusOption {
 
 export const getCategoryStatuses = async (): Promise<CategoryStatusOption[]> => {
     const response = await apiApp.get(`${BASE_URL}/statuses`);
-    const statuses = response.data?.data || [];
+    const raw = response.data?.data || response.data || [];
+    const statuses = Array.isArray(raw) ? raw : [];
     return statuses.map((status: any) => {
-        const code = status.code || status.value || "";
-        const name = status.name || status.label || code;
+        const code = status?.code || status?.value || "";
+        const name = status?.name || status?.label || code;
         return {
             code,
             name,

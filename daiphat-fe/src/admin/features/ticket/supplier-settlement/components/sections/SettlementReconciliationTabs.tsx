@@ -40,6 +40,7 @@ import {
     getImportBatchLineStatusLabel,
     getImportBatchStatusBadgeClass,
     getImportBatchStatusLabel,
+    getBatchTypeBadgeClass,
     getBatchTypeLabel,
     getImportModeLabel,
 } from '../../../import-batch/utils/batchTypeLabels';
@@ -486,8 +487,11 @@ const ImportBatchItem = ({
                                         <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>
                                             {stationNameFromInventory(line.lotteryStationId, inventoryByStation)}
                                         </TableCell>
-                                        <TableCell sx={{ color: '#475569', whiteSpace: 'nowrap' }}>
-                                            {getBatchTypeLabel(line.batchType)}
+                                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                            <AdminStatusBadge
+                                                label={getBatchTypeLabel(line.batchType)}
+                                                modifier={getBatchTypeBadgeClass(line.batchType)}
+                                            />
                                         </TableCell>
                                         <TableCell align="right" sx={{ color: '#64748b' }}>
                                             {(line.declareQuantity ?? 0).toLocaleString('vi-VN')}

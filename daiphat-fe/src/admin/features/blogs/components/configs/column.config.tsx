@@ -40,6 +40,7 @@ export const getColumnsConfig = (isTrash: boolean): GridColDef<BlogCategoryRespo
         field: "view",
         headerName: "Lượt xem",
         width: 140,
+        valueGetter: (value, row) => (row as any)?.viewCount ?? (row as any)?.view ?? value ?? 0,
     },
     {
         field: 'actions',

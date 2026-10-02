@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
@@ -20,23 +20,35 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
     const params = {
         page: page + 1,
         limit: pageSize,
-        keyword: search,
+        keyword: search || undefined,
         status: status.length > 0 ? status.join(',') : undefined,
         is_trash: isTrash || undefined,
     };
 
     const { data: res, isLoading } = useBlogCategories(params);
-    const categories = res?.data?.recordList || [];
-    const pagination = res?.data?.pagination || { totalRecords: 0 };
+
+    const categories = useMemo(() => {
+        const anyRes = res as any;
+        if (!anyRes) return [];
+        if (Array.isArray(anyRes.data?.recordList)) return anyRes.data.recordList;
+        if (Array.isArray(anyRes.recordList)) return anyRes.recordList;
+        if (Array.isArray(anyRes.data)) return anyRes.data;
+        if (Array.isArray(anyRes)) return anyRes;
+        return [];
+    }, [res]);
+
+    const pagination = (res as any)?.data?.pagination || (res as any)?.pagination || { totalRecords: categories.length };
+
+    const columns = useMemo(() => getColumnsConfig(isTrash), [isTrash]);
 
     return (
         <Card elevation={0} className="admin-datagrid-card">
             <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <LazyDataGrid
                     rows={categories}
-                    getRowId={(row) => row.id}
+                    getRowId={(row: any) => row?.id ?? row?._id}
                     loading={isLoading}
-                    columns={getColumnsConfig(isTrash)}
+                    columns={columns}
                     density="comfortable"
                     disableColumnMenu
                     disableColumnSorting

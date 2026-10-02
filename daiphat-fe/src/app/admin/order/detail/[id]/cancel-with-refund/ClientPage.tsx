@@ -7,5 +7,5 @@ import { PERMISSIONS } from '@/admin/constants/permission.constants';
 
 export const ClientPage = createAdminClientPage({
   component: OrderCancelWithRefundPage,
-  permission: PERMISSIONS.REFUND.PROCESS,
+  permissions: [PERMISSIONS.REFUND.PROCESS, PERMISSIONS.ORDER.EDIT, PERMISSIONS.ORDER.VIEW],
 });

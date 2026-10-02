@@ -30,14 +30,14 @@ export const useBlogs = (params?: BlogQueryParams) => {
         refetchIntervalInBackground: false,
         refetchOnWindowFocus: true,
         select: (res: ApiResponse<PageResponse<BlogPostResponse>>) => {
-            const data: any = res.data;
+            const data: any = res?.data || res;
             let records: BlogPostResponse[] = [];
             let pagination = { totalRecords: 0, totalPages: 0, currentPage: 1, limit: 10, isFirst: true, isLast: true };
 
             if (data && typeof data === 'object' && 'recordList' in data) {
-                records = data.recordList || [];
+                records = Array.isArray(data.recordList) ? data.recordList : [];
                 pagination = {
-                    totalRecords: data.pagination?.totalRecords || 0,
+                    totalRecords: data.pagination?.totalRecords || records.length,
                     totalPages: data.pagination?.totalPages || 0,
                     currentPage: data.pagination?.currentPage || 1,
                     limit: data.pagination?.limit || 10,
@@ -46,23 +46,23 @@ export const useBlogs = (params?: BlogQueryParams) => {
                 };
             } else if (Array.isArray(data)) {
                 records = data;
+                pagination.totalRecords = data.length;
             }
 
             return {
                 recordList: records.map((item: BlogPostResponse) => ({
                     ...item,
-                    // BE trả về đúng field – map thêm alias cho BlogList.tsx dùng
-                    id: item.id,
-                    title: item.title,
-                    featuredImage: item.thumbnail || null,
-                    viewCount: item.viewCount ?? 0,
-                    status: (item.status || BLOG_STATUS.DRAFT).toLowerCase(),
-                    createdAt: item.createdAt,
-                    updatedAt: item.updatedAt,
-                    category: item.category || null,
-                    tags: item.tags || [],
-                    slug: item.slug || '',
-                    scheduledAt: item.scheduledAt || ((item.status || '').toLowerCase() === BLOG_STATUS.SCHEDULED ? item.publishedAt : null) || null,
+                    id: item?.id,
+                    title: item?.title || '',
+                    featuredImage: item?.thumbnail || null,
+                    viewCount: item?.viewCount ?? 0,
+                    status: (item?.status || BLOG_STATUS.DRAFT).toLowerCase(),
+                    createdAt: item?.createdAt,
+                    updatedAt: item?.updatedAt,
+                    category: item?.category || null,
+                    tags: Array.isArray(item?.tags) ? item.tags : [],
+                    slug: item?.slug || '',
+                    scheduledAt: item?.scheduledAt || ((item?.status || '').toLowerCase() === BLOG_STATUS.SCHEDULED ? item?.publishedAt : null) || null,
                 })),
                 pagination,
                 statusCounts: {

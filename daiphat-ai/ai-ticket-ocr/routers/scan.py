@@ -13,6 +13,7 @@ from domain.scanning.grok_ticket_scan_service import GrokTicketScanService
 from domain.scanning.groq_ticket_scan_service import GroqTicketScanService
 from domain.scanning.llm_ticket_scan_service import resolve_recognition_engine
 from domain.scanning.ticket_scan_service import TicketScanService
+from domain.scanning.status_resolver import resolve_status
 from domain.validation.format_validator import FormatValidator
 from dto.request.scan_metadata import ScanMetadata
 from dto.response.scan_response import (
@@ -20,7 +21,7 @@ from dto.response.scan_response import (
     ScanResponse,
     TicketScanResult,
 )
-from domain.validation.format_validator import is_valid_serial_number
+from domain.validation.format_validator import SERIAL_PATTERN, is_valid_serial_number
 from infra.config import settings
 from infra import llm_circuit, llm_quota
 from infra.logger import logger
@@ -46,6 +47,85 @@ def _bbox_iou(a, b) -> float:
         return 0.0
     union = a.width * a.height + b.width * b.height - inter
     return inter / union if union > 0 else 0.0
+
+
+def _retry_missing_template_serials(
+    legacy_result: ScanResponse,
+    llm_result: ScanResponse,
+    image_bytes: bytes,
+    metadata: ScanMetadata,
+    legacy_service: TicketScanService,
+) -> ScanResponse:
+    """Use the issuer learned by the LLM to locate a missed per-ticket template.
+
+    A mixed-ticket image has no single request-level issuer. Its local pass may
+    miss a logo-only issuer, while the later LLM pass recognizes that issuer.
+    Only then retry that ticket's configured Serial region or symbol region.
+    """
+    retry = getattr(legacy_service, "retry_template_serial_for_known_station", None)
+    if not callable(retry):
+        return legacy_result
+    tickets = list(legacy_result.tickets or [])
+    if not tickets or not metadata.stationTemplates:
+        return legacy_result
+    consumed: set[int] = set()
+    for llm_ticket in llm_result.tickets or []:
+        extracted = llm_ticket.extracted
+        if not extracted:
+            continue
+        code = (extracted.stationCode or "").strip().casefold()
+        name = (extracted.stationName or "").strip().casefold()
+        code_match = next(
+            (s for s in metadata.activeStations if code and (s.code or "").casefold() == code),
+            None,
+        )
+        name_match = next(
+            (s for s in metadata.activeStations if name and s.name.casefold() == name),
+            None,
+        )
+        if code_match and name_match and code_match.id != name_match.id:
+            continue
+        station = code_match or name_match
+        if station is None or station.id is None:
+            continue
+        template = next(
+            (t for t in metadata.stationTemplates if t.stationId == station.id), None
+        )
+        if template is None or not any(
+            layout.fieldName in {"serialNumber", "serialSymbol"}
+            for layout in template.fieldLayouts
+        ):
+            continue
+        ranked = sorted(
+            ((i, _bbox_iou(ticket.bbox, llm_ticket.bbox))
+             for i, ticket in enumerate(tickets) if i not in consumed),
+            key=lambda pair: pair[1], reverse=True,
+        )
+        if not ranked or ranked[0][1] < 0.15:
+            continue
+        index = ranked[0][0]
+        consumed.add(index)
+        local = tickets[index]
+        local_extracted = local.extracted
+        if not local_extracted or SERIAL_PATTERN.fullmatch(local_extracted.serialNumber or ""):
+            continue
+        if "serialNumber" in (local.usedFieldLayouts or {}) or "serialSymbol" in (local.usedFieldLayouts or {}):
+            continue  # The correct template was already attempted; do not re-read it.
+        if local_extracted.stationCode and station.code and local_extracted.stationCode.casefold() != station.code.casefold():
+            continue
+        numbers = local_extracted.numbers if _numbers_ok(local_extracted.numbers) else extracted.numbers
+        numbers_confidence = (
+            float((local.fieldConfidences or {}).get("numbers") or 0.0)
+            if _numbers_ok(local_extracted.numbers)
+            else float((llm_ticket.fieldConfidences or {}).get("numbers") or 0.0)
+        )
+        try:
+            tickets[index] = retry(
+                image_bytes, metadata, local, station.id, numbers, numbers_confidence
+            )
+        except Exception:  # noqa: BLE001 -- keep the first OCR result on retry failure
+            logger.exception("Serial template retry failed for ticket #%s stationId=%s", index, station.id)
+    return legacy_result.model_copy(update={"tickets": tickets})
 
 
 def _field_nonempty(value: str | None) -> bool:
@@ -133,12 +213,39 @@ def _merge_boost_with_legacy(legacy_result: ScanResponse, llm_result: ScanRespon
             legacy_ticket.extracted if legacy_ticket else None,
             llm_ticket.extracted,
         )
+        # The selected template determines the source: tagged Serial first;
+        # only templates without that tag use numbers + serial symbol.
+        serial_layouts = set(legacy_ticket.usedFieldLayouts or {}) if legacy_ticket else set()
+        serial_boxes = set(legacy_ticket.sourceFieldBoxes or {}) if legacy_ticket else set()
+        direct_serial_tag = "serialNumber" in serial_layouts or "serialNumber" in serial_boxes
+        symbol_tag = "serialSymbol" in serial_layouts or "serialSymbol" in serial_boxes
+        template_serial_attempted = direct_serial_tag or symbol_tag
+        local_serial = legacy_ticket.extracted.serialNumber if template_serial_attempted and legacy_ticket.extracted else None
+        extracted.serialNumber = local_serial if SERIAL_PATTERN.fullmatch(local_serial or "") else None
+        template_batch_attempted = bool(
+            legacy_ticket and "batchCode" in (legacy_ticket.usedFieldLayouts or {})
+        )
+        if template_batch_attempted:
+            extracted.batchCode = legacy_ticket.extracted.batchCode if legacy_ticket.extracted else None
         field_boxes = dict(llm_ticket.fieldBoxes or {})
+        if not direct_serial_tag:
+            field_boxes.pop("serialNumber", None)
         if legacy_ticket and legacy_ticket.fieldBoxes:
             for name, box in legacy_ticket.fieldBoxes.items():
-                field_boxes.setdefault(name, box)
+                if name == "serialNumber":
+                    if direct_serial_tag:
+                        field_boxes[name] = box
+                else:
+                    field_boxes.setdefault(name, box)
 
         field_conf = dict(llm_ticket.fieldConfidences or {})
+        field_conf["serialNumber"] = 0.0
+        if symbol_tag and not direct_serial_tag:
+            field_conf["serialSymbol"] = float(
+                (legacy_ticket.fieldConfidences or {}).get("serialSymbol", 0.0)
+            )
+        if template_batch_attempted:
+            field_conf["batchCode"] = 0.0
         if legacy_ticket and legacy_ticket.fieldConfidences:
             for name, conf in legacy_ticket.fieldConfidences.items():
                 # Keep legacy confidence when we kept the legacy value.
@@ -146,6 +253,35 @@ def _merge_boost_with_legacy(legacy_result: ScanResponse, llm_result: ScanRespon
                 merged_val = getattr(extracted, name, None)
                 if legacy_val and merged_val and str(legacy_val) == str(merged_val):
                     field_conf[name] = max(float(field_conf.get(name, 0.0)), float(conf or 0.0))
+        if template_serial_attempted:
+            field_conf["serialNumber"] = (
+                float((legacy_ticket.fieldConfidences or {}).get("serialNumber", 0.0))
+                if extracted.serialNumber else 0.0
+            )
+
+        used_layouts = dict(llm_ticket.usedFieldLayouts or {})
+        source_field_boxes = dict(llm_ticket.sourceFieldBoxes or {})
+        if legacy_ticket:
+            used_layouts.update(legacy_ticket.usedFieldLayouts or {})
+            source_field_boxes.update(legacy_ticket.sourceFieldBoxes or {})
+        if not direct_serial_tag:
+            used_layouts.pop("serialNumber", None)
+            source_field_boxes.pop("serialNumber", None)
+
+        status = llm_ticket.status
+        confidence = llm_ticket.confidence
+        missing_fields = llm_ticket.missingFields
+        validation_errors = llm_ticket.validationErrors
+        if template_serial_attempted or template_batch_attempted or extracted.serialNumber is None:
+            validation = FormatValidator().validate(extracted)
+            status, confidence = resolve_status(
+                field_conf,
+                validation,
+                settings.TICKET_VISION_HIGH_CONFIDENCE_THRESHOLD,
+                settings.TICKET_VISION_LOW_CONFIDENCE_THRESHOLD,
+            )
+            missing_fields = validation.missing_fields
+            validation_errors = validation.errors
 
         cropped = llm_ticket.croppedImageBase64 or (
             legacy_ticket.croppedImageBase64 if legacy_ticket else None
@@ -161,6 +297,12 @@ def _merge_boost_with_legacy(legacy_result: ScanResponse, llm_result: ScanRespon
                     "extracted": extracted,
                     "fieldBoxes": field_boxes,
                     "fieldConfidences": field_conf,
+                    "usedFieldLayouts": used_layouts,
+                    "sourceFieldBoxes": source_field_boxes,
+                    "status": status,
+                    "confidence": confidence,
+                    "missingFields": missing_fields,
+                    "validationErrors": validation_errors,
                     "croppedImageBase64": cropped,
                     "bbox": legacy_ticket.bbox if legacy_ticket else llm_ticket.bbox,
                 }
@@ -258,6 +400,14 @@ def _should_fallback_to_legacy(engine: str) -> bool:
 
 def _legacy_first_enabled() -> bool:
     return bool(getattr(settings, "TICKET_VISION_LEGACY_FIRST", True))
+
+
+def _has_serial_template(scan_metadata: ScanMetadata) -> bool:
+    """Serial values require the issuer's tagged region or tagged symbol."""
+    layouts = list(scan_metadata.fieldLayouts or [])
+    for template in scan_metadata.stationTemplates or []:
+        layouts.extend(template.fieldLayouts or [])
+    return any(layout.fieldName in {"serialNumber", "serialSymbol"} for layout in layouts)
 
 
 def _legacy_skip_llm_min_confidence() -> float:
@@ -524,6 +674,9 @@ def _scan_legacy_first(
                 llm_result.ticketCount,
                 int(round(llm_ms)),
             )
+            legacy_result = _retry_missing_template_serials(
+                legacy_result, llm_result, image_bytes, scan_metadata, legacy_service
+            )
             merged = _merge_boost_with_legacy(legacy_result, llm_result)
             return _annotate_ops(merged, engine)
         return _keep_legacy_result(
@@ -593,7 +746,9 @@ def _scan_image_sync(
                 "Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công."
             )
 
-    if engine in _LLM_ENGINES and _legacy_first_enabled():
+    if engine in _LLM_ENGINES and (
+        _legacy_first_enabled() or _has_serial_template(scan_metadata)
+    ):
         try:
             return _scan_legacy_first(
                 engine=engine,

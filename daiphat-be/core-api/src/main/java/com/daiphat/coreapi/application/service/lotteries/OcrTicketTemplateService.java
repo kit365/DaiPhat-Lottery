@@ -37,7 +37,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
-
     private final OcrTicketTemplateRepositoryPort templateRepositoryPort;
     private final OcrFieldLayoutRepositoryPort fieldLayoutRepositoryPort;
     private final OcrFieldValidationRuleRepositoryPort validationRuleRepositoryPort;
@@ -281,7 +280,9 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
                         .dataType(isFrame || request.dataType() == null
                                 ? OcrFieldDataType.STRING
                                 : request.dataType())
-                        .required(!isFrame && (request.isRequired() == null || request.isRequired()))
+                        .required(!isFrame
+                                && request.fieldName() != OcrTemplateFieldName.serialSymbol
+                                && (request.isRequired() == null || request.isRequired()))
                         .priority(priority)
                         .build()
         );
@@ -348,7 +349,8 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
         if (request.isRequired() != null) {
             model.setRequired(request.isRequired());
         }
-        if (nextFieldName != null && nextFieldName.isTicketFrame()) {
+        if (nextFieldName != null
+                && (nextFieldName.isTicketFrame() || nextFieldName == OcrTemplateFieldName.serialSymbol)) {
             model.setRequired(false);
         }
         return toLayoutResponse(fieldLayoutRepositoryPort.save(model));

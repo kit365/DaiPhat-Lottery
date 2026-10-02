@@ -10,12 +10,18 @@ from domain.ocr.base import DEFAULT_LANGUAGES, OcrStrategy, OcrTextResult
 from domain.parsing.ticket_parser import TicketParser
 from domain.scanning import template_field_locator as locator
 from domain.stations.matcher import StationMatcher
-from dto.request.scan_metadata import FieldLayoutMetadata, ScanMetadata, StationTemplateMetadata
+from dto.request.scan_metadata import FieldLayoutMetadata, ScanMetadata, StationMetadata, StationTemplateMetadata
+from dto.response.scan_response import BoundingBox, ExtractedTicketFields, TicketScanResult
+from domain.enums.ticket_status import TicketStatus
 
 cv2 = pytest.importorskip("cv2")
 
 from domain.detection.base import DetectedRegion  # noqa: E402
-from domain.scanning.ticket_scan_service import TicketScanService, _TemplateContext  # noqa: E402
+from domain.scanning.ticket_scan_service import (  # noqa: E402
+    TicketScanService,
+    _TemplateContext,
+    _combine_serial_symbol,
+)
 from domain.validation.format_validator import FormatValidator  # noqa: E402
 
 
@@ -301,11 +307,191 @@ def test_template_strategy_uses_station_template_and_reocrs_weak_fields(sample_s
     assert result.extracted.numbers == "123456"
     assert result.extracted.drawDate == "2026-08-05"
     assert result.extracted.serialNumber == "188435S"
-    # Numbers/date came from the whole read; only the serial crop was re-OCR'd.
-    assert [hint for hint in ocr.calls if hint is not None] == ["serialNumber"]
+    assert "serialNumber" in ocr.calls
     assert {"numbers", "drawDate", "serialNumber", "stationName"} <= set(result.fieldBoxes)
     numbers_box = result.fieldBoxes["numbers"]
     assert 0.40 * 800 <= numbers_box.y <= 0.55 * 800
+
+
+@pytest.mark.parametrize("serial_read, expected", [("188435S", "188435S"), ("AB01", None), (None, None)])
+def test_serial_tag_takes_priority_over_symbol_even_when_unreadable(sample_stations, serial_read, expected):
+    template = StationTemplateMetadata(
+        stationId=2,
+        templateId=28,
+        fieldLayouts=[
+            _layout("stationName", 0.1, 0.04, 0.8, 0.12),
+            _layout("serialNumber", 0.3, 0.30, 0.4, 0.10),
+            _layout("serialSymbol", 0.05, 0.30, 0.1, 0.10, layout_id=47),
+            _layout("numbers", 0.1, 0.45, 0.8, 0.20),
+            _layout("drawDate", 0.05, 0.75, 0.5, 0.10),
+        ],
+    )
+    ocr = _FieldHintOcr(
+        whole=[line for line in _WHOLE_LINES if line.text != "188435"],
+        by_field={
+            "serialNumber": [OcrTextResult(text=serial_read, confidence=0.9)] if serial_read else [],
+            "serialSymbol": [OcrTextResult(text="u", confidence=0.9)],
+        },
+    )
+    service = _service(ocr)
+    parser = TicketParser(StationMatcher(sample_stations), station_fuzzy_threshold=80)
+    image, region = _ticket_region()
+    ctx = _TemplateContext(stations=sample_stations, station_templates=[template])
+
+    result = service._scan_one_region_with_template(
+        image, region, 0, parser, {}, ctx, fallback_region=region, fallback_field_boxes={}
+    )
+
+    assert result.extracted.numbers == "123456"
+    assert result.extracted.serialNumber == expected
+    assert "serialNumber" in ocr.calls
+    assert "serialSymbol" not in ocr.calls
+    assert "serialSymbol" not in result.usedFieldLayouts
+
+
+def test_serial_region_remains_primary_when_symbol_is_also_tagged(sample_stations):
+    template = StationTemplateMetadata(
+        stationId=2,
+        templateId=29,
+        fieldLayouts=[*_TEMPLATE.fieldLayouts, _layout("serialSymbol", 0.85, 0.30, 0.1, 0.10)],
+    )
+    ocr = _FieldHintOcr(
+        whole=_WHOLE_LINES,
+        by_field={
+            "serialNumber": [OcrTextResult(text="188435S", confidence=0.9)],
+            "serialSymbol": [OcrTextResult(text="U", confidence=0.9)],
+        },
+    )
+    service = _service(ocr)
+    parser = TicketParser(StationMatcher(sample_stations), station_fuzzy_threshold=80)
+    image, region = _ticket_region()
+    ctx = _TemplateContext(stations=sample_stations, station_templates=[template])
+
+    result = service._scan_one_region_with_template(
+        image, region, 0, parser, {}, ctx, fallback_region=region, fallback_field_boxes={}
+    )
+
+    assert result.extracted.serialNumber == "188435S"
+    assert "serialSymbol" not in ocr.calls
+    assert "serialNumber" in ocr.calls
+
+
+@pytest.mark.parametrize(
+    "field_name, ocr_text, expected",
+    [("serialNumber", "188435S", "188435S"), ("serialSymbol", "G", "123456G")],
+)
+def test_known_station_retries_its_serial_template_after_local_issuer_miss(
+    sample_stations, field_name, ocr_text, expected
+):
+    template = StationTemplateMetadata(
+        stationId=2,
+        templateId=42,
+        fieldLayouts=[
+            _layout(field_name, 0.1, 0.3, 0.8, 0.1, layout_id=77),
+        ],
+    )
+    ocr = _FieldHintOcr(whole=[], by_field={field_name: [OcrTextResult(text=ocr_text, confidence=0.9)]})
+    service = _service(ocr)
+    image, region = _ticket_region()
+    ok, encoded = cv2.imencode(".png", image)
+    assert ok
+    metadata = ScanMetadata(
+        activeStations=[StationMetadata(id=s.id, name=s.name, code=s.code) for s in sample_stations],
+        stationTemplates=[template],
+    )
+    ticket = TicketScanResult(
+        ticketIndex=0,
+        bbox=BoundingBox(x=0, y=0, width=400, height=800,
+                         corners=[[0, 0], [399, 0], [399, 799], [0, 799]]),
+        status=TicketStatus.INCOMPLETE,
+        confidence=0.5,
+        extracted=ExtractedTicketFields(numbers="123456"),
+        fieldConfidences={"numbers": 0.95, "serialNumber": 0.0},
+        missingFields=["stationName", "serialNumber"],
+    )
+
+    result = service.retry_template_serial_for_known_station(
+        encoded.tobytes(), metadata, ticket, station_id=2, numbers="123456", numbers_confidence=0.95
+    )
+
+    assert result.extracted.serialNumber == expected
+    assert result.usedFieldLayouts[field_name] == 77
+    assert field_name in result.sourceFieldBoxes
+    assert field_name in ocr.calls
+    assert result.extracted.numbers == "123456"
+    assert result.fieldConfidences["serialNumber"] == pytest.approx(0.9)
+
+
+def test_known_station_retry_does_not_use_symbol_when_direct_serial_tag_is_unreadable(sample_stations):
+    template = StationTemplateMetadata(
+        stationId=2, templateId=43, fieldLayouts=[
+            _layout("serialNumber", 0.1, 0.3, 0.8, 0.1, layout_id=78),
+            _layout("serialSymbol", 0.1, 0.5, 0.1, 0.1, layout_id=79),
+        ],
+    )
+    ocr = _FieldHintOcr(
+        whole=[], by_field={"serialNumber": [], "serialSymbol": [OcrTextResult(text="G", confidence=0.9)]}
+    )
+    image, _ = _ticket_region()
+    ok, encoded = cv2.imencode(".png", image)
+    assert ok
+    ticket = TicketScanResult(
+        ticketIndex=0,
+        bbox=BoundingBox(x=0, y=0, width=400, height=800,
+                         corners=[[0, 0], [399, 0], [399, 799], [0, 799]]),
+        status=TicketStatus.INCOMPLETE, confidence=0.5,
+        extracted=ExtractedTicketFields(numbers="123456"),
+    )
+    metadata = ScanMetadata(
+        activeStations=[StationMetadata(id=s.id, name=s.name, code=s.code) for s in sample_stations],
+        stationTemplates=[template],
+    )
+
+    result = _service(ocr).retry_template_serial_for_known_station(
+        encoded.tobytes(), metadata, ticket, 2, "123456", 0.95
+    )
+
+    assert result.extracted.serialNumber is None
+    assert result.usedFieldLayouts == {"serialNumber": 78}
+    assert "serialSymbol" not in ocr.calls
+
+
+def test_separate_serial_symbol_rejects_bad_letter_and_bad_numeric_serial():
+    assert _combine_serial_symbol("123456", "UV") is None
+    assert _combine_serial_symbol("123456", "7") is None
+    assert _combine_serial_symbol("AB01", "U") is None
+    assert _combine_serial_symbol(None, "U") is None
+    assert _combine_serial_symbol("2026", "U") is None
+    assert _combine_serial_symbol("12345", "U", 5) == "12345U"
+
+
+@pytest.mark.parametrize("symbol_read, expected", [("G", "123456G"), ("UV", None), (None, None)])
+def test_serial_symbol_fallback_works_without_serial_region(sample_stations, symbol_read, expected):
+    template = StationTemplateMetadata(
+        stationId=2,
+        templateId=30,
+        fieldLayouts=[
+            _layout("stationName", 0.1, 0.04, 0.8, 0.12),
+            _layout("serialSymbol", 0.85, 0.30, 0.1, 0.10, layout_id=48),
+            _layout("numbers", 0.1, 0.45, 0.8, 0.20),
+            _layout("drawDate", 0.05, 0.75, 0.5, 0.10),
+        ],
+    )
+    ocr = _FieldHintOcr(
+        whole=[*_WHOLE_LINES, _line("987654Q", 0.7, 0.25)],
+        by_field={"serialSymbol": [OcrTextResult(text=symbol_read, confidence=0.9)] if symbol_read else []},
+    )
+    service = _service(ocr)
+    parser = TicketParser(StationMatcher(sample_stations), station_fuzzy_threshold=80)
+    image, region = _ticket_region()
+    ctx = _TemplateContext(stations=sample_stations, station_templates=[template])
+
+    result = service._scan_one_region_with_template(
+        image, region, 0, parser, {}, ctx, fallback_region=region, fallback_field_boxes={}
+    )
+
+    assert result.extracted.serialNumber == expected
+    assert result.usedFieldLayouts["serialSymbol"] == 48
 
 
 def test_template_strategy_maps_fields_through_ticket_frame(sample_stations):
@@ -627,6 +813,36 @@ def test_template_field_left_empty_rather_than_guessed_elsewhere(sample_stations
 
     assert result.extracted.numbers == "123456"
     assert result.extracted.batchCode is None
+
+
+def test_tagged_lot_crop_joins_fragments_before_mapping(sample_stations):
+    template = StationTemplateMetadata(
+        stationId=2,
+        templateId=31,
+        fieldLayouts=[
+            _layout("stationName", 0.1, 0.04, 0.8, 0.12),
+            _layout("numbers", 0.1, 0.45, 0.8, 0.20),
+            _layout("batchCode", 0.05, 0.70, 0.30, 0.10, layout_id=49),
+        ],
+    )
+    ocr = _FieldHintOcr(
+        whole=_WHOLE_LINES,
+        by_field={"batchCode": [
+            _line("47", 0.1, 0.5), _line("VL", 0.3, 0.5), _line("33", 0.5, 0.5),
+        ]},
+    )
+    service = _service(ocr)
+    parser = TicketParser(StationMatcher(sample_stations), station_fuzzy_threshold=80)
+    image, region = _ticket_region()
+    ctx = _TemplateContext(stations=sample_stations, station_templates=[template])
+
+    result = service._scan_one_region_with_template(
+        image, region, 0, parser, {}, ctx, fallback_region=region, fallback_field_boxes={}
+    )
+
+    assert result.extracted.batchCode == "47VL33"
+    assert result.usedFieldLayouts["batchCode"] == 49
+    assert result.fieldConfidences["batchCode"] > 0
 
 
 def test_template_strategy_falls_back_to_generic_without_station_template(sample_stations):

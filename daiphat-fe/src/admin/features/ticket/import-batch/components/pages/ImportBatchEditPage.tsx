@@ -1527,6 +1527,23 @@ export const ImportBatchEditPage = () => {
 
 
                             {/* Blocked stations info */}
+                            {lines.some((line) => line.id && line.removed) && (
+                                <Box sx={{ px: 3, pt: 2 }}>
+                                    <Alert severity="warning" sx={{ borderRadius: '10px' }}
+                                        action={
+                                            <Button type="button" color="inherit" size="small"
+                                                disabled={isSaving || isPending}
+                                                onClick={handleSubmit(onSubmit)}>
+                                                Lưu thay đổi
+                                            </Button>
+                                        }>
+                                        Đang chờ xóa: {lines.filter((line) => line.id && line.removed)
+                                            .map((line) => line.stationName || `Đài #${line.lotteryStationId}`).join(', ')}.
+                                        {' '}Bấm “Lưu thay đổi” để hoàn tất xóa
+                                        và cập nhật trạng thái phiếu; trước khi lưu, dữ liệu trên hệ thống chưa thay đổi.
+                                    </Alert>
+                                </Box>
+                            )}
                             {blockedStations.length > 0 && (
                                 <Box sx={{ px: 3, pt: 2.5 }}>
                                     <Box
@@ -1543,12 +1560,12 @@ export const ImportBatchEditPage = () => {
                                         <Stack direction="row" spacing={1} alignItems="center">
                                             <InfoOutlinedIcon sx={{ color: '#0284c7', fontSize: '1.25rem' }} />
                                             <Typography variant="body2" fontWeight={700} color="#0369a1">
-                                                Một số nhà đài trong kỳ quay này đã có phiếu nhập nháp:
+                                                Một số nhà đài trong kỳ quay này có phiếu nhập khác chưa hoàn tất:
                                             </Typography>
                                         </Stack>
 
                                         <Typography variant="caption" color="#0369a1" sx={{ mt: -0.5, opacity: 0.9 }}>
-                                            Các nhà đài dưới đây đã được tạo phiếu nhập trước đó. Bạn có thể mở phiếu nháp hiện có để tiếp tục xử lý:
+                                            Thông tin dưới đây lấy từ các phiếu khác đã lưu trên hệ thống, không phải các dòng đang chỉnh sửa của phiếu này. Mở đúng phiếu để kiểm tra hoặc tiếp tục xử lý:
                                         </Typography>
 
                                         <Box

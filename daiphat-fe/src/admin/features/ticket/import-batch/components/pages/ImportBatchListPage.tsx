@@ -32,6 +32,10 @@ import { MissingStationImportBatchNotification } from '../sections/MissingStatio
 import { ImportBatchIntakeStatusBanner } from '../sections/ImportBatchIntakeStatusBanner';
 import { OcrTicketImportDialog } from '../../../ocr-import/components/OcrTicketImportDialog';
 import { OCR_IMPORT_DRAFT_KEY } from '../../../ocr-import/types/ticketOcr.type';
+import { useHasPendingOcrImportDraft } from '../../../ocr-import/utils/ocrImportDraftStorage';
+
+const PENDING_OCR_FILE_IMPORT_TOOLTIP =
+    'Đang có bản quét OCR chưa nhập kho. Vui lòng tiếp tục hoặc hủy bản quét trước khi nhập vé bằng tệp.';
 
 export const ImportBatchListPage = () => {
     const router = useAdminRouter();
@@ -44,6 +48,7 @@ export const ImportBatchListPage = () => {
     const [ocrImportOpen, setOcrImportOpen] = useState(false);
     const [ocrRestoreFromDraft, setOcrRestoreFromDraft] = useState(false);
     const [ocrRestoreBatchId, setOcrRestoreBatchId] = useState<number | null>(null);
+    const hasPendingOcrDraft = useHasPendingOcrImportDraft();
     const [tab, setTab] = useState<'BATCHES' | 'FILE_JOBS'>('BATCHES');
     const todayIntake = useTodayImportIntakeSummary();
 
@@ -134,7 +139,7 @@ export const ImportBatchListPage = () => {
                 </div>
                 <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                     <Tooltip title={todayIntakeBlockedTooltip}>
-                        <span>
+                        <Box component="span" sx={{ position: 'relative', display: 'inline-flex' }}>
                             <LoadingButton
                                 onClick={() => setOcrImportOpen(true)}
                                 label="Nhập vé bằng OCR"
@@ -145,14 +150,24 @@ export const ImportBatchListPage = () => {
                                     padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
                                 }}
                             />
-                        </span>
+                            {hasPendingOcrDraft && (
+                                <Box
+                                    aria-label="Có bản quét OCR chưa nhập kho"
+                                    sx={{
+                                        position: 'absolute', top: -4, right: -4, width: 10, height: 10,
+                                        borderRadius: '50%', bgcolor: '#f97316', border: '2px solid #fff',
+                                    }}
+                                />
+                            )}
+                        </Box>
                     </Tooltip>
                 </CanAccess>
                 <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                    <Tooltip title={todayIntakeBlockedTooltip}>
+                    <Tooltip title={hasPendingOcrDraft ? PENDING_OCR_FILE_IMPORT_TOOLTIP : todayIntakeBlockedTooltip}>
                         <span>
                             <LoadingButton
                                 onClick={() => setFileImportOpen(true)}
+                                disabled={hasPendingOcrDraft}
                                 label="Nhập từ tệp"
                                 startIcon={<UploadFileOutlinedIcon />}
                                 variant="outlined"

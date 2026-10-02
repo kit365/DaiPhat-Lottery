@@ -405,7 +405,6 @@ export const MatchingActualsForm = ({
     const [compareModalOpen, setCompareModalOpen] = useState(false);
     const [compareLeftTab, setCompareLeftTab] = useState<'receipt' | 'ticketList'>('receipt');
     const [returnBatchesDialogOpen, setReturnBatchesDialogOpen] = useState(false);
-    const [returnHandoverConfirmOpen, setReturnHandoverConfirmOpen] = useState(false);
     const [localImportReceiptById, setLocalImportReceiptById] = useState<Record<number, string>>({});
     const [localTicketListImagesById, setLocalTicketListImagesById] = useState<Record<number, string[]>>({});
     const [pendingImportReceiptFileById, setPendingImportReceiptFileById] = useState<Record<number, File | null>>({});
@@ -630,6 +629,12 @@ export const MatchingActualsForm = ({
         () => (returnBatches || []).find((b) => b.status && b.status !== 'CANCELLED') || returnBatches[0] || null,
         [returnBatches]
     );
+
+    const hasUnhandedReturnBatches = useMemo(() => {
+        return (returnBatches || []).some(
+            (b) => b.status && b.status !== 'CANCELLED' && !isReturnBatchHandedOver(b.status)
+        );
+    }, [returnBatches]);
 
     const isReturnOverdue = useMemo(
         () =>
@@ -1633,6 +1638,9 @@ export const MatchingActualsForm = ({
                 `Số lượng trả thực tế không được vượt quá ${systemReturnQty.toLocaleString('vi-VN')} vé (số lượng hệ thống)`
             );
         }
+        if (hasUnhandedReturnBatches) {
+            items.push('Hoàn tất bàn giao các phiếu trả vé trước khi đối chiếu');
+        }
         return items;
     }, [
         hasAllRequiredInputs,
@@ -1653,6 +1661,7 @@ export const MatchingActualsForm = ({
         systemReturnQty,
         returnLockDetails.beforeStart,
         returnLockDetails.summaryMessage,
+        hasUnhandedReturnBatches,
     ]);
 
     const highlightActualPaid = isActualPaidEmpty;
@@ -2073,8 +2082,8 @@ export const MatchingActualsForm = ({
             submitMatching();
             return;
         }
-        if (isReturnLocked) {
-            setReturnHandoverConfirmOpen(true);
+        if (hasUnhandedReturnBatches) {
+            AppToast.warning('Phiếu trả vé chưa ở trạng thái đã bàn giao. Vui lòng hoàn tất bàn giao trước khi xác nhận đối chiếu.');
             return;
         }
         submitMatching();
@@ -4933,15 +4942,44 @@ export const MatchingActualsForm = ({
 
                     {/* Unified Bottom Action Bar */}
                     <Stack
-                        direction="row"
-                        alignItems="center"
-                        justifyContent="flex-end"
-                        spacing={1.5}
+                        direction={{ xs: 'column', md: 'row' }}
+                        alignItems={{ xs: 'stretch', md: 'center' }}
+                        justifyContent="space-between"
+                        spacing={2}
                         sx={{
                             pt: 2,
                             borderTop: '1px solid #f1f5f9',
                         }}
                     >
+                        {hasUnhandedReturnBatches ? (
+                            <Stack
+                                direction="row"
+                                spacing={1.25}
+                                alignItems="center"
+                                sx={{
+                                    bgcolor: '#fffbeb',
+                                    border: '1px solid #fde68a',
+                                    borderRadius: '10px',
+                                    px: 2,
+                                    py: 1,
+                                    maxWidth: { xs: '100%', md: '65%' },
+                                }}
+                            >
+                                <WarningAmberOutlinedIcon sx={{ color: '#d97706', fontSize: '1.25rem', flexShrink: 0 }} />
+                                <Typography variant="body2" fontWeight={700} color="#92400e" sx={{ fontSize: '0.825rem' }}>
+                                    Phiếu trả vé chưa ở trạng thái đã bàn giao. Vui lòng hoàn tất bàn giao phiếu trả trước khi xác nhận đối chiếu.
+                                </Typography>
+                            </Stack>
+                        ) : (
+                            <Box />
+                        )}
+
+                        <Stack
+                            direction="row"
+                            alignItems="center"
+                            justifyContent="flex-end"
+                            spacing={1.5}
+                        >
                         {onCancelEdit && (
                             <Button
                                 variant="outlined"
@@ -4970,12 +5008,18 @@ export const MatchingActualsForm = ({
                         )}
 
                         <Tooltip
-                            title={submitBlockers.length > 0 ? submitBlockers.join(' · ') : ''}
+                            title={
+                                hasUnhandedReturnBatches
+                                    ? 'Phiếu trả vé chưa ở trạng thái đã bàn giao. Vui lòng hoàn tất bàn giao trước khi xác nhận đối chiếu.'
+                                    : submitBlockers.length > 0
+                                        ? submitBlockers.join(' · ')
+                                        : ''
+                            }
                         >
                             <span>
                                 <Button
                                     variant="contained"
-                                    disabled={!canSubmit || isSubmitting}
+                                    disabled={!canSubmit || isSubmitting || hasUnhandedReturnBatches}
                                     onClick={handleSubmit}
                                     startIcon={
                                         isSubmitting ? (
@@ -5015,183 +5059,13 @@ export const MatchingActualsForm = ({
                                 </Button>
                             </span>
                         </Tooltip>
+                        </Stack>
                     </Stack>
                 </Paper>
             </Stack>
 
 
-            {/* Redesigned Return Batch Handover Confirmation Modal */}
-            <Dialog
-                open={returnHandoverConfirmOpen}
-                onClose={() => setReturnHandoverConfirmOpen(false)}
-                maxWidth="sm"
-                fullWidth
-                slotProps={{
-                    paper: {
-                        sx: {
-                            borderRadius: '20px',
-                            overflow: 'hidden',
-                            boxShadow: '0 24px 48px -12px rgba(15, 23, 42, 0.25)',
-                        },
-                    },
-                }}
-            >
-                <DialogTitle
-                    sx={{
-                        p: 3,
-                        pb: 2,
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        justifyContent: 'space-between',
-                        gap: 2,
-                    }}
-                >
-                    <Stack direction="row" spacing={2} alignItems="center">
-                        <Box
-                            sx={{
-                                width: 46,
-                                height: 46,
-                                borderRadius: '14px',
-                                bgcolor: 'rgba(245, 158, 11, 0.12)',
-                                color: '#d97706',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                                border: '1px solid rgba(245, 158, 11, 0.2)',
-                            }}
-                        >
-                            <WarningAmberOutlinedIcon sx={{ fontSize: 26 }} />
-                        </Box>
-                        <Box>
-                            <Typography variant="h6" fontWeight={800} color="#0f172a">
-                                Phiếu trả chưa hoàn tất bàn giao
-                            </Typography>
-                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
-                                <AdminStatusBadge
-                                    label="Chưa bàn giao (PENDING)"
-                                    modifier="admin-status-badge--pending"
-                                />
-                            </Stack>
-                        </Box>
-                    </Stack>
-                    <IconButton
-                        size="small"
-                        onClick={() => setReturnHandoverConfirmOpen(false)}
-                        sx={{
-                            color: '#94a3b8',
-                            bgcolor: '#f1f5f9',
-                            '&:hover': { bgcolor: '#e2e8f0', color: '#334155' },
-                        }}
-                    >
-                        <CloseIcon fontSize="small" />
-                    </IconButton>
-                </DialogTitle>
 
-                <DialogContent sx={{ px: 3, py: 1.5 }}>
-                    <Stack spacing={2}>
-                        {/* Notice Card */}
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 2,
-                                borderRadius: '12px',
-                                bgcolor: '#fffbeb',
-                                border: '1px solid #fde68a',
-                            }}
-                        >
-                            <Typography variant="body2" fontWeight={700} color="#92400e" sx={{ mb: 0.5 }}>
-                                Phiếu trả vé chưa ở trạng thái ĐÃ BÀN GIAO hoặc chưa hoàn tất kiểm tra.
-                            </Typography>
-                            <Typography variant="caption" color="#b45309">
-                                Phiếu trả có thể đang trong quá trình chuyển phát hoặc chưa được ký biên nhận thực tế với nhà cung cấp.
-                            </Typography>
-                        </Paper>
-
-                        {/* Informational Guidance Box */}
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 2,
-                                borderRadius: '12px',
-                                bgcolor: '#f8fafc',
-                                border: '1px solid #e2e8f0',
-                            }}
-                        >
-                            <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 1, display: 'block' }}>
-                                Điều gì sẽ xảy ra khi bạn xác nhận?
-                            </Typography>
-                            <Stack spacing={1}>
-                                <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                                    <Box component="span" sx={{ color: '#2563eb', fontWeight: 800, fontSize: '0.85rem' }}>
-                                        •
-                                    </Box>
-                                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                                        <strong>Số liệu đối soát:</strong> Hệ thống sẽ tạm dùng số lượng vé trả hiện có trên phiếu để tính toán công nợ và quyết toán.
-                                    </Typography>
-                                </Stack>
-                                <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                                    <Box component="span" sx={{ color: '#d97706', fontWeight: 800, fontSize: '0.85rem' }}>
-                                        •
-                                    </Box>
-                                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                                        <strong>Khuyến nghị:</strong> Bạn vẫn nên hoàn tất quy trình bàn giao phiếu trả thực tế khi có thể để lưu đầy đủ chứng từ.
-                                    </Typography>
-                                </Stack>
-                            </Stack>
-                        </Paper>
-                    </Stack>
-                </DialogContent>
-
-                <DialogActions
-                    sx={{
-                        p: 2.5,
-                        px: 3,
-                        bgcolor: '#f8fafc',
-                        borderTop: '1px solid #e2e8f0',
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        gap: 1.5,
-                    }}
-                >
-                    <Button
-                        variant="outlined"
-                        onClick={() => setReturnHandoverConfirmOpen(false)}
-                        sx={{
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            color: '#475569',
-                            borderColor: '#cbd5e1',
-                            borderRadius: '10px',
-                            px: 2.5,
-                            py: 1,
-                            '&:hover': { bgcolor: '#f1f5f9', borderColor: '#94a3b8' },
-                        }}
-                    >
-                        Hủy bỏ
-                    </Button>
-                    <Button
-                        variant="contained"
-                        onClick={() => {
-                            setReturnHandoverConfirmOpen(false);
-                            submitMatching();
-                        }}
-                        sx={{
-                            textTransform: 'none',
-                            fontWeight: 800,
-                            borderRadius: '10px',
-                            bgcolor: '#FF3030',
-                            color: '#ffffff',
-                            px: 3,
-                            py: 1,
-                            boxShadow: '0 4px 14px rgba(255, 48, 48, 0.3)',
-                            '&:hover': { bgcolor: '#e02828' },
-                        }}
-                    >
-                        Vẫn xác nhận đối chiếu
-                    </Button>
-                </DialogActions>
-            </Dialog>
 
             {/* Local Image Zoom Dialog fallback */}
             <Dialog

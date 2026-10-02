@@ -5,6 +5,8 @@ import type {
     AttachReturnSerialsPayload,
     ConfirmReturnHandoverPayload,
     ConfirmReturnInspectionPayload,
+    InspectableReturnTicketParams,
+    InspectableReturnTicketsResponse,
     InspectableReturnSerial,
     ReturnBatch,
     ReturnBatchLineStatus,
@@ -34,6 +36,17 @@ export const getInspectableReturnSerials = async (
     id: number | string
 ): Promise<ApiResponse<InspectableReturnSerial[]>> => {
     const response = await apiApp.get(`${BASE_URL}/${id}/inspectable-serials`, withAuthHeaders());
+    return response.data;
+};
+
+export const getInspectableReturnTickets = async (
+    id: number | string,
+    params?: InspectableReturnTicketParams
+): Promise<ApiResponse<InspectableReturnTicketsResponse>> => {
+    const response = await apiApp.get(`${BASE_URL}/${id}/inspectable-tickets`, {
+        ...withAuthHeaders(),
+        params,
+    });
     return response.data;
 };
 

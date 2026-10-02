@@ -2,12 +2,15 @@ package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.ticket.persiste
 
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnInspectableSerialData;
+import com.daiphat.coreapi.application.port.out.lotteries.ReturnInspectableStationSummaryData;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.lotteries.SettlementStationInventoryRow;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.LotteryTicketSerialPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -15,6 +18,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -284,26 +288,96 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
         return lotteryTicketSerialRepository
                 .findInStockForSupplierAndDrawDate(supplierId, drawDate, ids, stationIdsEmpty)
                 .stream()
-                .map(entity -> {
-                    var ticket = entity.getTicket();
-                    var station = ticket != null ? ticket.getStation() : null;
-                    var line = entity.getImportBatchLine();
-                    return new ReturnInspectableSerialData(
-                            entity.getId(),
-                            entity.getSerialNumber(),
-                            entity.getStatus(),
-                            entity.getTicketCondition(),
-                            ticket != null ? ticket.getId() : null,
-                            ticket != null ? ticket.getNumbers() : null,
-                            ticket != null ? ticket.getDrawDate() : null,
-                            station != null ? station.getId() : null,
-                            station != null ? station.getName() : null,
-                            line != null ? line.getId() : null,
-                            line != null ? line.getImportCost() : null,
-                            ticket != null ? ticket.getPriceSnapshot() : null
-                    );
-                })
+                .map(this::toReturnInspectableSerialData)
                 .toList();
+    }
+
+    @Override
+    public Page<Long> findReturnEligibleTicketIds(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds,
+            Long lotteryStationId,
+            String search,
+            Pageable pageable
+    ) {
+        boolean stationIdsEmpty = stationIds == null || stationIds.isEmpty();
+        Collection<Long> ids = stationIdsEmpty ? List.of(-1L) : stationIds;
+        // Keep the JPQL parameter non-null and typed as text. PostgreSQL otherwise
+        // infers a null parameter used by LOWER/CONCAT as bytea (SQLState 42883).
+        String normalizedSearch = search == null || search.isBlank()
+                ? ""
+                : search.trim().toLowerCase(Locale.ROOT);
+        return lotteryTicketSerialRepository.findReturnEligibleTicketIds(
+                supplierId,
+                drawDate,
+                ids,
+                stationIdsEmpty,
+                lotteryStationId,
+                normalizedSearch,
+                pageable
+        );
+    }
+
+    @Override
+    public List<ReturnInspectableSerialData> findReturnEligibleSerialsByTicketIds(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds,
+            Collection<Long> ticketIds
+    ) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return List.of();
+        }
+        boolean stationIdsEmpty = stationIds == null || stationIds.isEmpty();
+        Collection<Long> ids = stationIdsEmpty ? List.of(-1L) : stationIds;
+        return lotteryTicketSerialRepository.findReturnEligibleSerialsByTicketIds(
+                        supplierId,
+                        drawDate,
+                        ids,
+                        stationIdsEmpty,
+                        ticketIds
+                ).stream()
+                .map(this::toReturnInspectableSerialData)
+                .toList();
+    }
+
+    @Override
+    public List<ReturnInspectableStationSummaryData> summarizeReturnEligibleByStation(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds
+    ) {
+        boolean stationIdsEmpty = stationIds == null || stationIds.isEmpty();
+        Collection<Long> ids = stationIdsEmpty ? List.of(-1L) : stationIds;
+        return lotteryTicketSerialRepository.summarizeReturnEligibleByStation(
+                supplierId,
+                drawDate,
+                ids,
+                stationIdsEmpty
+        );
+    }
+
+    private ReturnInspectableSerialData toReturnInspectableSerialData(
+            com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity entity
+    ) {
+        var ticket = entity.getTicket();
+        var station = ticket != null ? ticket.getStation() : null;
+        var line = entity.getImportBatchLine();
+        return new ReturnInspectableSerialData(
+                entity.getId(),
+                entity.getSerialNumber(),
+                entity.getStatus(),
+                entity.getTicketCondition(),
+                ticket != null ? ticket.getId() : null,
+                ticket != null ? ticket.getNumbers() : null,
+                ticket != null ? ticket.getDrawDate() : null,
+                station != null ? station.getId() : null,
+                station != null ? station.getName() : null,
+                line != null ? line.getId() : null,
+                line != null ? line.getImportCost() : null,
+                ticket != null ? ticket.getPriceSnapshot() : null
+        );
     }
 
     @Override

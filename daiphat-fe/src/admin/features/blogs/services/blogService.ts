@@ -101,14 +101,15 @@ export interface BlogTypeOption {
 
 export const getBlogTypes = async (): Promise<BlogTypeOption[]> => {
     const response = await apiApp.get(`${BASE_URL}/types`);
-    const types = response.data?.data || [];
+    const raw = response.data?.data || response.data || [];
+    const types = Array.isArray(raw) ? raw : [];
     return types.map((t: { code: string; name: string }) => {
-        const code = (t.code || "").toLowerCase();
+        const code = (t?.code || "").toLowerCase();
         return {
             code,
-            name: t.name,
+            name: t?.name || code,
             value: code,
-            label: t.name,
+            label: t?.name || code,
         };
     });
 };
@@ -122,14 +123,15 @@ export interface BlogStatusOption {
 
 export const getBlogStatuses = async (): Promise<BlogStatusOption[]> => {
     const response = await apiApp.get(`${BASE_URL}/statuses`);
-    const statuses = response.data?.data || [];
+    const raw = response.data?.data || response.data || [];
+    const statuses = Array.isArray(raw) ? raw : [];
     return statuses.map((s: { code: string; name: string }) => {
-        const code = (s.code || "").toLowerCase();
+        const code = (s?.code || "").toLowerCase();
         return {
             code,
-            name: s.name,
+            name: s?.name || code,
             value: code,
-            label: s.name,
+            label: s?.name || code,
         };
     });
 };

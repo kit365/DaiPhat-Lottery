@@ -47,6 +47,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { UploadFiles } from '../../../../components/ui/UploadFiles';
+import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 import dayjs from 'dayjs';
 import {
     getOrderDetailStatusAdminBadgeModifier,
@@ -64,6 +65,21 @@ import type { IncidentTicketDisplay } from '../../types/incidentTicket.type';
 import { resolveOrderDetailTicketDisplay } from '../../utils/resolveOrderDetailTicketDisplay';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
 import { RefundRequestResponse } from '../../../../../types/refund.type';
+
+const QUICK_INCIDENT_REASONS: Record<string, string[]> = {
+    DAMAGED: [
+        'Vé bị rách / mất góc',
+        'Mờ số / không đọc được mã',
+        'Vé bị ướt / dính bẩn / phai màu',
+        'Lỗi in ấn / vé biến dạng',
+    ],
+    LOST: [
+        'Không tìm thấy vé trong tập lưu trữ',
+        'Thất lạc sau khi bàn giao ca trực',
+        'Thiếu vé từ khâu nhận bàn giao đại lý',
+        'Vé bị thất lạc chưa rõ nguyên nhân',
+    ],
+};
 
 /** Quick suggestions for staff refund reason (UI-only; not persisted separately). */
 const STAFF_REFUND_REASON_SUGGESTIONS = [
@@ -212,6 +228,7 @@ export function OrderInspectionSection({
     const [refundReason, setRefundReason] = useState('');
     const [selectedRefundReasonSuggestion, setSelectedRefundReasonSuggestion] = useState('');
     const [reportFaultTicket, setReportFaultTicket] = useState<IncidentTicketDisplay | null>(null);
+    const [uploadingTicketIds, setUploadingTicketIds] = useState<Record<number, boolean>>({});
 
     const tickets = useMemo(
         () => (orderDetails || []).map(resolveOrderDetailTicketDisplay),
@@ -335,26 +352,31 @@ export function OrderInspectionSection({
         const ticketId = reportFaultTicket.id;
         const state = replacements[ticketId];
         if (!state?.faultedBy) {
-            toast.error('Vui lòng chọn loại lỗi');
+            toast.error('Vui lòng chọn phân loại sự cố vé (Vé hư hỏng hoặc Thất lạc)');
             return;
         }
         if (!state.damagedReason?.trim()) {
-            toast.error('Vui lòng nhập mô tả sự cố');
+            toast.error('Vui lòng nhập mô tả chi tiết sự cố');
             return;
         }
         if (state.faultedBy === 'DAMAGED') {
-            if (!state.damagedEvidenceFiles?.length) {
-                toast.error('Vui lòng tải ảnh minh chứng');
+            const hasEvidence = !!state.damagedEvidenceUrl || (Array.isArray(state.damagedEvidenceFiles) && state.damagedEvidenceFiles.length > 0);
+            if (!hasEvidence) {
+                toast.error('Vui lòng tải ảnh minh chứng cho vé hư hỏng');
                 return;
             }
-            const hasUnuploadedFiles = state.damagedEvidenceFiles.some((f: any) => f instanceof File);
+            if (uploadingTicketIds[ticketId]) {
+                toast.error('Vui lòng đợi ảnh minh chứng tải lên hoàn tất');
+                return;
+            }
+            const hasUnuploadedFiles = state.damagedEvidenceFiles?.some((f: any) => f instanceof File);
             if (hasUnuploadedFiles) {
-                toast.error('Vui lòng đợi ảnh minh chứng tải lên xong');
+                toast.error('Vui lòng đợi ảnh minh chứng tải lên hoàn tất');
                 return;
             }
         }
         setReportFaultTicket(null);
-        toast.success('Đã ghi nhận báo lỗi vé');
+        toast.success('Đã ghi nhận báo lỗi vé thành công');
     };
 
     const handleReplaceTicketClick = (ticket: IncidentTicketDisplay) => {
@@ -407,15 +429,17 @@ export function OrderInspectionSection({
 
     const isAllReplacementsValid = Object.entries(replacements).every(([ticketId, state]) => {
         if (!state.faultedBy) return false;
-        if (!state.damagedReason) return false;
+        if (!state.damagedReason?.trim()) return false;
 
         const candidates = availableReplacements[Number(ticketId)];
         const hasRep = candidates && candidates.length > 0;
         if (hasRep && !state.newTicketId) return false;
 
         if (state.faultedBy === 'DAMAGED') {
-            if (!state.damagedEvidenceFiles || state.damagedEvidenceFiles.length === 0) return false;
-            const hasUnuploadedFiles = state.damagedEvidenceFiles.some((f: any) => f instanceof File);
+            const hasUrl = !!state.damagedEvidenceUrl;
+            const hasFiles = Array.isArray(state.damagedEvidenceFiles) && state.damagedEvidenceFiles.length > 0;
+            if (!hasUrl && !hasFiles) return false;
+            const hasUnuploadedFiles = state.damagedEvidenceFiles?.some((f: any) => f instanceof File);
             if (hasUnuploadedFiles) return false;
         }
 
@@ -582,6 +606,593 @@ export function OrderInspectionSection({
         }
     };
 
+    const renderIncidentFormBody = (
+        ticket: IncidentTicketDisplay,
+        isReplacementMode: boolean
+    ) => {
+        const ticketId = ticket.id!;
+        const state = replacements[ticketId] || {
+            faultedBy: '',
+            damagedReason: '',
+            damagedEvidenceUrl: '',
+            damagedEvidenceFiles: [],
+        };
+        const candidates = availableReplacements[ticketId] || [];
+        const hasCandidates = Array.isArray(candidates) && candidates.length > 0;
+
+        return (
+            <Stack spacing={2.5}>
+                {/* Header Ticket Information */}
+                <Box
+                    sx={{
+                        p: { xs: 2, md: 2.25 },
+                        borderRadius: '12px',
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        alignItems: { xs: 'flex-start', sm: 'center' },
+                        justifyContent: 'space-between',
+                        gap: 1.5,
+                    }}
+                >
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 40,
+                                height: 40,
+                                borderRadius: '10px',
+                                bgcolor: 'var(--palette-warning-lighter, #fff7ed)',
+                                color: 'var(--palette-warning-dark, #ea580c)',
+                                flexShrink: 0,
+                            }}
+                        >
+                            <Icon icon="solar:ticket-bold-duotone" width={24} />
+                        </Box>
+                        <Box>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <Typography
+                                    variant="subtitle1"
+                                    sx={{
+                                        fontWeight: 700,
+                                        fontSize: '0.95rem',
+                                        color: 'text.primary',
+                                    }}
+                                >
+                                    Ghi nhận sự cố vé số
+                                </Typography>
+                                <AdminLuckyDisplay
+                                    value={ticket.numbers}
+                                    ticket
+                                    fontSize="0.95rem"
+                                    fontWeight={700}
+                                />
+                            </Stack>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ fontSize: '0.8125rem', mt: 0.25 }}
+                            >
+                                Xác định tình trạng thực tế và cung cấp thông tin đối soát cho vé số này.
+                            </Typography>
+                        </Box>
+                    </Stack>
+
+                    <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ gap: 0.75 }}>
+                        {ticket.serialNumber && (
+                            <Chip
+                                size="small"
+                                variant="outlined"
+                                label={`${TICKET_SERIAL_PREFIX}: ${ticket.serialNumber}`}
+                                sx={{
+                                    height: 26,
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    fontFamily: 'monospace',
+                                    bgcolor: 'var(--palette-background-neutral, #f4f6f8)',
+                                }}
+                            />
+                        )}
+                        {ticket.stationName && (
+                            <Chip
+                                size="small"
+                                variant="outlined"
+                                label={`Đài: ${ticket.stationName}`}
+                                sx={{
+                                    height: 26,
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    bgcolor: 'var(--palette-background-neutral, #f4f6f8)',
+                                }}
+                            />
+                        )}
+                        {ticket.drawDate && (
+                            <Chip
+                                size="small"
+                                variant="outlined"
+                                label={`Xổ: ${dayjs(ticket.drawDate).format('DD/MM/YYYY')}`}
+                                sx={{
+                                    height: 26,
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    bgcolor: 'var(--palette-background-neutral, #f4f6f8)',
+                                }}
+                            />
+                        )}
+                    </Stack>
+                </Box>
+
+                {/* 1. Phân loại sự cố vé */}
+                <Box sx={{ width: '100%' }}>
+                    <Typography
+                        variant="subtitle2"
+                        sx={{ mb: 0.5, fontWeight: 700, fontSize: '0.875rem' }}
+                    >
+                        1. Phân loại sự cố vé <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.8125rem' }}>
+                        Chọn đúng tình trạng thực tế của vé số trong kho.
+                    </Typography>
+                    <ToggleButtonGroup
+                        color="primary"
+                        value={state.faultedBy || null}
+                        exclusive
+                        onChange={(_, value) => {
+                            if (value !== null) {
+                                updateReplacement(ticketId, 'faultedBy', value);
+                                if (value !== state.faultedBy) {
+                                    updateReplacement(ticketId, 'damagedReason', '');
+                                }
+                                if (value === 'LOST') {
+                                    updateReplacement(ticketId, 'damagedEvidenceUrl', '');
+                                    updateReplacement(ticketId, 'damagedEvidenceFiles', []);
+                                }
+                            }
+                        }}
+                        sx={{
+                            width: '100%',
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            gap: 1.5,
+                            bgcolor: 'transparent',
+                            '& .MuiToggleButtonGroup-grouped': {
+                                border: '1px solid var(--palette-divider) !important',
+                                borderRadius: '10px !important',
+                                mx: 0,
+                            },
+                            '& .MuiToggleButton-root': {
+                                flex: 1,
+                                textTransform: 'none',
+                                minHeight: 64,
+                                py: 1.25,
+                                px: 2,
+                                color: 'text.secondary',
+                                bgcolor: 'background.paper',
+                                transition: 'all 0.15s ease-in-out',
+                                '&:hover': {
+                                    bgcolor: 'action.hover',
+                                    borderColor: 'primary.light !important',
+                                },
+                                '&.Mui-selected': {
+                                    color: 'error.dark',
+                                    bgcolor: 'error.lighter',
+                                    borderColor: 'error.light !important',
+                                    boxShadow: '0 0 0 1px var(--palette-error-main, #ef4444)',
+                                },
+                            },
+                        }}
+                    >
+                        <ToggleButton value="DAMAGED">
+                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%', textAlign: 'left', minWidth: 0 }}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: '8px',
+                                        bgcolor: state.faultedBy === 'DAMAGED' ? 'error.light' : 'action.selected',
+                                        color: state.faultedBy === 'DAMAGED' ? '#fff' : 'text.secondary',
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    <Icon icon="solar:ticket-bold-duotone" width={22} />
+                                </Box>
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.3 }}>
+                                        Vé hư hỏng
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25, lineHeight: 1.35, wordBreak: 'break-word' }}>
+                                        Vé bị rách, ướt, mờ số, mất góc hoặc không còn nguyên vẹn
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        </ToggleButton>
+                        <ToggleButton value="LOST">
+                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%', textAlign: 'left', minWidth: 0 }}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: '8px',
+                                        bgcolor: state.faultedBy === 'LOST' ? 'error.light' : 'action.selected',
+                                        color: state.faultedBy === 'LOST' ? '#fff' : 'text.secondary',
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    <Icon icon="solar:box-minimalistic-bold-duotone" width={22} />
+                                </Box>
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.3 }}>
+                                        Vé thất lạc / Thiếu vé
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25, lineHeight: 1.35, wordBreak: 'break-word' }}>
+                                        Không tìm thấy vé trong kho sau khi đã kiểm tra kỹ lưỡng
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+                </Box>
+
+                {/* 2. Mô tả chi tiết sự cố & 3. Ảnh chụp minh chứng */}
+                {state.faultedBy === 'DAMAGED' && (
+                    <Stack
+                        direction={{ xs: 'column', md: 'row' }}
+                        spacing={2}
+                        sx={{ width: '100%', alignItems: 'stretch' }}
+                    >
+                        {/* Cột 1: Mô tả sự cố */}
+                        <Box
+                            sx={{
+                                flex: { xs: '1 1 auto', md: '1 1 55%' },
+                                p: { xs: 2, md: 2.5 },
+                                borderRadius: '12px',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                bgcolor: 'background.paper',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                            }}
+                        >
+                            <Stack spacing={2}>
+                                <Box>
+                                    <Typography
+                                        variant="subtitle2"
+                                        sx={{ mb: 0.5, fontWeight: 700, fontSize: '0.875rem' }}
+                                    >
+                                        2. Mô tả chi tiết sự cố <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.8125rem' }}>
+                                        Ghi rõ vị trí rách, phần thông tin bị mờ hoặc nguyên nhân hư hại để đối chiếu.
+                                    </Typography>
+                                    <TextField
+                                        size="small"
+                                        fullWidth
+                                        multiline
+                                        minRows={4}
+                                        value={state.damagedReason || ''}
+                                        onChange={(e) => updateReplacement(ticketId, 'damagedReason', e.target.value)}
+                                        placeholder="Ví dụ: Vé bị rách góc trên bên phải làm mờ một phần mã kiểm tra, các chữ số trúng thưởng vẫn nhìn rõ..."
+                                        inputProps={{ 'aria-label': 'Mô tả sự cố của vé' }}
+                                        sx={{
+                                            '& .MuiOutlinedInput-root': {
+                                                bgcolor: 'background.paper',
+                                                fontSize: '0.875rem',
+                                            },
+                                        }}
+                                    />
+                                </Box>
+
+                                {QUICK_INCIDENT_REASONS.DAMAGED && (
+                                    <Box>
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                color: 'text.secondary',
+                                                display: 'block',
+                                                mb: 1,
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            Chọn nhanh lý do gợi ý:
+                                        </Typography>
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                flexWrap: 'wrap',
+                                                gap: 1,
+                                            }}
+                                        >
+                                            {QUICK_INCIDENT_REASONS.DAMAGED.map((reason) => {
+                                                const isSelected = state.damagedReason === reason;
+                                                return (
+                                                    <Button
+                                                        key={reason}
+                                                        size="small"
+                                                        onClick={() => updateReplacement(ticketId, 'damagedReason', reason)}
+                                                        sx={{
+                                                            px: 1.25,
+                                                            py: 0.5,
+                                                            bgcolor: isSelected ? 'error.lighter' : 'var(--palette-grey-100, #f8fafc)',
+                                                            borderRadius: '8px',
+                                                            border: '1px solid',
+                                                            borderColor: isSelected ? 'error.light' : 'divider',
+                                                            color: isSelected ? 'error.dark' : 'text.primary',
+                                                            textTransform: 'none',
+                                                            fontSize: '0.75rem',
+                                                            fontWeight: isSelected ? 700 : 500,
+                                                            textAlign: 'left',
+                                                            lineHeight: 1.35,
+                                                            '&:hover': {
+                                                                bgcolor: isSelected ? 'error.lighter' : 'action.hover',
+                                                                borderColor: isSelected ? 'error.main' : 'text.disabled',
+                                                            },
+                                                        }}
+                                                    >
+                                                        {reason}
+                                                    </Button>
+                                                );
+                                            })}
+                                        </Box>
+                                    </Box>
+                                )}
+                            </Stack>
+                        </Box>
+
+                        {/* Cột 2: Ảnh chụp minh chứng */}
+                        <Box
+                            sx={{
+                                flex: { xs: '1 1 auto', md: '1 1 45%' },
+                                p: { xs: 2, md: 2.5 },
+                                borderRadius: '12px',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                bgcolor: 'background.paper',
+                                display: 'flex',
+                                flexDirection: 'column',
+                            }}
+                        >
+                            <Box sx={{ mb: 1.5 }}>
+                                <Typography
+                                    variant="subtitle2"
+                                    sx={{ fontWeight: 700, fontSize: '0.875rem', mb: 0.5 }}
+                                >
+                                    3. Ảnh chụp minh chứng <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                                </Typography>
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{
+                                        fontSize: '0.8125rem',
+                                        lineHeight: 1.5,
+                                    }}
+                                >
+                                    Tải lên ảnh chụp rõ tình trạng thực tế của vé (thấy rõ dãy số và phần bị hư hỏng).
+                                </Typography>
+                            </Box>
+
+                            <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                <UploadSingleFile
+                                    value={state.damagedEvidenceUrl || null}
+                                    onChange={(fileOrUrl) => {
+                                        const urlStr = typeof fileOrUrl === 'string' ? fileOrUrl : '';
+                                        updateReplacement(ticketId, 'damagedEvidenceUrl', urlStr);
+                                        updateReplacement(
+                                            ticketId,
+                                            'damagedEvidenceFiles',
+                                            urlStr ? [urlStr] : fileOrUrl instanceof File ? [fileOrUrl] : []
+                                        );
+                                    }}
+                                    onUploadingChange={(uploading) => {
+                                        setUploadingTicketIds((prev) => ({ ...prev, [ticketId]: uploading }));
+                                    }}
+                                    autoUpload={true}
+                                    accept={{ 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] }}
+                                    maxFileSizeMb={10}
+                                    helperText="Hỗ trợ ảnh JPG, PNG, WEBP (tối đa 10MB)"
+                                />
+                            </Box>
+                        </Box>
+                    </Stack>
+                )}
+
+                {state.faultedBy === 'LOST' && (
+                    <Box
+                        sx={{
+                            width: '100%',
+                            p: { xs: 2, md: 2.5 },
+                            borderRadius: '12px',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'background.paper',
+                        }}
+                    >
+                        <Stack spacing={2}>
+                            <Box>
+                                <Typography
+                                    variant="subtitle2"
+                                    sx={{ mb: 0.5, fontWeight: 700, fontSize: '0.875rem' }}
+                                >
+                                    2. Mô tả chi tiết sự cố <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.8125rem' }}>
+                                    Ghi rõ các khu vực đã kiểm tra (tủ vé, khay lưu trữ, biên bản giao nhận) và hoàn cảnh phát hiện thất lạc.
+                                </Typography>
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    multiline
+                                    minRows={3}
+                                    value={state.damagedReason || ''}
+                                    onChange={(e) => updateReplacement(ticketId, 'damagedReason', e.target.value)}
+                                    placeholder="Ví dụ: Đã kiểm tra toàn bộ xấp vé lưu trữ và khu vực bàn giao ca trực nhưng không tìm thấy vé số này..."
+                                    inputProps={{ 'aria-label': 'Mô tả sự cố của vé' }}
+                                    sx={{
+                                        '& .MuiOutlinedInput-root': {
+                                            bgcolor: 'background.paper',
+                                            fontSize: '0.875rem',
+                                        },
+                                    }}
+                                />
+                            </Box>
+
+                            {QUICK_INCIDENT_REASONS.LOST && (
+                                <Box>
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            color: 'text.secondary',
+                                            display: 'block',
+                                            mb: 1,
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        Chọn nhanh lý do gợi ý:
+                                    </Typography>
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            flexWrap: 'wrap',
+                                            gap: 1,
+                                        }}
+                                    >
+                                        {QUICK_INCIDENT_REASONS.LOST.map((reason) => {
+                                            const isSelected = state.damagedReason === reason;
+                                            return (
+                                                <Button
+                                                    key={reason}
+                                                    size="small"
+                                                    onClick={() => updateReplacement(ticketId, 'damagedReason', reason)}
+                                                    sx={{
+                                                        px: 1.25,
+                                                        py: 0.5,
+                                                        bgcolor: isSelected ? 'error.lighter' : 'var(--palette-grey-100, #f8fafc)',
+                                                        borderRadius: '8px',
+                                                        border: '1px solid',
+                                                        borderColor: isSelected ? 'error.light' : 'divider',
+                                                        color: isSelected ? 'error.dark' : 'text.primary',
+                                                        textTransform: 'none',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: isSelected ? 700 : 500,
+                                                        textAlign: 'left',
+                                                        lineHeight: 1.35,
+                                                        '&:hover': {
+                                                            bgcolor: isSelected ? 'error.lighter' : 'action.hover',
+                                                            borderColor: isSelected ? 'error.main' : 'text.disabled',
+                                                        },
+                                                    }}
+                                                >
+                                                    {reason}
+                                                </Button>
+                                            );
+                                        })}
+                                    </Box>
+                                </Box>
+                            )}
+                        </Stack>
+                    </Box>
+                )}
+
+                {/* Chọn vé thay thế trong kho */}
+                {isReplacementMode && hasCandidates && (
+                    <Box
+                        sx={{
+                            width: '100%',
+                            p: { xs: 2, md: 2.5 },
+                            borderRadius: '12px',
+                            border: '1px solid',
+                            borderColor: state.newTicketId ? 'primary.main' : 'divider',
+                            bgcolor: 'background.paper',
+                        }}
+                    >
+                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+                                {state.faultedBy === 'DAMAGED' ? '4. Chọn vé thay thế trong kho' : '3. Chọn vé thay thế trong kho'} <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                            </Typography>
+                            <Chip
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                label={`Còn ${candidates.length} vé khả dụng`}
+                                sx={{ fontWeight: 700, fontSize: '0.75rem' }}
+                            />
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem', mb: 1.5 }}>
+                            Chọn một vé số tương ứng còn trong kho có cùng đài xổ và ngày mở thưởng để đổi cho khách hàng.
+                        </Typography>
+
+                        <Autocomplete
+                            options={candidates}
+                            getOptionLabel={(o) => `${o.serialNumber ? `${o.serialNumber}` : `ID #${o.id}`}${o.numbers ? ` — Số: ${o.numbers}` : ''}`}
+                            value={candidates.find((c) => c.id === state.newTicketId) || null}
+                            onChange={(_, val) => updateReplacement(ticketId, 'newTicketId', val?.id)}
+                            renderOption={(props, option) => (
+                                <Box component="li" {...props} key={option.id} sx={{ py: 1, px: 1.5 }}>
+                                    <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ width: '100%' }}>
+                                        <Stack direction="row" spacing={1.5} alignItems="center">
+                                            <Box
+                                                sx={{
+                                                    width: 32,
+                                                    height: 32,
+                                                    borderRadius: '6px',
+                                                    bgcolor: 'primary.lighter',
+                                                    color: 'primary.main',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                <Icon icon="solar:ticket-linear" width={18} />
+                                            </Box>
+                                            <Box>
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
+                                                    {option.serialNumber || `Vé #${option.id}`}
+                                                </Typography>
+                                                {option.numbers && (
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Số vé: {option.numbers}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </Stack>
+                                        <Chip size="small" label="Khả dụng" color="success" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }} />
+                                    </Stack>
+                                </Box>
+                            )}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    size="small"
+                                    placeholder="Chọn vé thay thế..."
+                                    InputProps={{
+                                        ...params.InputProps,
+                                        startAdornment: (
+                                            <Box sx={{ color: 'text.secondary', mr: 1, display: 'flex', alignItems: 'center' }}>
+                                                <Icon icon="solar:magnifer-linear" width={18} />
+                                            </Box>
+                                        ),
+                                    }}
+                                />
+                            )}
+                        />
+                    </Box>
+                )}
+            </Stack>
+        );
+    };
+
     const renderReplaceModal = () => {
         if (!replaceTicket || replaceTicket.id == null) return null;
         const ticket = replaceTicket;
@@ -589,67 +1200,103 @@ export function OrderInspectionSection({
         const state = replacements[ticketId] || {};
         const candidates = availableReplacements[ticketId];
         const hasReplacementCandidates = Array.isArray(candidates) && candidates.length > 0;
+        const isUploading = !!uploadingTicketIds[ticketId];
+
+        const handleConfirm = () => {
+            if (!state.faultedBy) {
+                toast.error('Vui lòng chọn phân loại sự cố vé (Vé hư hỏng hoặc Thất lạc)');
+                return;
+            }
+            if (!state.damagedReason?.trim()) {
+                toast.error('Vui lòng nhập mô tả chi tiết sự cố vé');
+                return;
+            }
+            if (state.faultedBy === 'DAMAGED') {
+                const hasEvidence = !!state.damagedEvidenceUrl || (Array.isArray(state.damagedEvidenceFiles) && state.damagedEvidenceFiles.length > 0);
+                if (!hasEvidence) {
+                    toast.error('Vui lòng tải ảnh minh chứng cho vé hư hỏng');
+                    return;
+                }
+                if (isUploading) {
+                    toast.error('Vui lòng đợi ảnh minh chứng tải lên hoàn tất');
+                    return;
+                }
+            }
+            if (hasReplacementCandidates && !state.newTicketId) {
+                toast.error('Vui lòng chọn vé thay thế trong kho');
+                return;
+            }
+            setReplaceTicket(null);
+            toast.success(hasReplacementCandidates ? 'Đã lưu thông tin thay thế vé' : 'Đã ghi nhận sự cố vé');
+        };
 
         return (
-            <Dialog open onClose={() => setReplaceTicket(null)} maxWidth={hasReplacementCandidates ? "md" : "sm"} fullWidth PaperProps={{ className: "admin-theme", sx: { borderRadius: "var(--shape-borderRadius-lg)" } }}>
-                <DialogTitle component="div" sx={{ p: 3, pb: 2 }}>
+            <Dialog
+                open
+                onClose={() => setReplaceTicket(null)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    className: 'admin-theme',
+                    sx: { borderRadius: '16px', overflow: 'hidden' },
+                }}
+            >
+                <DialogTitle component="div" sx={{ p: 2.5, pb: 2 }}>
                     <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
-                        <Box>
-                            <Typography component="div" sx={{ fontWeight: 700, fontSize: "1.125rem" }}>Thay thế vé</Typography>
-                        </Box>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Box
+                                sx={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: '10px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    bgcolor: hasReplacementCandidates ? 'var(--palette-primary-lighter)' : 'var(--palette-error-lighter)',
+                                    color: hasReplacementCandidates ? 'var(--palette-primary-dark)' : 'var(--palette-error-dark)',
+                                }}
+                            >
+                                <Icon icon={hasReplacementCandidates ? "solar:ticket-bold-duotone" : "solar:danger-triangle-bold-duotone"} width={22} />
+                            </Box>
+                            <Box>
+                                <Typography component="div" sx={{ fontWeight: 700, fontSize: '1.125rem' }}>
+                                    {hasReplacementCandidates ? 'Thay thế vé' : 'Báo lỗi vé'}
+                                </Typography>
+                                <Typography component="div" variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.8125rem' }}>
+                                    {hasReplacementCandidates
+                                        ? `Đơn ${orderCode || orderId} · Xử lý sự cố và thay vé từ kho`
+                                        : `Kho không còn vé thay thế — vé này sẽ được ghi nhận để hoàn tiền sau`}
+                                </Typography>
+                            </Box>
+                        </Stack>
                         <IconButton onClick={() => setReplaceTicket(null)} size="small" aria-label="Đóng">
                             <Icon icon="solar:close-circle-bold" />
                         </IconButton>
                     </Stack>
                 </DialogTitle>
                 <Divider />
-                <DialogContent sx={{ p: { xs: 2.5, md: 3 }, bgcolor: "var(--palette-background-neutral)" }}>
-                    <Stack spacing={3}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            Xử lý sự cố cho vé: <AdminLuckyDisplay value={ticket.numbers} ticket />
-                        </Typography>
-                        <Box>
-                            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>Lý do báo lỗi</Typography>
-                            <ToggleButtonGroup
-                                color="primary"
-                                value={state.faultedBy}
-                                exclusive
-                                onChange={(e, val) => val && updateReplacement(ticketId, 'faultedBy', val)}
-                                sx={{ width: '100%', height: '40px' }}
-                            >
-                                <ToggleButton value="DAMAGED">Vé rách / Hư hỏng</ToggleButton>
-                                <ToggleButton value="LOST">Thất lạc</ToggleButton>
-                            </ToggleButtonGroup>
-                        </Box>
-                        <TextField 
-                            size="small" fullWidth multiline
-                            value={state.damagedReason}
-                            onChange={(e) => updateReplacement(ticketId, 'damagedReason', e.target.value)}
-                            placeholder="Mô tả chi tiết..."
-                        />
-                        {state.faultedBy === 'DAMAGED' && (
-                            <UploadFiles
-                                compact files={state.damagedEvidenceFiles || []}
-                                onFilesChange={(files) => {
-                                    updateReplacement(ticketId, 'damagedEvidenceFiles', files);
-                                    updateReplacement(ticketId, 'damagedEvidenceUrl', files.find(f => typeof f === 'string') || '');
-                                }}
-                            />
-                        )}
-                        {hasReplacementCandidates && (
-                            <Autocomplete
-                                options={candidates}
-                                getOptionLabel={(o) => o.serialNumber}
-                                value={candidates.find(c => c.id === state.newTicketId) || null}
-                                onChange={(_, val) => updateReplacement(ticketId, 'newTicketId', val?.id)}
-                                renderInput={(params) => <TextField {...params} label="Chọn vé thay thế" />}
-                            />
-                        )}
-                    </Stack>
+                <DialogContent sx={{ p: { xs: 2, md: 3 }, bgcolor: 'var(--palette-background-neutral, #f4f6f8)' }}>
+                    {renderIncidentFormBody(ticket, true)}
                 </DialogContent>
-                <DialogActions sx={{ p: 2.5 }}>
-                    <Button variant="outlined" onClick={() => setReplaceTicket(null)}>Đóng</Button>
-                    <Button variant="contained" onClick={() => setReplaceTicket(null)}>Xác nhận</Button>
+                <Divider />
+                <DialogActions sx={{ p: 2.5, gap: 1.5 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => setReplaceTicket(null)}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', color: 'text.secondary', borderColor: 'divider' }}
+                    >
+                        Đóng
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color={hasReplacementCandidates ? "primary" : "error"}
+                        onClick={handleConfirm}
+                        disabled={isUploading}
+                        startIcon={<Icon icon="solar:check-circle-bold" width={18} />}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', boxShadow: 'none' }}
+                    >
+                        {hasReplacementCandidates ? 'Xác nhận thay vé' : 'Xác nhận báo lỗi'}
+                    </Button>
                 </DialogActions>
             </Dialog>
         );
@@ -1534,184 +2181,54 @@ export function OrderInspectionSection({
                 <Dialog
                     open
                     onClose={() => setReportFaultTicket(null)}
-                    maxWidth="sm"
+                    maxWidth="md"
                     fullWidth
                     PaperProps={{
                         className: 'admin-theme',
-                        sx: { borderRadius: '16px' },
+                        sx: { borderRadius: '16px', overflow: 'hidden' },
                     }}
                 >
-                    <DialogTitle component="div" sx={{ pb: 1 }}>
-                        <Typography component="div" variant="h6" sx={{ fontWeight: 700 }}>
-                            Báo lỗi vé
-                        </Typography>
-                        <Typography component="div" variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            Kho không còn vé thay thế — vé này sẽ được ghi nhận để hoàn tiền sau.
-                        </Typography>
-                    </DialogTitle>
-                    <DialogContent dividers>
-                        <Stack spacing={2.5}>
-                            <Box
-                                sx={{
-                                    p: 2,
-                                    borderRadius: '12px',
-                                    bgcolor: 'var(--palette-background-neutral)',
-                                    border: '1px solid var(--palette-divider)',
-                                }}
-                            >
-                                <Grid container spacing={2}>
-                                    <Grid size={{ xs: 12 }}>
-                                        <InfoField
-                                            label={TICKET_NUMBERS_LABEL}
-                                            value={
-                                                <Box>
-                                                    <AdminLuckyDisplay value={reportFaultTicket.numbers} ticket />
-                                                    {reportFaultTicket.serialNumber && (
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                            component="div"
-                                                            sx={{ mt: 0.5 }}
-                                                        >
-                                                            {TICKET_SERIAL_PREFIX}: {reportFaultTicket.serialNumber}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            }
-                                            emphasize
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 6 }}>
-                                        <InfoField label="Đài" value={reportFaultTicket.stationName || '—'} />
-                                    </Grid>
-                                    <Grid size={{ xs: 6 }}>
-                                        <InfoField
-                                            label="Ngày xổ"
-                                            value={
-                                                reportFaultTicket.drawDate
-                                                    ? dayjs(reportFaultTicket.drawDate).format('DD/MM/YYYY')
-                                                    : '—'
-                                            }
-                                        />
-                                    </Grid>
-                                </Grid>
-                            </Box>
-
-                            {reportFaultTicket.id != null && (
-                                <>
-                                    <Box>
-                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                            Loại lỗi *
-                                        </Typography>
-                                        <ToggleButtonGroup
-                                            color="primary"
-                                            value={replacements[reportFaultTicket.id]?.faultedBy || ''}
-                                            exclusive
-                                            onChange={(_, value) => {
-                                                if (value !== null) {
-                                                    updateReplacement(reportFaultTicket.id!, 'faultedBy', value);
-                                                }
-                                            }}
-                                            fullWidth
-                                            sx={{
-                                                '& .MuiToggleButton-root': {
-                                                    flex: 1,
-                                                    textTransform: 'none',
-                                                    fontWeight: 600,
-                                                },
-                                            }}
-                                        >
-                                            <ToggleButton value="DAMAGED">Vé rách / Hư hỏng</ToggleButton>
-                                            <ToggleButton value="LOST">Thất lạc</ToggleButton>
-                                        </ToggleButtonGroup>
-                                    </Box>
-
-                                    {replacements[reportFaultTicket.id]?.faultedBy && (
-                                        <Box>
-                                            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                                Mô tả sự cố *
-                                            </Typography>
-                                            <TextField
-                                                size="small"
-                                                fullWidth
-                                                multiline
-                                                minRows={2}
-                                                value={replacements[reportFaultTicket.id]?.damagedReason || ''}
-                                                onChange={(e) =>
-                                                    updateReplacement(
-                                                        reportFaultTicket.id!,
-                                                        'damagedReason',
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="Mô tả ngắn gọn tình trạng vé..."
-                                            />
-                                            {quickReasons[replacements[reportFaultTicket.id]!.faultedBy] && (
-                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                                                    {quickReasons[replacements[reportFaultTicket.id]!.faultedBy].map(
-                                                        (reason) => (
-                                                            <Typography
-                                                                key={reason}
-                                                                variant="caption"
-                                                                onClick={() =>
-                                                                    updateReplacement(
-                                                                        reportFaultTicket.id!,
-                                                                        'damagedReason',
-                                                                        reason
-                                                                    )
-                                                                }
-                                                                sx={{
-                                                                    cursor: 'pointer',
-                                                                    px: 1.25,
-                                                                    py: 0.75,
-                                                                    bgcolor: 'action.hover',
-                                                                    borderRadius: 1,
-                                                                    border: '1px solid var(--palette-divider)',
-                                                                    '&:hover': { bgcolor: 'action.selected' },
-                                                                }}
-                                                            >
-                                                                {reason}
-                                                            </Typography>
-                                                        )
-                                                    )}
-                                                </Box>
-                                            )}
-                                        </Box>
-                                    )}
-
-                                    {replacements[reportFaultTicket.id]?.faultedBy === 'DAMAGED' && (
-                                        <Box>
-                                            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                                Ảnh minh chứng *
-                                            </Typography>
-                                            <UploadFiles
-                                                compact
-                                                files={replacements[reportFaultTicket.id]?.damagedEvidenceFiles || []}
-                                                onFilesChange={(files) => {
-                                                    updateReplacement(
-                                                        reportFaultTicket.id!,
-                                                        'damagedEvidenceFiles',
-                                                        files
-                                                    );
-                                                    const url = files.find((f) => typeof f === 'string');
-                                                    updateReplacement(
-                                                        reportFaultTicket.id!,
-                                                        'damagedEvidenceUrl',
-                                                        url || ''
-                                                    );
-                                                }}
-                                            />
-                                        </Box>
-                                    )}
-                                </>
-                            )}
+                    <DialogTitle component="div" sx={{ p: 2.5, pb: 2 }}>
+                        <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Box
+                                    sx={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: '10px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: 'var(--palette-error-lighter)',
+                                        color: 'var(--palette-error-dark)',
+                                    }}
+                                >
+                                    <Icon icon="solar:danger-triangle-bold-duotone" width={22} />
+                                </Box>
+                                <Box>
+                                    <Typography component="div" sx={{ fontWeight: 700, fontSize: '1.125rem' }}>
+                                        Báo lỗi vé
+                                    </Typography>
+                                    <Typography component="div" variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.8125rem' }}>
+                                        Kho không còn vé thay thế — vé này sẽ được ghi nhận để hoàn tiền sau.
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                            <IconButton onClick={() => setReportFaultTicket(null)} size="small" aria-label="Đóng">
+                                <Icon icon="solar:close-circle-bold" />
+                            </IconButton>
                         </Stack>
+                    </DialogTitle>
+                    <Divider />
+                    <DialogContent sx={{ p: { xs: 2, md: 3 }, bgcolor: 'var(--palette-background-neutral, #f4f6f8)' }}>
+                        {renderIncidentFormBody(reportFaultTicket, false)}
                     </DialogContent>
+                    <Divider />
                     <DialogActions sx={{ p: 2.5, gap: 1.5 }}>
                         <Button
                             variant="outlined"
                             onClick={() => setReportFaultTicket(null)}
-                            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+                            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', color: 'text.secondary', borderColor: 'divider' }}
                         >
                             Hủy
                         </Button>
@@ -1719,6 +2236,8 @@ export function OrderInspectionSection({
                             variant="contained"
                             color="error"
                             onClick={handleConfirmReportFault}
+                            disabled={!!uploadingTicketIds[reportFaultTicket.id!]}
+                            startIcon={<Icon icon="solar:danger-triangle-bold" width={18} />}
                             sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', boxShadow: 'none' }}
                         >
                             Xác nhận báo lỗi

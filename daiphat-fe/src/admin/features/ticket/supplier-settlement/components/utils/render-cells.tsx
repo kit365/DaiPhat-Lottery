@@ -66,13 +66,53 @@ export const RenderSupplierNameCell = (params: GridRenderCellParams) => {
     );
 };
 
+const formatCutOffTime = (raw?: unknown): string | null => {
+    if (!raw) return null;
+    if (typeof raw === 'string' && raw.trim()) {
+        const match = /^(\d{1,2}):(\d{2})/.exec(raw.trim());
+        if (!match) return null;
+        const hour = Number(match[1]);
+        const minute = Number(match[2]);
+        if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour > 23 || minute > 59) {
+            return null;
+        }
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    }
+    if (Array.isArray(raw) && raw.length >= 2) {
+        const hour = String(Number(raw[0]) || 0).padStart(2, '0');
+        const minute = String(Number(raw[1]) || 0).padStart(2, '0');
+        return `${hour}:${minute}`;
+    }
+    if (typeof raw === 'object') {
+        const record = raw as { hour?: unknown; minute?: unknown };
+        if (record.hour != null || record.minute != null) {
+            const hour = String(Number(record.hour) || 0).padStart(2, '0');
+            const minute = String(Number(record.minute) || 0).padStart(2, '0');
+            return `${hour}:${minute}`;
+        }
+    }
+    return null;
+};
+
 export const RenderPeriodCell = (params: GridRenderCellParams) => {
-    const from = params.row.periodFrom ? dayjs(params.row.periodFrom).format('DD/MM/YYYY') : '—';
-    const to = params.row.periodTo ? dayjs(params.row.periodTo).format('DD/MM/YYYY') : '—';
+    const from = params.row.periodFrom ? dayjs(params.row.periodFrom).format('DD/MM/YYYY') : '';
+    const to = params.row.periodTo ? dayjs(params.row.periodTo).format('DD/MM/YYYY') : '';
+    const isSameDay = !to || from === to || (params.row.periodFrom && params.row.periodTo && dayjs(params.row.periodFrom).isSame(dayjs(params.row.periodTo), 'day'));
+    const periodDisplay = !from && !to ? '—' : isSameDay ? (from || to) : `${from} → ${to}`;
+    const cutOffTime = formatCutOffTime(params.row.paymentCutOffTime);
+
     return (
-        <span className="admin-cell-text" style={{ fontWeight: 500, color: '#334155', whiteSpace: 'nowrap', display: 'inline-block' }}>
-            {from} → {to}
-        </span>
+        <div className="flex flex-col gap-0.5 py-1 justify-center">
+            <span className="admin-cell-text" style={{ fontWeight: 500, color: '#334155', whiteSpace: 'nowrap' }}>
+                {periodDisplay}
+            </span>
+            {cutOffTime ? (
+                <span className="admin-cell-subtitle" style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ color: '#94a3b8' }}>Hạn TT:</span>
+                    <span style={{ fontWeight: 600, color: '#475569' }}>{cutOffTime}</span>
+                </span>
+            ) : null}
+        </div>
     );
 };
 

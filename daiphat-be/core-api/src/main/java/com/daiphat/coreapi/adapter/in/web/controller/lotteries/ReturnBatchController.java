@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLi
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnEvidenceRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.ReturnBatchServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -99,6 +100,21 @@ public class ReturnBatchController {
     @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create')")
     public ApiResponse<List<InspectableReturnSerialResponse>> listInspectableSerials(@PathVariable Long id) {
         return ApiResponse.success(null, returnBatchServicePort.listInspectableSerials(id));
+    }
+
+    @GetMapping("/{id}/inspectable-tickets")
+    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create')")
+    public ApiResponse<InspectableReturnTicketsResponse> listInspectableTickets(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long lotteryStationId
+    ) {
+        return ApiResponse.success(
+                null,
+                returnBatchServicePort.listInspectableTickets(id, page, size, search, lotteryStationId)
+        );
     }
 
     @PostMapping("/{id}/start-inspection")

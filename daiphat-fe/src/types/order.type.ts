@@ -210,12 +210,15 @@ const TICKET_CONDITION_LABELS: Record<string, string> = {
 
 /** Badge for lottery-ticket-serial status shown on order-detail lists. */
 export function resolveLotteryTicketSerialStatusBadge(
-    status?: string | null,
+    status?: any,
     statusDisplayName?: string | null,
-    ticketCondition?: string | null,
+    ticketCondition?: any,
     ticketConditionDisplayName?: string | null
 ) {
-    const condition = (ticketCondition || '').toUpperCase();
+    const rawCondition = typeof ticketCondition === 'object' && ticketCondition !== null
+        ? (ticketCondition.code || ticketCondition.condition || ticketCondition.name || '')
+        : ticketCondition;
+    const condition = String(rawCondition || '').toUpperCase();
     if (condition === 'DAMAGED' || condition === 'LOST' || condition === 'VOIDED') {
         const label =
             ticketConditionDisplayName ||
@@ -224,8 +227,11 @@ export function resolveLotteryTicketSerialStatusBadge(
         return { label, color: '#b91c1c', bgcolor: '#fee2e2' };
     }
 
-    const normalized = (status || '').toUpperCase();
-    const label = statusDisplayName || SERIAL_STATUS_LABELS[normalized] || status || '—';
+    const rawStatus = typeof status === 'object' && status !== null
+        ? (status.code || status.status || status.name || '')
+        : status;
+    const normalized = String(rawStatus || '').toUpperCase();
+    const label = statusDisplayName || SERIAL_STATUS_LABELS[normalized] || (typeof status === 'string' ? status : '') || '—';
     switch (normalized) {
         case 'IN_STOCK':
             return { label, color: '#15803d', bgcolor: '#dcfce7' };

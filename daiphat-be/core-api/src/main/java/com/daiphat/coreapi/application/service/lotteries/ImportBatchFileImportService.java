@@ -186,6 +186,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
+    private final ImportBatchSelectionSnapshotValidator importBatchSelectionSnapshotValidator;
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final LotteryStationAliasRepository lotteryStationAliasRepository;
@@ -605,6 +606,14 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                     "Mỗi ngày quay cần có phiếu nhập đã tạo trước.");
         }
 
+        // Stop before parsing/uploading if the allocation reviewed by the operator is stale.
+        for (LocalDate drawDate : request.drawDates()) {
+            importBatchSelectionSnapshotValidator.validate(
+                    request.manualBatchIdFor(drawDate),
+                    request.selectionSnapshotFor(drawDate)
+            );
+        }
+
         ImportBatchFileResolution resolution =
                 resolve(content, fileName, request.mapping(), supplier, operatorId, now, config,
                         request::manualBatchIdFor);
@@ -663,6 +672,9 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         try {
             batch = attachToExistingBatch(request, group, supplier, operatorId);
         } catch (DomainException e) {
+            if (e.getErrorCode() == ErrorCode.IMPORT_BATCH_SELECTION_STALE) {
+                throw e;
+            }
             log.warn("File import could not attach to the batch for drawDate={}: {}", drawDate, e.getMessage());
             return failure(drawDate, e.getErrorCode().getCode(), e.getMessage());
         }
@@ -709,8 +721,9 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                     "Chưa chọn phiếu nhập cho ngày quay " + group.drawDate().format(DATE_DISPLAY) + "."
             );
         }
-        ImportBatchModel existing = importBatchRepositoryPort.findById(batchId)
-                .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
+        // Resolution may take time, so re-query again immediately before mutation.
+        ImportBatchModel existing = importBatchSelectionSnapshotValidator.validate(
+                batchId, request.selectionSnapshotFor(group.drawDate()));
         if (!group.drawDate().equals(existing.getDrawDate())) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,

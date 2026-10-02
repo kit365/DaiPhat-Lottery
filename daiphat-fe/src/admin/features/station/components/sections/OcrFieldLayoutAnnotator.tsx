@@ -42,6 +42,7 @@ export const OCR_TEMPLATE_FIELD_OPTIONS: {
     { value: 'stationName', label: 'Nhà đài', color: '#059669' },
     { value: 'numbers', label: 'Dãy số', color: '#2563eb' },
     { value: 'serialNumber', label: 'Số serial', color: '#d97706' },
+    { value: 'serialSymbol', label: 'Ký hiệu Serial', color: '#ea580c' },
     { value: 'drawDate', label: 'Ngày xổ', color: '#7c3aed' },
     { value: 'batchCode', label: 'Mã lô', color: '#dc2626' },
     { value: 'price', label: 'Giá vé', color: '#4f46e5' },
@@ -58,6 +59,7 @@ export const getOcrFieldBadgeModifier = (fieldName: string): string => {
         case 'NUMBERS':
             return 'admin-status-badge--active';
         case 'serialNumber':
+        case 'serialSymbol':
         case 'SERIAL_NUMBER':
             return 'admin-status-badge--pending';
         case 'drawDate':
@@ -79,6 +81,7 @@ const FIELD_LABELS: Partial<Record<OcrTemplateFieldName, string>> = {
     stationName: 'Nhà đài',
     numbers: 'Dãy số',
     serialNumber: 'Số serial',
+    serialSymbol: 'Ký hiệu Serial',
     drawDate: 'Ngày xổ',
     ticketType: 'Loại vé',
     batchCode: 'Mã lô',

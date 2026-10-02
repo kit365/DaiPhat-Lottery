@@ -743,8 +743,9 @@ public class OcrScanValidationService {
     }
 
     /**
-     * Move production lot codes out of serialNumber (and vice versa) so
-     * values like {@code 4E2}/{@code XSCMG997} are not treated as serials.
+     * Move production lot codes out of serialNumber so values like
+     * {@code 4E2}/{@code XSCMG997} are not treated as serials. Never source
+     * a missing serial from batchCode.
      */
     public static SerialBatchPair reconcileSerialAndBatchCode(String serialNumber, String batchCode) {
         String serial = trimToNull(serialNumber);
@@ -757,12 +758,6 @@ public class OcrScanValidationService {
                 batch = serial;
             }
             serial = null;
-            serialOk = false;
-        }
-
-        if (batch != null && isSerialShape(batch) && !serialOk) {
-            serial = batch;
-            batch = null;
         }
 
         return new SerialBatchPair(serial, batch);
