@@ -23,6 +23,7 @@ import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
 import { useBlogDetail, useBlogTypes, useDeleteBlog, useUpdateBlog } from "../../hooks/useBlog";
+import { useUserDetail } from "../../../users/hooks/useUsers";
 import { BLOG_STATUS, BlogStatus } from '../../types/blog.type';
 import { prefixAdmin } from "../../../../constants/routes";
 import { PageHeader } from "../../../../components/ui/PageHeader";
@@ -49,6 +50,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 const getStatusConfig = (status: string) =>
     STATUS_CONFIG[status?.toLowerCase()] ?? STATUS_CONFIG[BLOG_STATUS.DRAFT];
 
+const isUserId = (value?: string | null): value is string =>
+    Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
+
 // ─── InfoRow helper ──────────────────────────────────────────────────────────
 const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ py: 1.25 }}>
@@ -66,6 +70,8 @@ export const BlogDetailPage = () => {
 
     const { data: blog, isLoading, refetch } = useBlogDetail(id);
     const { data: blogTypes = [] } = useBlogTypes();
+    const { data: authorUser } = useUserDetail(isUserId(blog?.createdBy) ? blog.createdBy : undefined);
+    const { data: editorUser } = useUserDetail(isUserId(blog?.lastModifiedBy) ? blog.lastModifiedBy : undefined);
     const { mutate: updateBlog, isPending: isUpdating } = useUpdateBlog();
     const { mutate: deleteBlog, isPending: isDeleting } = useDeleteBlog();
     const { can } = usePermissions();
@@ -74,6 +80,10 @@ export const BlogDetailPage = () => {
 
     const [confirmDelete, setConfirmDelete] = useState(false);
 
+    const authorName = authorUser?.fullName?.trim() || authorUser?.username ||
+        (blog?.createdBy && !isUserId(blog.createdBy) ? blog.createdBy : 'Đại Phát');
+    const editorName = editorUser?.fullName?.trim() || editorUser?.username ||
+        (blog?.lastModifiedBy && !isUserId(blog.lastModifiedBy) ? blog.lastModifiedBy : 'Đại Phát');
     const status: BlogStatus = (blog?.status || BLOG_STATUS.DRAFT).toLowerCase() as BlogStatus;
     const statusCfg = getStatusConfig(status);
     const isPublished = status === BLOG_STATUS.PUBLISHED;
@@ -492,12 +502,12 @@ export const BlogDetailPage = () => {
                         {blog.createdBy ? (
                             <Stack direction="row" spacing={1.5} alignItems="center">
                                 <Avatar sx={{ width: 40, height: 40, bgcolor: "var(--palette-primary-main)", fontSize: "1rem", fontWeight: 700 }}>
-                                    {String(blog.createdBy)[0]?.toUpperCase()}
+                                    {authorName[0]?.toUpperCase()}
                                 </Avatar>
                                 <Box>
-                                    <Typography variant="body2" sx={{ fontWeight: 700, color: "var(--palette-text-primary)" }}>{blog.createdBy}</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: "var(--palette-text-primary)" }}>{authorName}</Typography>
                                     {blog.lastModifiedBy && blog.lastModifiedBy !== blog.createdBy && (
-                                        <Typography variant="caption" sx={{ color: "var(--palette-text-disabled)", display: "block" }}>Sửa bởi: {blog.lastModifiedBy}</Typography>
+                                        <Typography variant="caption" sx={{ color: "var(--palette-text-disabled)", display: "block" }}>Sửa bởi: {editorName}</Typography>
                                     )}
                                 </Box>
                             </Stack>

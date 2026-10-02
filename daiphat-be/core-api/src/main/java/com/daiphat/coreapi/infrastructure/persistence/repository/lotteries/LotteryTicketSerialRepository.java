@@ -82,8 +82,7 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             WHERE s.deletedAt IS NULL
               AND s.ticket.id = :ticketId
               AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
-              AND (s.ticketCondition IS NULL
-                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
               AND s.returnBatchLineId IS NULL
             """)
     long countSellableByTicketId(@Param("ticketId") Long ticketId);
@@ -109,8 +108,7 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             WHERE s.deletedAt IS NULL
               AND s.ticket.id IN :ticketIds
               AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
-              AND (s.ticketCondition IS NULL
-                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
               AND s.returnBatchLineId IS NULL
             GROUP BY s.ticket.id
             """)

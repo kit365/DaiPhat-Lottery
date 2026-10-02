@@ -51,7 +51,7 @@ import { CreateDirectOrderRequest, OrderReceiveType, DirectOrderTransactionReque
 import { PaymentResult } from '../../../../../types/transaction.type';
 import { toast } from 'react-toastify';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
-import { CounterTicketPickSection, type CounterSelectedTicket } from '../sections/CounterTicketPickSection';
+import { CounterTicketPickSection, getOrderTicketStock, type CounterSelectedTicket } from '../sections/CounterTicketPickSection';
 import { useSearchCustomers } from '../../../users/hooks/useUsers';
 import {
     defaultSellableDrawDate,
@@ -636,7 +636,7 @@ export const CounterOrderCreatePage = () => {
                                             const stationName = ticket.station?.name || ticket.stationName || ticket.region?.name || '...';
                                             const drawDate = ticket.drawDate ? dayjs(ticket.drawDate).format('DD/MM/YYYY') : '...';
                                             const price = ticket.price || 10000;
-                                            const maxQty = ticket.quantity || 0;
+                                            const maxQty = getOrderTicketStock(ticket);
                                             
                                             return (
                                                 <TableRow key={id}>
