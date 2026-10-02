@@ -17,7 +17,7 @@ class LotterySerialSeedCleanupRepository {
 
     // PostgreSQL supports at most 65,535 bind parameters per statement. The most
     // parameter-heavy cleanup query expands every serial ID four times.
-    private static final int SERIAL_CLEANUP_BATCH_SIZE = 10_000;
+    private static final int SERIAL_CLEANUP_BATCH_SIZE = 2_000;
 
     private final EntityManager entityManager;
 

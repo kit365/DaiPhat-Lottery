@@ -22,7 +22,7 @@ on:
         default: ''
 
 concurrency:
-  group: daiphat-production-${{ inputs.component }}
+  group: daiphat-production-deploy
   cancel-in-progress: false
 
 permissions:
@@ -309,7 +309,7 @@ jobs:
             files=(docker-compose.prod.yml daiphat-be/infra/backup scripts/deploy-component.sh scripts/vps-preflight.sh .env.prod .dozzle/users.yml)
           fi
           tar -czf - "${files[@]}" \
-            | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
+            | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=30 -o TCPKeepAlive=yes "$VPS_USER@$VPS_HOST" \
               "install -d -m 700 '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/.incoming' && cat > '$VPS_DEPLOY_PATH/.incoming/$archive_name'"
 
       - name: Deploy component with health gate and rollback
@@ -339,15 +339,17 @@ jobs:
             [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
             image="docker.io/$DOCKER_USERNAME/$repository@$IMAGE_DIGEST"
           fi
-          printf '%s' "$DOCKER_PASSWORD" | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
+          printf '%s' "$DOCKER_PASSWORD" | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=30 -o TCPKeepAlive=yes "$VPS_USER@$VPS_HOST" \
             "docker login docker.io -u '$DOCKER_USERNAME' --password-stdin"
           # Values below intentionally expand on the trusted runner before the script is sent.
           # shellcheck disable=SC2087
-          ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" <<EOF
+          ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=30 -o TCPKeepAlive=yes "$VPS_USER@$VPS_HOST" <<EOF
             set -eu
             command -v flock >/dev/null 2>&1 || { echo "Missing required VPS command: flock" >&2; exit 1; }
+            echo "Waiting for the shared production deployment lock..."
             if ! flock -w 3600 "$VPS_DEPLOY_PATH/.deploy.lock" bash -c '
               set -eu
+              echo "Acquired the production deployment lock."
               tar -xzf "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE" -C "$VPS_DEPLOY_PATH"
               rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"
               cd "$VPS_DEPLOY_PATH"

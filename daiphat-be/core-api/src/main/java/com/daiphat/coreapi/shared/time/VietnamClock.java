@@ -15,6 +15,10 @@ public class VietnamClock {
 
     private final Clock clock;
 
+    public VietnamClock() {
+        this(Clock.system(DrawScheduleUtils.VIETNAM_ZONE));
+    }
+
     public LocalDateTime now() {
         return LocalDateTime.ofInstant(clock.instant(), DrawScheduleUtils.VIETNAM_ZONE);
     }
