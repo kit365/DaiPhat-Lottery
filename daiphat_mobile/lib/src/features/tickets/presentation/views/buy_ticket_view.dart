@@ -802,6 +802,9 @@ class _DaySegmentedControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final todayDateStr = DateFormat('dd/MM').format(SellableDrawDate.todayVn());
+    final tomorrowDateStr = DateFormat('dd/MM').format(SellableDrawDate.tomorrowVn());
+
     return Container(
       decoration: const BoxDecoration(
         border: Border(
@@ -812,7 +815,9 @@ class _DaySegmentedControl extends StatelessWidget {
         children: [
           Expanded(
             child: _ShopeeTabItem(
-              title: isTodaySellClosed ? 'Hôm nay (Đã đóng)' : 'Hôm nay',
+              title: isTodaySellClosed
+                  ? 'Hôm nay ($todayDateStr) (Đã đóng)'
+                  : 'Hôm nay ($todayDateStr)',
               selected: selectedDay == TicketDayFilter.today,
               disabled: isTodaySellClosed,
               onTap: isTodaySellClosed ? null : onSelectToday,
@@ -820,7 +825,9 @@ class _DaySegmentedControl extends StatelessWidget {
           ),
           Expanded(
             child: _ShopeeTabItem(
-              title: isTomorrowSellClosed ? 'Ngày mai (Đã đóng)' : 'Ngày mai',
+              title: isTomorrowSellClosed
+                  ? 'Ngày mai ($tomorrowDateStr) (Đã đóng)'
+                  : 'Ngày mai ($tomorrowDateStr)',
               selected: selectedDay == TicketDayFilter.tomorrow,
               disabled: isTomorrowSellClosed,
               onTap: isTomorrowSellClosed ? null : onSelectTomorrow,

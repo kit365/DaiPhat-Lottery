@@ -26,6 +26,9 @@ public class OcrSessionModel {
     private Instant expiresAt;
     private int scannedTicketCount;
 
+    @Builder.Default
+    private java.util.List<OcrSessionImage> images = new java.util.concurrent.CopyOnWriteArrayList<>();
+
     public boolean isExpired() {
         return expiresAt != null && Instant.now().isAfter(expiresAt);
     }

@@ -28,7 +28,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
-import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import {
     Accordion,
@@ -121,7 +120,6 @@ import OcrReviewImagePane, { type OcrFieldSelection } from './OcrReviewImagePane
 import OcrReviewResultCards from './OcrReviewResultCards';
 import OcrImageEditDialog from './OcrImageEditDialog';
 import { OcrImagePreviewLightbox } from './OcrImagePreviewLightbox';
-import { OcrCameraCaptureDialog } from './OcrCameraCaptureDialog';
 import { getOcrTemplateDefaultReady } from '../../../station/services/ocrTemplateService';
 import { getOcrServiceReady, type OcrServiceReady } from '../services/ticketOcrService';
 
@@ -639,21 +637,21 @@ export const OcrTicketImportDialog = ({
 }: OcrTicketImportDialogProps) => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [mobileScanDialogOpen, setMobileScanDialogOpen] = useState(false);
-    const [cameraCaptureDialogOpen, setCameraCaptureDialogOpen] = useState(false);
     const [previewLightboxOpen, setPreviewLightboxOpen] = useState(false);
     const [previewLightboxIndex, setPreviewLightboxIndex] = useState(0);
     const [confirmDisconnectMobileOpen, setConfirmDisconnectMobileOpen] = useState(false);
     const mobileScanSession = useOcrScanSession({
-        onTicketsScanned: (tickets, scanId) => {
-            wizard.addScannedTicketsFromMobile(tickets, scanId);
-        },
+        onImageUploaded: (image, signal) => wizard.addImageFromMobile(image, signal),
     });
 
     const handleOpenMobileScan = async () => {
-        await mobileScanSession.startSession({
-            importBatchId: wizard.selectedBatch?.id ?? wizard.selectedImportBatchId,
-            importBatchLineId: wizard.prefillLineOption?.lineId,
-        });
+        if (!mobileScanSession.sessionCode || mobileScanSession.status === 'CLOSED'
+            || mobileScanSession.status === 'EXPIRED') {
+            await mobileScanSession.startSession({
+                importBatchId: wizard.selectedBatch?.id ?? wizard.selectedImportBatchId,
+                importBatchLineId: wizard.prefillLineOption?.lineId,
+            });
+        }
         setMobileScanDialogOpen(true);
     };
 
@@ -747,12 +745,7 @@ export const OcrTicketImportDialog = ({
 
     const batchReadyForScan = wizard.selectedImportBatchId != null;
 
-    const canUploadImages =
-        ocrReady !== false &&
-        ocrServiceReady !== false &&
-        wizard.supplierId != null &&
-        batchReadyForScan &&
-        !wizard.hasPreviousScan;
+    const canUploadImages = !wizard.scanning && !wizard.hasPreviousScan;
 
     const requireBatchOrEvidenceMessage =
         'Vui lòng chọn phiếu nhập lô trước khi tải ảnh vé.';
@@ -1178,15 +1171,7 @@ export const OcrTicketImportDialog = ({
         e.preventDefault();
         e.stopPropagation();
         setIsDragOver(false);
-        if (ocrReady === false || ocrServiceReady === false) return;
-        if (!wizard.supplierId) {
-            toast.warning('Vui lòng chọn Nhà cung cấp trước khi tải ảnh vé.');
-            return;
-        }
-        if (!batchReadyForScan) {
-            toast.warning(requireBatchOrEvidenceMessage);
-            return;
-        }
+        if (wizard.scanning) return;
         if (wizard.hasPreviousScan) {
             toast.warning(requireFinishPreviousScanMessage);
             return;
@@ -2072,13 +2057,7 @@ export const OcrTicketImportDialog = ({
                                 hidden
                                 disabled={!canUploadImages}
                                 onChange={(event) => {
-                                    if (!wizard.supplierId) {
-                                        toast.warning('Vui lòng chọn Nhà cung cấp trước khi tải ảnh vé.');
-                                        event.target.value = '';
-                                        return;
-                                    }
-                                    if (!batchReadyForScan) {
-                                        toast.warning(requireBatchOrEvidenceMessage);
+                                    if (wizard.scanning) {
                                         event.target.value = '';
                                         return;
                                     }
@@ -2101,15 +2080,7 @@ export const OcrTicketImportDialog = ({
                                         onDragLeave={handleDragLeave}
                                         onDrop={handleDrop}
                                         onClick={() => {
-                                            if (ocrReady === false || ocrServiceReady === false) return;
-                                            if (!wizard.supplierId) {
-                                                toast.warning('Vui lòng chọn Nhà cung cấp trước khi tải ảnh vé.');
-                                                return;
-                                            }
-                                            if (!batchReadyForScan) {
-                                                toast.warning(requireBatchOrEvidenceMessage);
-                                                return;
-                                            }
+                                            if (wizard.scanning) return;
                                             if (wizard.hasPreviousScan) {
                                                 toast.warning(requireFinishPreviousScanMessage);
                                                 return;
@@ -2201,44 +2172,6 @@ export const OcrTicketImportDialog = ({
                                                 }}
                                             >
                                                 Chọn ảnh từ thiết bị
-                                            </Button>
-
-                                            <Button
-                                                variant="outlined"
-                                                color="primary"
-                                                size="medium"
-                                                disabled={!canUploadImages}
-                                                startIcon={<CameraAltIcon />}
-                                                onClick={() => {
-                                                    if (!wizard.supplierId) {
-                                                        toast.warning('Vui lòng chọn Nhà cung cấp trước khi chụp ảnh vé.');
-                                                        return;
-                                                    }
-                                                    if (!batchReadyForScan) {
-                                                        toast.warning(requireBatchOrEvidenceMessage);
-                                                        return;
-                                                    }
-                                                    if (wizard.hasPreviousScan) {
-                                                        toast.warning(requireFinishPreviousScanMessage);
-                                                        return;
-                                                    }
-                                                    setCameraCaptureDialogOpen(true);
-                                                }}
-                                                sx={{
-                                                    borderRadius: '10px',
-                                                    textTransform: 'none',
-                                                    fontWeight: 700,
-                                                    px: 2.5,
-                                                    py: 1,
-                                                    bgcolor: '#ffffff',
-                                                    borderWidth: 1.5,
-                                                    '&:hover': {
-                                                        borderWidth: 1.5,
-                                                        bgcolor: '#eff6ff',
-                                                    },
-                                                }}
-                                            >
-                                                Chụp từ Camera / Webcam
                                             </Button>
 
                                             <Button
@@ -2363,9 +2296,6 @@ export const OcrTicketImportDialog = ({
                                                         }}
                                                     />
                                                 </Stack>
-                                                <Typography variant="caption" color="#475569" sx={{ display: 'block', mt: 0.25 }}>
-                                                    Bấm vào từng ảnh để <b>xem phóng to</b>, hoặc nhấn [X] để xóa ảnh chụp lỗi/mờ.
-                                                </Typography>
                                             </Box>
                                         </Stack>
 
@@ -2373,48 +2303,8 @@ export const OcrTicketImportDialog = ({
                                             <Button
                                                 size="small"
                                                 variant="outlined"
-                                                startIcon={<CameraAltIcon />}
-                                                onClick={() => {
-                                                    if (!wizard.supplierId) {
-                                                        toast.warning('Vui lòng chọn Nhà cung cấp trước khi chụp ảnh vé.');
-                                                        return;
-                                                    }
-                                                    if (!batchReadyForScan) {
-                                                        toast.warning(requireBatchOrEvidenceMessage);
-                                                        return;
-                                                    }
-                                                    if (wizard.hasPreviousScan) {
-                                                        toast.warning(requireFinishPreviousScanMessage);
-                                                        return;
-                                                    }
-                                                    setCameraCaptureDialogOpen(true);
-                                                }}
-                                                disabled={wizard.scanning || !canUploadImages}
-                                                sx={{
-                                                    textTransform: 'none',
-                                                    fontWeight: 700,
-                                                    borderRadius: '8px',
-                                                    bgcolor: '#ffffff',
-                                                    borderColor: '#cbd5e1',
-                                                    color: '#334155',
-                                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
-                                                }}
-                                            >
-                                                + Chụp thêm
-                                            </Button>
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
                                                 startIcon={<AddPhotoAlternateOutlinedIcon />}
                                                 onClick={() => {
-                                                    if (!wizard.supplierId) {
-                                                        toast.warning('Vui lòng chọn Nhà cung cấp trước khi tải ảnh vé.');
-                                                        return;
-                                                    }
-                                                    if (!batchReadyForScan) {
-                                                        toast.warning(requireBatchOrEvidenceMessage);
-                                                        return;
-                                                    }
                                                     if (wizard.hasPreviousScan) {
                                                         toast.warning(requireFinishPreviousScanMessage);
                                                         return;
@@ -2432,7 +2322,7 @@ export const OcrTicketImportDialog = ({
                                                     '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
                                                 }}
                                             >
-                                                Thêm ảnh
+                                                Tải ảnh từ máy tính
                                             </Button>
                                             <Button
                                                 size="small"
@@ -2444,45 +2334,6 @@ export const OcrTicketImportDialog = ({
                                                 sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
                                             >
                                                 Xóa tất cả
-                                            </Button>
-                                            <Button
-                                                variant="contained"
-                                                color="primary"
-                                                size="medium"
-                                                startIcon={
-                                                    wizard.scanning ? (
-                                                        <CircularProgress size={16} color="inherit" />
-                                                    ) : (
-                                                        <DocumentScannerOutlinedIcon />
-                                                    )
-                                                }
-                                                disabled={
-                                                    wizard.scanning
-                                                    || wizard.images.length === 0
-                                                    || wizard.hasPreviousScan
-                                                    || !wizard.supplierId
-                                                    || !batchReadyForScan
-                                                    || isInvoiceUploading
-                                                    || isTicketListUploading
-                                                    || ocrReady === false
-                                                    || ocrReadyLoading
-                                                    || ocrServiceReady === false
-                                                    || ocrServiceLoading
-                                                }
-                                                onClick={() => void wizard.runScan()}
-                                                sx={{
-                                                    textTransform: 'none',
-                                                    fontWeight: 800,
-                                                    borderRadius: '10px',
-                                                    px: 2.5,
-                                                    py: 0.8,
-                                                    bgcolor: '#16a34a',
-                                                    boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)',
-                                                    whiteSpace: 'nowrap',
-                                                    '&:hover': { bgcolor: '#15803d' },
-                                                }}
-                                            >
-                                                {wizard.scanning ? 'Đang quét…' : `🚀 Bắt đầu quét OCR (${wizard.images.length} ảnh)`}
                                             </Button>
                                         </Stack>
                                     </Paper>
@@ -2852,7 +2703,7 @@ export const OcrTicketImportDialog = ({
                                         }}
                                     />
                                     <Typography variant="body2" fontWeight="bold" color="#166534">
-                                        Đang kết nối Mobile: {mobileScanSession.connectedDevice || 'Điện thoại'} (Mã #{mobileScanSession.sessionCode}) • Có thể tiếp tục chụp trên điện thoại để đổ thêm vé
+                                        Đang kết nối Mobile: {mobileScanSession.connectedDevice || 'Điện thoại'} (Mã #{mobileScanSession.sessionCode}) • Ảnh mới sẽ chờ bạn bấm Bắt đầu quét
                                     </Typography>
                                 </Stack>
                                 <Stack direction="row" spacing={1}>
@@ -5708,13 +5559,6 @@ export const OcrTicketImportDialog = ({
                 onClose={() => setPreviewLightboxOpen(false)}
                 onDeleteImage={(id) => {
                     wizard.removeImage(id);
-                }}
-            />
-            <OcrCameraCaptureDialog
-                open={cameraCaptureDialogOpen}
-                onClose={() => setCameraCaptureDialogOpen(false)}
-                onConfirmCapture={(files) => {
-                    wizard.addImages(files);
                 }}
             />
             <MobileScanConnectDialog

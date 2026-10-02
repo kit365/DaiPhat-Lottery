@@ -56,9 +56,6 @@ final class StatusCoverageTicketStatusHelper {
                 .filter(serial -> serial.getStatus() == LotteryTicketSerialStatus.IN_STOCK)
                 .count();
         int totalSerialCount = serials.size();
-        long soldSerialCount = serials.stream()
-                .filter(serial -> serial.getStatus() == LotteryTicketSerialStatus.SOLD)
-                .count();
 
         LocalTime cutoffTime = station.getDrawTime() != null ? station.getDrawTime() : DEFAULT_DRAW_TIME;
         boolean expired = isExpired(ticket.getDrawDate(), cutoffTime, now);
@@ -70,10 +67,8 @@ final class StatusCoverageTicketStatusHelper {
             resolvedStatus = LotteryTicketStatus.IN_STOCK;
         } else if (totalSerialCount == 0) {
             resolvedStatus = LotteryTicketStatus.IN_STOCK;
-        } else if (soldSerialCount > 0) {
-            resolvedStatus = LotteryTicketStatus.SOLD_OUT;
         } else {
-            resolvedStatus = LotteryTicketStatus.IN_STOCK;
+            resolvedStatus = LotteryTicketStatus.SOLD_OUT;
         }
 
         ticket.setStatus(resolvedStatus);

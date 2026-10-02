@@ -113,14 +113,8 @@ public class LotteryTicketModel {
         if (totalSerialCount == 0) {
             return LotteryTicketStatus.IN_STOCK;
         }
-        if (soldSerialCount > 0) {
-            return LotteryTicketStatus.SOLD_OUT;
-        }
-        if (faultySerialCount == totalSerialCount) {
-            // No salable unit remains and every serial was reported DAMAGED or LOST.
-            return LotteryTicketStatus.SOLD_OUT;
-        }
-        return LotteryTicketStatus.IN_STOCK;
+        // Reserved serials are unavailable too; no sale needs to finish first.
+        return LotteryTicketStatus.SOLD_OUT;
     }
 
     /**
@@ -140,13 +134,7 @@ public class LotteryTicketModel {
         if (totalSerialCount == 0) {
             return LotteryTicketStatus.IN_STOCK;
         }
-        if (soldSerialCount > 0) {
-            return LotteryTicketStatus.SOLD_OUT;
-        }
-        if (faultySerialCount == totalSerialCount) {
-            return LotteryTicketStatus.SOLD_OUT;
-        }
-        return LotteryTicketStatus.IN_STOCK;
+        return LotteryTicketStatus.SOLD_OUT;
     }
 
     public void syncAggregateState(
