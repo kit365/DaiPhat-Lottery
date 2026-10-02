@@ -165,6 +165,8 @@ export const useUpdateOrderStatus = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDER_DETAIL, variables.id] });
             queryClient.invalidateQueries({ queryKey: [NOTIFICATION_QUERY_KEYS.NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKETS] });
+            queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKET_DETAIL] });
         },
     });
 };
@@ -184,6 +186,8 @@ export const useConfirmOrderHandover = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDER_DETAIL, variables.id] });
             queryClient.invalidateQueries({ queryKey: [NOTIFICATION_QUERY_KEYS.NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKETS] });
+            queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKET_DETAIL] });
         },
     });
 };
@@ -198,6 +202,8 @@ export const useReviewPaymentTimeoutComplaint = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDER_DETAIL, variables.id] });
             queryClient.invalidateQueries({ queryKey: [NOTIFICATION_QUERY_KEYS.NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKETS] });
+            queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKET_DETAIL] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS, 'payment-timeout-complaints-count'] });
         },
     });

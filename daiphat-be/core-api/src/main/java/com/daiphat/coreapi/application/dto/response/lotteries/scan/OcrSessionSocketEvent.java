@@ -12,7 +12,8 @@ public record OcrSessionSocketEvent(
         List<ScannedTicketResponse> tickets,
         int totalInSession,
         String message,
-        Instant timestamp
+        Instant timestamp,
+        com.daiphat.coreapi.domain.model.lotteries.OcrSessionImage image
 ) {
     public static OcrSessionSocketEvent connected(String sessionCode, String staffName, String deviceName) {
         return new OcrSessionSocketEvent(
@@ -24,7 +25,7 @@ public record OcrSessionSocketEvent(
                 null,
                 0,
                 "Thiết bị Mobile đã kết nối thành công.",
-                Instant.now()
+                Instant.now(), null
         );
     }
 
@@ -38,7 +39,7 @@ public record OcrSessionSocketEvent(
                 tickets,
                 totalInSession,
                 "Đã nhận diện vé từ Mobile.",
-                Instant.now()
+                Instant.now(), null
         );
     }
 
@@ -52,7 +53,13 @@ public record OcrSessionSocketEvent(
                 null,
                 0,
                 message,
-                Instant.now()
+                Instant.now(), null
         );
+    }
+
+    public static OcrSessionSocketEvent imageUploaded(String code,
+            com.daiphat.coreapi.domain.model.lotteries.OcrSessionImage image, int total) {
+        return new OcrSessionSocketEvent("IMAGE_UPLOADED", code, null, null, null, null,
+                total, "Ảnh đã gửi sang Web, chờ bắt đầu quét.", Instant.now(), image);
     }
 }

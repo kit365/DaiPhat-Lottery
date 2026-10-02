@@ -38,6 +38,7 @@ import {
     VendorBatchDepositSnapshotSection,
     VendorBatchInspectionSection,
     VendorBatchReturnEntrySection,
+    VendorBatchSerialListSection,
     VendorBatchSettlementSection,
     VendorSettlementConfirmationSummary,
 } from "../sections/VendorBatchDrawerSections";
@@ -126,6 +127,8 @@ export const VendorAllocationBatchDetailPage = () => {
 
     const pendingInspectionCount = batch?.returnWorkflow?.pendingInspectionQuantity
         ?? (batch?.serials || []).filter((serial) => serial.allocationStatus === "RETURN_PENDING_INSPECTION").length;
+    const totalRejectedCount = batch?.returnWorkflow?.rejectedReturnQuantity
+        ?? (batch?.serials || []).filter((s) => s.allocationStatus === "RETURN_REJECTED" || rejectedSerialIds.includes(s.serialId)).length;
     const stage = batch?.returnWorkflow?.stage ?? fallbackStage(batch?.status, pendingInspectionCount);
     const isSettled = stage === "SETTLED";
     const isReadyForSettlement = stage === "READY_FOR_SETTLEMENT";
@@ -338,7 +341,7 @@ export const VendorAllocationBatchDetailPage = () => {
                 <SpinnerLoading />
             ) : batch ? (
                 <Stack spacing={3}>
-                    <StatRibbonCardsGrid columns={{ xs: 1, sm: 3, md: 3 }}>
+                    <StatRibbonCardsGrid columns={{ xs: 1, sm: 2, md: 4 }}>
                         <StatRibbonCard
                             value={String(batch.allocatedQuantity)}
                             label="Đã giao"
@@ -347,9 +350,15 @@ export const VendorAllocationBatchDetailPage = () => {
                         />
                         <StatRibbonCard
                             value={String(batch.returnWorkflow?.acceptedReturnQuantity ?? batch.returnedQuantity ?? 0)}
-                            label="Đã nhận trả"
+                            label="Chấp nhận trả"
                             icon="solar:restart-bold-duotone"
                             color="green"
+                        />
+                        <StatRibbonCard
+                            value={String(totalRejectedCount)}
+                            label="Bị từ chối"
+                            icon="solar:close-circle-bold-duotone"
+                            color="red"
                         />
                         <StatRibbonCard
                             value={String(batch.soldQuantity ?? 0)}
@@ -587,7 +596,7 @@ export const VendorAllocationBatchDetailPage = () => {
             <AdminConfirmDialog
                 open={settleConfirmOpen}
                 title="Xác nhận quyết toán"
-                maxWidth="sm"
+                maxWidth="md"
                 loading={isSettling}
                 cancelLabel="Quay lại"
                 confirmLabel="Xác nhận quyết toán"

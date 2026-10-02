@@ -10,6 +10,7 @@ import 'package:daiphat_mobile/src/features/auth/domain/entities/user.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_dialog.dart';
 import '../viewmodels/admin_scan_viewmodel.dart';
 import '../widgets/full_screen_photo_viewer.dart';
+import '../widgets/continuous_camera_view.dart';
 
 class AdminScanView extends StatefulWidget {
   final AdminScanViewModel viewModel;
@@ -41,7 +42,8 @@ class _AdminScanViewState extends State<AdminScanView> {
     final confirmed = await AppDialog.confirm(
       context,
       title: 'Ngắt kết nối',
-      message: 'Bạn có chắc chắn muốn ngắt kết nối với phiên Web Admin này không?',
+      message:
+          'Bạn có chắc chắn muốn ngắt kết nối với phiên Web Admin này không?',
       confirmLabel: 'Ngắt kết nối',
       isDestructive: true,
     );
@@ -87,7 +89,9 @@ class _AdminScanViewState extends State<AdminScanView> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  isRemote ? 'Máy quét vé Web Admin' : 'Quét vé số OCR (Admin)',
+                  isRemote
+                      ? 'Gửi ảnh sang Web Admin'
+                      : 'Quét vé số OCR (Admin)',
                   style: AppTypography.h3(
                     color: AppColors.textMain,
                     fontWeight: FontWeight.bold,
@@ -189,7 +193,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Nhập mã PIN 6 số hiển thị trên Web Admin để bắt đầu truyền vé.',
+                        'Nhập mã PIN 6 số hiển thị trên Web Admin để bắt đầu gửi ảnh.',
                         style: AppTypography.caption(
                           fontSize: 12,
                           color: AppColors.contentSecondary,
@@ -432,9 +436,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             ],
           ),
         ),
-        Expanded(
-          child: _buildRemoteScannedList(),
-        ),
+        Expanded(child: _buildRemoteScannedList()),
       ],
     );
   }
@@ -446,10 +448,7 @@ class _AdminScanViewState extends State<AdminScanView> {
       decoration: const BoxDecoration(
         color: AppColors.surfacePrimary,
         border: Border(
-          bottom: BorderSide(
-            color: AppColors.borderDefault,
-            width: 1,
-          ),
+          bottom: BorderSide(color: AppColors.borderDefault, width: 1),
         ),
       ),
       child: Row(
@@ -503,7 +502,7 @@ class _AdminScanViewState extends State<AdminScanView> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${vm.remoteScannedCount} vé đã gửi',
+              '${vm.remoteScannedCount} ảnh đã gửi',
               style: AppTypography.caption(
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
@@ -562,7 +561,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Vé đã chụp chờ gửi (${_pendingPhotos.length} vé)',
+                      'Ảnh chờ gửi (${_pendingPhotos.length} ảnh)',
                       style: AppTypography.subtitle2(
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
@@ -623,7 +622,9 @@ class _AdminScanViewState extends State<AdminScanView> {
                     ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
-                      onTap: isScanning ? null : () => _handleCaptureFromCamera(),
+                      onTap: isScanning
+                          ? null
+                          : () => _handleCaptureFromCamera(),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -690,7 +691,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                           top: 4,
                           left: 4,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.7),
                               borderRadius: BorderRadius.circular(4),
@@ -721,7 +725,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                               decoration: BoxDecoration(
                                 color: AppColors.statusError,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 1),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1,
+                                ),
                               ),
                               child: const Icon(
                                 Icons.close,
@@ -772,7 +779,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary, width: 1.5),
+                      side: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -802,7 +812,9 @@ class _AdminScanViewState extends State<AdminScanView> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: isScanning ? null : () => _handleUploadPendingPhotos(),
+                    onPressed: isScanning
+                        ? null
+                        : () => _handleUploadPendingPhotos(),
                     icon: isScanning
                         ? const SizedBox(
                             width: 18,
@@ -815,8 +827,8 @@ class _AdminScanViewState extends State<AdminScanView> {
                         : const Icon(Icons.send_rounded, size: 18),
                     label: Text(
                       isScanning
-                          ? 'Đang gửi vé...'
-                          : 'XÁC NHẬN GỬI (${_pendingPhotos.length} VÉ)',
+                          ? 'Đang gửi ảnh...'
+                          : 'GỬI ${_pendingPhotos.length} ẢNH SANG WEB',
                       style: AppTypography.buttonMedium(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
@@ -831,7 +843,11 @@ class _AdminScanViewState extends State<AdminScanView> {
           Center(
             child: TextButton.icon(
               onPressed: isScanning ? null : () => _handlePickFromGallery(),
-              icon: const Icon(Icons.photo_library_outlined, size: 14, color: AppColors.contentSecondary),
+              icon: const Icon(
+                Icons.photo_library_outlined,
+                size: 14,
+                color: AppColors.contentSecondary,
+              ),
               label: Text(
                 'Thêm ảnh từ thư viện',
                 style: AppTypography.caption(
@@ -865,9 +881,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: isScanning
-                ? null
-                : () => _handleCaptureFromCamera(),
+            onPressed: isScanning ? null : () => _handleCaptureFromCamera(),
             icon: isScanning
                 ? const SizedBox(
                     width: 20,
@@ -879,7 +893,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                   )
                 : const Icon(Icons.camera_alt_rounded, size: 22),
             label: Text(
-              isScanning ? 'Đang gửi vé lên Web...' : 'Chụp vé số (Camera)',
+              isScanning ? 'Đang gửi ảnh lên Web...' : 'Chụp liên tục',
               style: AppTypography.buttonMedium(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
@@ -898,9 +912,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: isScanning
-                ? null
-                : () => _handlePickFromGallery(),
+            onPressed: isScanning ? null : () => _handlePickFromGallery(),
             icon: const Icon(Icons.photo_library_outlined, size: 18),
             label: Text(
               'Chọn ảnh từ thư viện',
@@ -916,14 +928,24 @@ class _AdminScanViewState extends State<AdminScanView> {
   }
 
   Future<void> _handleCaptureFromCamera() async {
-    final vm = widget.viewModel;
-    final photo = await vm.pickSinglePhoto(ImageSource.camera);
-    if (photo != null && mounted) {
-      setState(() {
-        _pendingPhotos.add(photo);
-      });
-      HapticFeedback.lightImpact();
-    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ContinuousCameraView(
+          onCaptured: (photo) {
+            if (mounted) setState(() => _pendingPhotos.add(photo));
+          },
+          onRemoved: (photo) {
+            if (mounted) {
+              setState(
+                () => _pendingPhotos.removeWhere(
+                  (item) => item.path == photo.path,
+                ),
+              );
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _handlePickFromGallery() async {
@@ -943,20 +965,23 @@ class _AdminScanViewState extends State<AdminScanView> {
     final messenger = ScaffoldMessenger.of(context);
     final photosToUpload = List<XFile>.from(_pendingPhotos);
 
-    final count = await vm.uploadPickedPhotos(photosToUpload);
-    if (count > 0 && mounted) {
+    final uploadedPaths = await vm.uploadPickedPhotos(photosToUpload);
+    if (uploadedPaths.isNotEmpty && mounted) {
       setState(() {
-        _pendingPhotos.clear();
+        _pendingPhotos.removeWhere(
+          (photo) => uploadedPaths.contains(photo.path),
+        );
       });
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Đã gửi thành công $count vé sang Web Admin!'),
+          content: Text(
+            'Đã gửi ${uploadedPaths.length} ảnh. Bấm “Bắt đầu quét” trên Web khi sẵn sàng.',
+          ),
           backgroundColor: AppColors.statusSuccessForeground,
         ),
       );
     }
   }
-
 
   Widget _buildRemoteScannedList() {
     final tickets = widget.viewModel.remoteScannedTickets;
@@ -983,7 +1008,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Chưa có vé nào được gửi',
+                  'Chưa có ảnh nào được gửi',
                   style: AppTypography.subtitle2(
                     fontWeight: FontWeight.w600,
                     color: AppColors.contentSecondary,
@@ -991,7 +1016,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Bấm "Chụp vé số" ở trên để chụp và tự động truyền vé sang Web.',
+                  'Chụp nhiều ảnh, kiểm tra rồi gửi sang Web. Ảnh sẽ chờ bạn bấm “Bắt đầu quét” trên máy tính.',
                   textAlign: TextAlign.center,
                   style: AppTypography.caption(
                     fontSize: 12,
@@ -1118,7 +1143,6 @@ class _AdminScanViewState extends State<AdminScanView> {
       },
     );
   }
-
 
   Widget _ticketImage(String? source) {
     Widget placeholder() => const SizedBox(

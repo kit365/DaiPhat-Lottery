@@ -25,7 +25,7 @@ class LotteryTicketModelTest {
 
         ticket.syncAggregateState(0, 5, 5, 0, LocalTime.of(16, 15));
 
-        assertThat(ticket.getQuantity()).isEqualTo(5);
+        assertThat(ticket.getQuantity()).isZero();
         assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.IMPORTING);
     }
 
@@ -40,7 +40,7 @@ class LotteryTicketModelTest {
 
         ticket.syncAggregateState(0, 3, 1, 0, LocalTime.of(16, 15));
 
-        assertThat(ticket.getQuantity()).isEqualTo(3);
+        assertThat(ticket.getQuantity()).isZero();
         assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.EXPIRED);
     }
 
@@ -55,7 +55,7 @@ class LotteryTicketModelTest {
         ticket.syncAggregateState(0, 2, 2, 0, LocalTime.of(16, 15));
 
         assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_OUT);
-        assertThat(ticket.getQuantity()).isEqualTo(2);
+        assertThat(ticket.getQuantity()).isZero();
     }
 
     @Test
@@ -69,7 +69,7 @@ class LotteryTicketModelTest {
         ticket.syncAggregateState(0, 10, 0, 10, LocalTime.of(16, 15));
 
         assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_OUT);
-        assertThat(ticket.getQuantity()).isEqualTo(10);
+        assertThat(ticket.getQuantity()).isZero();
         assertThat(ticket.getStatusReason()).isEqualTo(LotteryTicketModel.ALL_SERIALS_FAULTY_STATUS_REASON);
     }
 
@@ -81,7 +81,7 @@ class LotteryTicketModelTest {
                 .drawDate(LocalDate.now().plusDays(1))
                 .build();
 
-        ticket.syncAggregateState(0, 10, 0, 9, LocalTime.of(16, 15));
+        ticket.syncAggregateState(1, 10, 0, 9, LocalTime.of(16, 15));
 
         assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.IN_STOCK);
         assertThat(ticket.getStatusReason()).isNull();
@@ -181,6 +181,34 @@ class LotteryTicketModelTest {
         assertThat(ticketWith(LotteryTicketStatus.IMPORTING).isSoftDeletableStatus()).isTrue();
         assertThat(ticketWith(LotteryTicketStatus.EXPIRED).isSoftDeletableStatus()).isTrue();
         assertThat(ticketWith(LotteryTicketStatus.SOLD_OUT).isSoftDeletableStatus()).isFalse();
+    }
+
+    @Test
+    void allTenReservedBecomesSoldOutAndReleasedSerialRestoresStock() {
+        for (boolean supplierAware : List.of(false, true)) {
+            LotteryTicketModel ticket = LotteryTicketModel.builder()
+                    .status(LotteryTicketStatus.IN_STOCK)
+                    .drawDate(LocalDate.now().plusDays(1))
+                    .quantity(10)
+                    .build();
+
+            if (supplierAware) {
+                ticket.syncAggregateStateFromSerials(0, 10, 0, 0, null);
+            } else {
+                ticket.syncAggregateState(0, 10, 0, 0, LocalTime.of(16, 15));
+            }
+            assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_OUT);
+            assertThat(ticket.getQuantity()).isZero();
+            assertThat(ticket.getStatusReason()).isNull();
+
+            if (supplierAware) {
+                ticket.syncAggregateStateFromSerials(1, 10, 0, 0, null);
+            } else {
+                ticket.syncAggregateState(1, 10, 0, 0, LocalTime.of(16, 15));
+            }
+            assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.IN_STOCK);
+            assertThat(ticket.getQuantity()).isEqualTo(1);
+        }
     }
 
     private static LotteryTicketModel ticketWith(LotteryTicketStatus status) {

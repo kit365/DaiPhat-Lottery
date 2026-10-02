@@ -4,9 +4,12 @@ import com.daiphat.coreapi.application.dto.request.lotteries.scan.CreateOcrSessi
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.JoinOcrSessionRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrSessionResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrSessionSocketEvent;
-import com.daiphat.coreapi.application.dto.response.lotteries.scan.TicketScanResponse;
+import com.daiphat.coreapi.domain.model.lotteries.OcrSessionImage;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
+import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.application.port.in.lotteries.OcrSessionServicePort;
-import com.daiphat.coreapi.application.port.in.lotteries.TicketScanImportServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.OcrSessionEventPublisherPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -30,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class OcrSessionService implements OcrSessionServicePort {
 
-    private final TicketScanImportServicePort ticketScanImportServicePort;
+    private final StoragePort storagePort;
     private final OcrSessionEventPublisherPort ocrSessionEventPublisherPort;
 
     private final Map<String, OcrSessionModel> activeSessions = new ConcurrentHashMap<>();
@@ -96,35 +99,23 @@ public class OcrSessionService implements OcrSessionServicePort {
     }
 
     @Override
-    public TicketScanResponse uploadAndScan(String sessionCode, MultipartFile file, UUID staffUserId) {
+    public OcrSessionImage uploadImage(String sessionCode, MultipartFile file, UUID staffUserId) {
         OcrSessionModel session = requireActiveSession(sessionCode);
         if (session.getStatus() == OcrSessionStatus.CLOSED) {
             throw new DomainException(ErrorCode.OCR_SESSION_CLOSED);
         }
 
-        log.info("Processing uploaded ticket image for OCR session code={} from user={}", sessionCode, staffUserId);
-
-        TicketScanResponse response = ticketScanImportServicePort.scan(
-                session.getImportBatchLineId(),
-                session.getImportBatchId(),
-                file,
-                staffUserId
-        );
-
-        int addedCount = (response.tickets() != null) ? response.tickets().size() : 1;
-        session.setScannedTicketCount(session.getScannedTicketCount() + addedCount);
-
-        ocrSessionEventPublisherPort.publishToSession(
-                sessionCode,
-                OcrSessionSocketEvent.ticketScanned(
-                        sessionCode,
-                        response.scanId(),
-                        response.tickets(),
-                        session.getScannedTicketCount()
-                )
-        );
-
-        return response;
+        UploadRequest input = StorageUtils.toUploadRequest(file);
+        StorageUtils.validateImageUpload(input);
+        var stored = storagePort.upload(new UploadRequest(input.data(), input.fileName(),
+                input.contentType(), StorageFolderConstants.TICKET_IMAGE_FOLDER));
+        OcrSessionImage image = new OcrSessionImage(UUID.randomUUID().toString(), stored.url(),
+                input.fileName(), input.contentType(), Instant.now());
+        session.getImages().add(image);
+        // Retain metadata so polling can recover uploads missed by the socket.
+        ocrSessionEventPublisherPort.publishToSession(sessionCode,
+                OcrSessionSocketEvent.imageUploaded(sessionCode, image, session.getImages().size()));
+        return image;
     }
 
     @Override
@@ -181,10 +172,11 @@ public class OcrSessionService implements OcrSessionServicePort {
                 session.getImportBatchLineId(),
                 session.getConnectedStaffName(),
                 session.getConnectedDevice(),
-                session.getScannedTicketCount(),
+                session.getImages().size(),
                 session.getCreatedAt(),
                 session.getExpiresAt(),
-                qrToken
+                qrToken,
+                java.util.List.copyOf(session.getImages())
         );
     }
 }
