@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -15,12 +16,16 @@ import org.springframework.transaction.annotation.Transactional;
 @ConditionalOnProperty(value = "daiphat.official-demo.seed.enabled", havingValue = "true")
 public class OfficialDemoPreCleanupSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private final OfficialDemoAfterSalesSeedInitializer afterSales;
     private final OfficialDemoOrderSeedInitializer orders;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         afterSales.clearPreviousAfterSales();
         orders.clearPreviousOrders();
     }

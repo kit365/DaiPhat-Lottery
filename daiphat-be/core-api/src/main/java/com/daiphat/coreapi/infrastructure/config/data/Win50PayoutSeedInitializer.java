@@ -78,6 +78,9 @@ import java.util.Set;
 @Slf4j
 public class Win50PayoutSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final BigDecimal TICKET_PRICE = BigDecimal.valueOf(10_000);
     private static final int MAX_LOOKBACK_DAYS = 30;
     private static final int MAX_RESULT_DRAWS = 6;
@@ -137,6 +140,7 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         List<Win50PayoutSeedCatalog.DrawResultKey> candidateDraws = transaction.execute(status -> prepareOverlay());
         if (candidateDraws == null || candidateDraws.isEmpty()) {
             return;

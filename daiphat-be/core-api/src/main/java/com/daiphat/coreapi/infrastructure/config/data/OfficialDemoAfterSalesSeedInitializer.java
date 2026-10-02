@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundFundSource;
@@ -49,6 +50,9 @@ import java.util.List;
 @ConditionalOnProperty(value = "daiphat.official-demo.seed.enabled", havingValue = "true")
 public class OfficialDemoAfterSalesSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String ACTOR = "official-demo-seed";
     private static final String REFUND_REASON = "Khách hàng yêu cầu hủy đơn trước ngày quay và hoàn tiền.";
     private static final List<RefundRequestStatus> REFUND_STATUSES = List.of(
@@ -71,6 +75,7 @@ public class OfficialDemoAfterSalesSeedInitializer implements ApplicationRunner 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         clearPreviousAfterSales();
         LocalDateTime now = LocalDateTime.now(clock);
         TicketCategoryEntity category = categoryRepository.findByCode("ORDER_ISSUE")

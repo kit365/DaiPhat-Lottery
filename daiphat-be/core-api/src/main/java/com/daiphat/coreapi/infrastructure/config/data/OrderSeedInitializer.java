@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
@@ -76,6 +77,9 @@ import java.util.UUID;
 @Order(110)
 public class OrderSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String ORDER_CODE_PREFIX = "ORD-SEED-";
     private static final String TICKET_SERIAL_PREFIX = "SEED-";
     private static final String PAYMENT_REF_PREFIX = "PAYOS-SEED-";
@@ -108,6 +112,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         UserEntity member = seedAccountResolver.findMember();
         UserEntity operator = seedAccountResolver.findOperator();
         if (member == null || operator == null) {

@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.application.config.VendorTestSeedProperties;
 import com.daiphat.coreapi.application.port.in.streetagent.LuckyPatternConfigServicePort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
@@ -61,7 +62,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
 
-    @org.springframework.beans.factory.annotation.Value("${daiphat.official-demo.seed.enabled:false}")
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
+    @Value("${daiphat.official-demo.seed.enabled:false}")
     private boolean officialDemoEnabled;
 
     private final LuckyPatternConfigRepository luckyPatternConfigRepository;
@@ -107,6 +111,7 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         if (officialDemoEnabled) {
             log.info("Skipping legacy lucky-pattern test inventory in official demo mode.");
             return;

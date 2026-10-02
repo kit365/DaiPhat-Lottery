@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SupplierSettlementEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.SupplierSettlementRepository;
@@ -25,12 +26,16 @@ import java.util.List;
 @Order(120)
 public class SupplierSettlementAmountBackfillInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private final SupplierSettlementRepository supplierSettlementRepository;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         List<SupplierSettlementEntity> settlements = supplierSettlementRepository.findAll().stream()
                 .filter(s -> s.getDeletedAt() == null)
                 .toList();
