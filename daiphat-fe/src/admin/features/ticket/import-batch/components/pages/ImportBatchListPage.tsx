@@ -266,7 +266,9 @@ export const ImportBatchListPage = () => {
                     setFileImportSupplierId(null);
                     setFileImportBatchId(null);
                 }}
-                onImported={() => listHook.refetch()}
+                onImported={async () => {
+                    await listHook.refetch();
+                }}
                 prefillSupplierId={fileImportSupplierId}
                 prefillBatchId={fileImportBatchId}
             />
@@ -278,7 +280,9 @@ export const ImportBatchListPage = () => {
                     setOcrRestoreFromDraft(false);
                     setOcrRestoreBatchId(null);
                 }}
-                onImported={() => listHook.refetch()}
+                onImported={async () => {
+                    await listHook.refetch();
+                }}
                 restoreFromDraft={ocrRestoreFromDraft}
                 restoreSelectedImportBatchId={ocrRestoreBatchId}
                 onDraftRestored={() => {

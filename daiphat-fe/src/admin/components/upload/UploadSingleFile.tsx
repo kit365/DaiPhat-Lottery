@@ -134,7 +134,14 @@ export const getUploadFileCategory = (fileOrUrl: File | string | null | undefine
     if (typeof fileOrUrl === "string" && fileOrUrl.trim()) {
         const rawUrl = fileOrUrl.trim();
         const cleanUrl = rawUrl.split("?")[0].split("#")[0].toLowerCase();
-        if (rawUrl.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif|svg|bmp|ico|avif|tiff|tif)$/i.test(cleanUrl)) {
+        if (
+            rawUrl.startsWith("data:image/") ||
+            /\.(jpg|jpeg|png|webp|gif|svg|bmp|ico|avif|tiff|tif)$/i.test(cleanUrl) ||
+            /\/(jpg|jpeg|png|webp|gif|svg|bmp|avif)$/i.test(cleanUrl) ||
+            cleanUrl.includes("placehold.co") ||
+            cleanUrl.includes("placeholder") ||
+            /\bformat=(jpg|jpeg|png|webp|gif|svg)\b/i.test(rawUrl)
+        ) {
             return "image";
         }
         if (rawUrl.startsWith("data:application/pdf") || /\.pdf$/i.test(cleanUrl) || cleanUrl.includes(".pdf/")) {
@@ -174,7 +181,7 @@ const extractFileName = (fileOrUrl: File | string | null | undefined, fallback =
         try {
             const clean = fileOrUrl.split("?")[0].split("#")[0];
             const segment = clean.substring(clean.lastIndexOf("/") + 1);
-            if (segment && segment.length > 0) {
+            if (segment && segment.length > 0 && !segment.includes(":") && !/^(png|jpg|jpeg|webp|gif|svg|pdf|xlsx|xls|csv|docx|doc)$/i.test(segment)) {
                 return decodeURIComponent(segment);
             }
         } catch {
@@ -904,17 +911,24 @@ export const UploadSingleFile = memo(
                             gap: 1.5,
                         }}
                     >
-                        <Stack direction="row" spacing={1.75} alignItems="center" sx={{ flex: 1, minWidth: 200 }}>
+                        <Stack direction="row" spacing={1.75} alignItems="center" sx={{ flex: 1, minWidth: 160, maxWidth: '100%', overflow: 'hidden' }}>
                             {renderCardMediaBadge()}
 
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                                 <Tooltip title={fileName} placement="top-start">
                                     <Typography
                                         variant="subtitle2"
                                         fontWeight={700}
                                         color="#1e293b"
                                         noWrap
-                                        sx={{ fontSize: "0.875rem", mb: 0.5 }}
+                                        sx={{
+                                            fontSize: "0.875rem",
+                                            mb: 0.5,
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            maxWidth: '100%',
+                                        }}
                                     >
                                         {fileName}
                                     </Typography>

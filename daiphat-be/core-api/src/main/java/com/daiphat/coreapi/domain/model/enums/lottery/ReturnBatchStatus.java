@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum ReturnBatchStatus {
+    NOT_OPEN("Chưa mở"),
     PENDING_INSPECTION("Chờ kiểm tra vé"),
     INSPECTING("Đang kiểm tra vé"),
     PENDING_HANDOVER("Chờ bàn giao nhà cung cấp"),
@@ -22,7 +23,7 @@ public enum ReturnBatchStatus {
 
     /** Auto-generation may still enrich stations / refresh inventory summary. */
     public boolean allowsAutoEnrichment() {
-        return isOpenForInspection();
+        return this == NOT_OPEN || isOpenForInspection();
     }
 
     public boolean isTerminal() {

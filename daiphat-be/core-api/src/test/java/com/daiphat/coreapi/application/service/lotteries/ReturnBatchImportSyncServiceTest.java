@@ -3,8 +3,10 @@ package com.daiphat.coreapi.application.service.lotteries;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
+import com.daiphat.coreapi.shared.util.ReturnBatchCodeGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +33,7 @@ class ReturnBatchImportSyncServiceTest {
     @Mock private ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     @Mock private ReturnBatchRepositoryPort returnBatchRepositoryPort;
     @Mock private ReturnBatchSummaryCalculator returnBatchSummaryCalculator;
+    @Mock private ReturnBatchCodeGenerator returnBatchCodeGenerator;
 
     @Test
     @DisplayName("adds a new station and recalculates only the open primary supplier return")
@@ -38,7 +41,8 @@ class ReturnBatchImportSyncServiceTest {
         ReturnBatchImportSyncService service = new ReturnBatchImportSyncService(
                 importBatchLineRepositoryPort,
                 returnBatchRepositoryPort,
-                returnBatchSummaryCalculator
+                returnBatchSummaryCalculator,
+                returnBatchCodeGenerator
         );
         when(returnBatchRepositoryPort.findPrimarySupplierReturnBySupplierAndDrawDate(1L, DRAW_DATE))
                 .thenReturn(Optional.of(ReturnBatchModel.builder()
@@ -68,7 +72,8 @@ class ReturnBatchImportSyncServiceTest {
         ReturnBatchImportSyncService service = new ReturnBatchImportSyncService(
                 importBatchLineRepositoryPort,
                 returnBatchRepositoryPort,
-                returnBatchSummaryCalculator
+                returnBatchSummaryCalculator,
+                returnBatchCodeGenerator
         );
         when(returnBatchRepositoryPort.findPrimarySupplierReturnBySupplierAndDrawDate(1L, DRAW_DATE))
                 .thenReturn(Optional.of(ReturnBatchModel.builder()
@@ -80,6 +85,43 @@ class ReturnBatchImportSyncServiceTest {
 
         verify(importBatchLineRepositoryPort, never()).findEligibleStationIdsBySupplierAndDrawDate(any(), any());
         verify(returnBatchRepositoryPort, never()).saveLine(any());
+        verify(returnBatchSummaryCalculator, never()).recalculate(any());
+    }
+
+    @Test
+    @DisplayName("creates the missing primary return receipt when an import completes")
+    void refreshOpenPrimarySupplierReturn_createsMissingReceipt() {
+        ReturnBatchImportSyncService service = new ReturnBatchImportSyncService(
+                importBatchLineRepositoryPort,
+                returnBatchRepositoryPort,
+                returnBatchSummaryCalculator,
+                returnBatchCodeGenerator
+        );
+        when(importBatchLineRepositoryPort.findEligibleStationIdsBySupplierAndDrawDate(1L, DRAW_DATE))
+                .thenReturn(List.of(10L, 11L));
+        when(returnBatchRepositoryPort.findPrimarySupplierReturnBySupplierAndDrawDate(1L, DRAW_DATE))
+                .thenReturn(Optional.empty());
+        when(returnBatchCodeGenerator.generateHeaderCode(DRAW_DATE)).thenReturn("PT-20260814-0001");
+        when(returnBatchRepositoryPort.save(any())).thenAnswer(invocation -> {
+            ReturnBatchModel model = invocation.getArgument(0);
+            model.setId(99L);
+            return model;
+        });
+        when(returnBatchRepositoryPort.saveLine(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.refreshOpenPrimarySupplierReturn(1L, DRAW_DATE, 55L);
+
+        ArgumentCaptor<ReturnBatchModel> batchCaptor = ArgumentCaptor.forClass(ReturnBatchModel.class);
+        verify(returnBatchRepositoryPort).save(batchCaptor.capture());
+        assertThat(batchCaptor.getValue().getReturnBatchType()).isEqualTo(ReturnBatchType.SUPPLIER_RETURN);
+        assertThat(batchCaptor.getValue().getSupplierSettlementId()).isEqualTo(55L);
+        assertThat(batchCaptor.getValue().getStatus()).isEqualTo(ReturnBatchStatus.PENDING_INSPECTION);
+
+        ArgumentCaptor<ReturnBatchLineModel> lineCaptor = ArgumentCaptor.forClass(ReturnBatchLineModel.class);
+        verify(returnBatchRepositoryPort, org.mockito.Mockito.times(2)).saveLine(lineCaptor.capture());
+        assertThat(lineCaptor.getAllValues())
+                .extracting(ReturnBatchLineModel::getLotteryStationId)
+                .containsExactly(10L, 11L);
         verify(returnBatchSummaryCalculator, never()).recalculate(any());
     }
 }

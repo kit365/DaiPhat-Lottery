@@ -329,7 +329,8 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
         // separate EXCESS_SUPPLIER_RETURN adjustment receipt.
         returnBatchImportSyncService.refreshOpenPrimarySupplierReturn(
                 settlement.getLotterySupplierId(),
-                settlement.getPeriodFrom()
+                settlement.getPeriodFrom(),
+                settlement.getId()
         );
         return createdSerialIds;
     }

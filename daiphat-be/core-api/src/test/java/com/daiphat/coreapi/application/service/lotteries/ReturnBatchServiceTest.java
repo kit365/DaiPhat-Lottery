@@ -48,6 +48,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -187,6 +188,43 @@ class ReturnBatchServiceTest {
     }
 
     @Test
+    @DisplayName("detail marks a future supplier return receipt as not open")
+    void getById_beforeInspectionWindow_marksNotOpen() {
+        when(clock.instant()).thenReturn(Instant.parse("2026-07-31T03:00:00Z")); // 10:00 VN
+        when(importBatchConfigResolver.resolveReturnBufferMinutes()).thenReturn(60);
+        ReturnBatchModel batch = ReturnBatchModel.builder()
+                .id(10L).lotterySupplierId(7L).drawDate(DRAW_DATE)
+                .returnCutOffTime(LocalTime.of(14, 30))
+                .status(ReturnBatchStatus.PENDING_INSPECTION).build();
+        when(returnBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(returnBatchRepositoryPort.findLinesByBatchId(10L)).thenReturn(List.of());
+
+        ReturnBatchResponse response = returnBatchService.getById(10L);
+
+        assertThat(response.status()).isEqualTo(ReturnBatchStatus.NOT_OPEN);
+        verify(returnBatchRepositoryPort).save(batch);
+    }
+
+    @Test
+    @DisplayName("detail opens a return receipt once the configured inspection window starts")
+    void getById_whenInspectionWindowStarts_marksPending() {
+        when(clock.instant()).thenReturn(Instant.parse("2026-07-31T07:00:00Z")); // 14:00 VN
+        when(importBatchConfigResolver.resolveReturnBufferMinutes()).thenReturn(60);
+        supplier.setReturnCutOffTime(LocalTime.of(14, 30));
+        ReturnBatchModel batch = ReturnBatchModel.builder()
+                .id(10L).lotterySupplierId(7L).drawDate(DRAW_DATE)
+                .returnCutOffTime(LocalTime.of(14, 30))
+                .status(ReturnBatchStatus.NOT_OPEN).build();
+        when(returnBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(returnBatchRepositoryPort.findLinesByBatchId(10L)).thenReturn(List.of());
+
+        ReturnBatchResponse response = returnBatchService.getById(10L);
+
+        assertThat(response.status()).isEqualTo(ReturnBatchStatus.PENDING_INSPECTION);
+        verify(returnBatchRepositoryPort).save(batch);
+    }
+
+    @Test
     @DisplayName("getAll defaults to supplier return batches when no type is supplied")
     void getAll_defaultsToSupplierReturnType() {
         when(returnBatchRepositoryPort.findAll(
@@ -217,6 +255,7 @@ class ReturnBatchServiceTest {
                 isNull(),
                 isNull()
         );
+        verify(returnBatchRepositoryPort).synchronizeInspectionStatuses(any(), any(Integer.class));
     }
 
     @Test
@@ -259,6 +298,7 @@ class ReturnBatchServiceTest {
                 .id(10L)
                 .lotterySupplierId(7L)
                 .drawDate(DRAW_DATE)
+                .returnCutOffTime(LocalTime.of(18, 0))
                 .supplierSettlementId(50L)
                 .status(ReturnBatchStatus.PENDING_INSPECTION)
                 .build();

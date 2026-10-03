@@ -20,6 +20,7 @@ interface ToolbarProps {
 }
 
 const RETURN_BATCH_STATUS_OPTIONS = [
+    { value: 'NOT_OPEN', label: 'Chưa mở' },
     { value: 'PENDING_INSPECTION', label: 'Chờ kiểm tra vé' },
     { value: 'INSPECTING', label: 'Đang kiểm tra vé' },
     { value: 'PENDING_HANDOVER', label: 'Chờ bàn giao' },

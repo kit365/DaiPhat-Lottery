@@ -169,10 +169,13 @@ public class ImportBatchDraftExpiryService {
         if (anyLineCancelled) {
             batch.setLines(importBatchLineRepositoryPort.findByImportBatchId(batch.getId()));
             batch.recalculateAggregates();
-            batch.refreshImportStatus(now);
         }
 
         if (batch.areAllActiveLinesCancelled()) {
+            // This is the terminal transition for the batch. Do it before the
+            // generic status refresh so markCancelled is invoked exactly once.
+            // Calling refreshImportStatus first also marks the batch CANCELLED,
+            // and a second markCancelled then fails with IMPORT_BATCH_INVALID_STATUS.
             batch.markCancelled(now, ImportBatchCancelReason.ALL_LINES_CANCELLED);
             importBatchRepositoryPort.save(batch);
             log.info(
@@ -185,6 +188,7 @@ public class ImportBatchDraftExpiryService {
         }
 
         if (anyLineCancelled) {
+            batch.refreshImportStatus(now);
             importBatchRepositoryPort.save(batch);
             notifyImportBatchAutoCancelled(batch, cancelledLineCount, false, sameDayDeadline);
         }

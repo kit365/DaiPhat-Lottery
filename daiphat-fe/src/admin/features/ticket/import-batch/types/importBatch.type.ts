@@ -242,6 +242,7 @@ export type ImportBatchFileIssueCode =
     | 'STATION_PRICING_MISMATCH'
     | 'STATION_SCHEDULE_MISMATCH'
     | 'PARTIAL_IMPORT_DISABLED'
+    | 'DECLARED_QUANTITY_MISMATCH'
     | 'SUPPLIER_IDENTITY_MISMATCH'
     | 'SUPPLIER_IDENTITY_NOT_DECLARED'
     | 'STATION_INACTIVE';
@@ -491,7 +492,7 @@ export interface ImportBatchFileImportResult {
  * The file is uploaded again instead of the resolved rows being sent back, so the
  * backend re-reads and re-validates everything rather than trusting this copy.
  */
-export type ImportBatchFileCommitMode = 'MANUAL';
+export type ImportBatchFileCommitMode = 'MANUAL' | 'AUTO';
 
 /** Maps one preview draw-date group onto an existing editable import-batch (Manual). */
 export interface ImportBatchFileManualBatchBinding {
@@ -505,8 +506,8 @@ export interface ImportBatchFileCommitPayload {
     fileHash: string;
     mapping: ImportBatchFileMapping;
     drawDates: string[];
-    /** File import only attaches tickets to an existing batch. */
     commitMode?: ImportBatchFileCommitMode;
+    invoiceEvidenceUrl?: string;
     /** One existing importBatchId per selected drawDate. */
     manualBatchBindings?: ImportBatchFileManualBatchBinding[];
 }

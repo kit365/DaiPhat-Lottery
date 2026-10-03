@@ -1,4 +1,5 @@
 export type ReturnBatchStatus =
+    | 'NOT_OPEN'
     | 'PENDING_INSPECTION'
     | 'INSPECTING'
     | 'PENDING_HANDOVER'

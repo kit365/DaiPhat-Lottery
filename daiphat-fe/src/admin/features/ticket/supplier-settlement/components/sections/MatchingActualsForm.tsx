@@ -186,16 +186,28 @@ const isLikelyImageEvidenceUrl = (url?: string | null, file?: File | null): bool
     if (path.startsWith('blob:')) {
         return false;
     }
-    return /\.(png|jpe?g|gif|webp|bmp)$/i.test(path);
+    return (
+        /\.(png|jpe?g|gif|webp|bmp|svg|avif|ico)$/i.test(path) ||
+        /\/(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(path) ||
+        path.includes('placehold.co') ||
+        path.includes('placeholder')
+    );
 };
 
 const getEvidenceFileLabel = (url?: string | null, file?: File | null): string => {
     if (file?.name) return file.name;
     if (!url) return 'Tệp đính kèm';
     try {
-        const path = decodeURIComponent(url.split('?')[0]);
+        const path = decodeURIComponent(url.split('?')[0].split('#')[0]);
         const name = path.split('/').pop() || '';
-        return name || 'Tệp đính kèm';
+        if (
+            name &&
+            !/^(png|jpg|jpeg|webp|gif|svg|bmp|pdf|xlsx|xls|csv|docx|doc|txt)$/i.test(name) &&
+            !/^\d+x\d+$/i.test(name)
+        ) {
+            return name;
+        }
+        return 'Tệp đính kèm';
     } catch {
         return 'Tệp đính kèm';
     }
@@ -5561,9 +5573,22 @@ export const MatchingActualsForm = ({
                                                 </IconButton>
                                             </>
                                         ) : (
-                                            <Stack spacing={1.25} alignItems="center" sx={{ p: 4, textAlign: 'center' }}>
+                                            <Stack spacing={1.25} alignItems="center" sx={{ p: 4, textAlign: 'center', maxWidth: '100%', overflow: 'hidden' }}>
                                                 <InsertDriveFileOutlinedIcon sx={{ fontSize: '2.75rem', color: '#ea580c' }} />
-                                                <Typography variant="body2" fontWeight={700} color="#0f172a" sx={{ wordBreak: 'break-all' }}>
+                                                <Typography
+                                                    variant="body2"
+                                                    fontWeight={700}
+                                                    color="#0f172a"
+                                                    sx={{
+                                                        wordBreak: 'break-word',
+                                                        maxWidth: 320,
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        display: '-webkit-box',
+                                                        WebkitLineClamp: 2,
+                                                        WebkitBoxOrient: 'vertical',
+                                                    }}
+                                                >
                                                     {getEvidenceFileLabel(receiptUrl, pendingNccReceiptFile)}
                                                 </Typography>
                                                 <Button

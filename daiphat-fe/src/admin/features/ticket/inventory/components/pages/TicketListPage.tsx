@@ -110,8 +110,8 @@ export const TicketListPage = () => {
             : 'Vé đã chốt trả nhà cung cấp — không thể hủy vé kỳ quay cũ.';
     }, [ticketHook.tickets, allBlockedForToday, todayIso]);
 
-    const handleFileImportSuccess = () => {
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+    const handleFileImportSuccess = async () => {
+        await queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
     };
 
     const handleCancelPrimaryClick = () => {

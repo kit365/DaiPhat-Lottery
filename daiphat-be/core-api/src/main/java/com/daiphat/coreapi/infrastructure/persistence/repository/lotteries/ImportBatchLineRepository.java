@@ -82,6 +82,20 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
     );
 
     @Query("""
+            SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END
+            FROM ImportBatchLineEntity l JOIN l.importBatch b
+            WHERE l.lotteryStation.id = :stationId
+              AND b.drawDate = :drawDate
+              AND l.status = com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.IMPORTED
+              AND b.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.CANCELLED
+              AND l.deletedAt IS NULL AND b.deletedAt IS NULL
+            """)
+    boolean existsImportedLineForStationAndDrawDate(
+            @Param("stationId") Long stationId,
+            @Param("drawDate") LocalDate drawDate
+    );
+
+    @Query("""
             SELECT b.id
             FROM ImportBatchLineEntity l
             JOIN l.importBatch b

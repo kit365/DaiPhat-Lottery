@@ -1073,7 +1073,7 @@ export const ReturnBatchInspectPage = () => {
                         cancelButtonText="Hủy bỏ"
                         hideFaultedBySelector
                         beforeConfirm={() => {
-                            if (mutationsBlocked) {
+                            if (batch?.status === 'CANCELLED') {
                                 showInspectionExpiredPopup();
                                 return false;
                             }

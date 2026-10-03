@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileCommitMode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -22,8 +23,13 @@ public record ImportBatchFilePreviewRequest(
 
         Long importBatchId,
 
-        List<ImportBatchFileManualBatchBinding> manualBatchBindings
+        List<ImportBatchFileManualBatchBinding> manualBatchBindings,
+
+        ImportBatchFileCommitMode commitMode
 ) {
+    public ImportBatchFileCommitMode resolvedCommitMode() {
+        return commitMode == null ? ImportBatchFileCommitMode.MANUAL : commitMode;
+    }
     public Long manualBatchIdFor(LocalDate drawDate) {
         if (manualBatchBindings != null && drawDate != null) {
             for (ImportBatchFileManualBatchBinding binding : manualBatchBindings) {

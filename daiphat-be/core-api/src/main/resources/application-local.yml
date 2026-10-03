@@ -74,11 +74,11 @@ daiphat:
     seed:
       # Rolling three-day demo dataset. Only records owned by the seeders are reset.
       enabled: ${OFFICIAL_DEMO_SEED_ENABLED:true}
-  # Local runs use the same Cloudinary storage as production by default so uploaded
-  # contracts and other files are not left in the working tree. Override with
-  # STORAGE_PROVIDER=local only when filesystem storage is intentionally needed.
+  # Local development must work without external Cloudinary credentials. Uploaded
+  # files are served from /uploads/** by LocalStorageWebConfig and proxied by the FE.
+  # Set STORAGE_PROVIDER=cloudinary explicitly when testing Cloudinary locally.
   storage:
-    provider: ${STORAGE_PROVIDER:cloudinary}
+    provider: ${STORAGE_PROVIDER:local}
   ticket-vision:
     service:
       # ticket-vision Uvicorn default (see daiphat-ai/scripts/run_ticket_vision.sh)

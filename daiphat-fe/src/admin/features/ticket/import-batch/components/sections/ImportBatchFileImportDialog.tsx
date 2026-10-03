@@ -66,13 +66,12 @@ import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import { useActiveSuppliers } from '../../../../supplier';
 import {
-    cancelImportBatchDraft,
     commitImportBatchFile,
-    getImportBatchById,
     inspectImportBatchFile,
     previewImportBatchFile,
     saveImportBatchFileMappingProfile,
     saveLotteryStationAlias,
+    uploadImportBatchInvoiceEvidence,
 } from '../../services/importBatchService';
 import type {
     ImportBatchFileGroup,
@@ -85,11 +84,6 @@ import type {
     ImportBatchFileScheduleMismatch,
 } from '../../types/importBatch.type';
 import { mappingImportsTickets } from '../../types/importBatch.type';
-import {
-    checkFileImportGroupQuantity,
-    mergeImportQuantityChecks,
-    type ImportQuantityCheck,
-} from '../../../ocr-import/utils/ocrImportQuantity';
 import { ImportBatchFileColumnTagger } from './ImportBatchFileColumnTagger';
 import { ImportBatchFileConfigDialog } from './ImportBatchFileConfigDialog';
 import { ImportBatchFilePricingDialog } from './ImportBatchFilePricingDialog';
@@ -97,16 +91,12 @@ import { ImportBatchFileSupplierIdentityPanel } from './ImportBatchFileSupplierI
 import { ImportBatchFileScheduleDialog } from './ImportBatchFileScheduleDialog';
 import { ImportBatchFileSupplierDialog } from './ImportBatchFileSupplierDialog';
 import { ImportBatchFileMappingProfilePanel } from './ImportBatchFileMappingProfilePanel';
-import { ImportBatchFileAllocationSummary, buildFileAllocationRows } from './ImportBatchFileAllocationSummary';
-import { ImportBatchQuickAllocationModal } from './ImportBatchQuickAllocationModal';
-import { ImportBatchReceptionLineSummary } from './ImportBatchReceptionLineSummary';
 import {
     downloadImportBatchProgressCsv,
     type ImportBatchProgressStationPricing,
 } from '../../utils/importBatchProgressExport';
 import { formatImportCost } from '../../utils/importCostCalculator';
 import {
-    collectAnomalies,
     collectPreviewRowNotes,
     collectPreviewSerialNotes,
     fileImportRequestErrorMessage,
@@ -119,7 +109,6 @@ import {
     previewTicketDisplayStatus,
     type PreviewDisplayStatus,
     readPreviewFileValues,
-    type ImportBatchFileAnomaly,
     type PreviewTicketLine,
 } from '../../utils/importBatchFileImport';
 import { ImagePreviewModal } from '@/admin/components/ui/ImagePreview';
@@ -132,38 +121,15 @@ import {
 import { usePublicSystemConfigValues } from '@/client/hooks/usePublicSystemConfigValues';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useStationsByDrawDate } from '../../../../station/hooks/useStation';
-import {
-    useImportBatchTimePolicy,
-    useDraftImportBatches,
-} from '../../hooks/useImportBatch';
+import { useImportBatchTimePolicy } from '../../hooks/useImportBatch';
 import { evaluateImportBatchIntake } from '../../hooks/useImportBatchIntakeGate';
 import {
     DEFAULT_RETURN_BUFFER_MINUTES,
     buildImportIntakeClosedMessage,
 } from '../../utils/importBatchDrawDate';
-import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
-import {
-    canDeleteImportBatch,
-    canShowImportBatchDelete,
-    getImportBatchDeleteDisabledReason,
-} from '../../utils/importBatchDeletion';
-import {
-    collectOcrBatchOptions,
-    filterEligibleOcrBatches,
-    countOcrBatchesBlockedByIntake,
-    type OcrBatchOption,
-} from '../../../ocr-import/utils/ocrImportHelpers';
 import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import type { Station } from '../../../../station/types/station.type';
-import { ROUTES } from '@/admin/constants/routes';
-import { useRouter } from 'next/navigation';
-import {
-    buildImportBatchSelectionSnapshot,
-    importBatchMatchesSelectionSnapshot,
-    isImportBatchSelectionStaleError,
-} from '../../utils/importBatchSelectionSnapshot';
-import { ImportBatchStateChangedDialog } from './ImportBatchStateChangedDialog';
 
 type ImportBatchFileImportDialogProps = {
     open: boolean;
@@ -176,7 +142,7 @@ type ImportBatchFileImportDialogProps = {
 const STEPS = ['Chọn tệp & Nhà cung cấp', 'Gán cột dữ liệu', 'Xem trước & Nạp vé'];
 
 const STEP_SUBTITLES = [
-    'Chọn tệp danh sách vé, nhà cung cấp và thiết lập phiếu nhập lô tiếp nhận',
+    'Chọn tệp danh sách vé, nhà cung cấp và tải hóa đơn riêng',
     'Khớp các cột dữ liệu từ tệp vào hệ thống và tùy chỉnh cấu hình phụ trợ',
     'Kiểm tra dữ liệu chi tiết, phân loại kỳ vé và hoàn tất nạp vé',
 ];
@@ -365,6 +331,7 @@ const GROUP_ISSUE_TITLE: Record<string, string> = {
     STATION_PRICING_MISMATCH: 'Giá lệch so với hệ thống',
     STATION_SCHEDULE_MISMATCH: 'Lịch quay không khớp',
     PARTIAL_IMPORT_DISABLED: 'Không cho phép nhập một phần',
+    DECLARED_QUANTITY_MISMATCH: 'Số lượng khai báo không khớp sê-ri hợp lệ',
     SUPPLIER_IDENTITY_MISMATCH: 'Tệp không khớp nhà cung cấp đã chọn',
     SUPPLIER_IDENTITY_NOT_DECLARED: 'Tệp không ghi thông tin nhà cung cấp',
 };
@@ -521,9 +488,7 @@ export const ImportBatchFileImportDialog = ({
     onClose,
     onImported,
     prefillSupplierId = null,
-    prefillBatchId = null,
 }: ImportBatchFileImportDialogProps) => {
-    const router = useRouter();
     const { data: activeSuppliers = [] } = useActiveSuppliers();
     const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     // The draw schedule, not the import-eligibility list. A delivery note must
@@ -545,6 +510,7 @@ export const ImportBatchFileImportDialog = ({
     const [busy, setBusy] = useState(false);
     const [supplierId, setSupplierId] = useState<number>(prefillSupplierId ?? 0);
     const [file, setFile] = useState<File | null>(null);
+    const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
     const [inspectResult, setInspectResult] = useState<ImportBatchFileInspectResult | null>(null);
     const [mapping, setMapping] = useState<ImportBatchFileMapping | null>(null);
     const [preview, setPreview] = useState<ImportBatchFilePreviewResult | null>(null);
@@ -556,15 +522,6 @@ export const ImportBatchFileImportDialog = ({
     const [scheduleOpen, setScheduleOpen] = useState(false);
     const [supplierEditOpen, setSupplierEditOpen] = useState(false);
     const [profileRefreshToken, setProfileRefreshToken] = useState(0);
-    const [selectedImportBatchId, setSelectedImportBatchId] = useState<number | null>(prefillBatchId ?? null);
-    const [batchToDiscard, setBatchToDiscard] = useState<OcrBatchOption | null>(null);
-    const [discardingBatchId, setDiscardingBatchId] = useState<number | null>(null);
-    const [shortfallCheck, setShortfallCheck] = useState<ImportQuantityCheck | null>(null);
-    const [allocationOpen, setAllocationOpen] = useState(false);
-    const [staleImportBatchId, setStaleImportBatchId] = useState<number | null>(null);
-
-    const { data: draftBatches = [], refetch: refetchDraftBatches, isLoading: loadingBatches } =
-        useDraftImportBatches(open);
 
     /**
      * The same station can be flagged on several draw dates; the correction is
@@ -662,176 +619,48 @@ export const ImportBatchFileImportDialog = ({
         [evaluateIntake, selectedSupplier]
     );
 
-    const selectedDraftBatch = useMemo(
-        () => draftBatches.find((b) => b.id === selectedImportBatchId) ?? null,
-        [draftBatches, selectedImportBatchId]
+    const validFileStations = useMemo(
+        () => (preview?.groups ?? []).filter((group) => group.status !== 'OUT_OF_WINDOW' && group.drawDate)
+            .flatMap((group) => group.stations),
+        [preview]
     );
-
-    const selectedBatchDrawDate = useMemo(() => {
-        if (!selectedDraftBatch?.drawDate) {
-            return null;
-        }
-        return dayjs(selectedDraftBatch.drawDate).format('YYYY-MM-DD');
-    }, [selectedDraftBatch]);
-
-    const selectedGroup = useMemo(
-        () => preview?.groups.find((group) => group.drawDate === selectedBatchDrawDate),
-        [preview, selectedBatchDrawDate]
-    );
-    const validFileStations = selectedGroup?.status === 'IMPORTABLE' ? selectedGroup.stations : [];
     const validTicketCount = validFileStations.reduce((sum, station) => sum + station.ticketCount, 0);
     const validSerialCount = validFileStations.reduce((sum, station) => sum + station.serialCount, 0);
-    const stationNames = useMemo(() => {
-        const names: Record<number, string> = {};
-        [...(yesterdayStations ?? []), ...(todayStations ?? []), ...(tomorrowStations ?? [])].forEach((station) => {
-            names[Number(station.id)] = station.name;
-        });
-        return names;
-    }, [yesterdayStations, todayStations, tomorrowStations]);
-    const allocationRows = useMemo(
-        () => buildFileAllocationRows(selectedDraftBatch, selectedGroup, stationNames),
-        [selectedDraftBatch, selectedGroup, stationNames]
+    const uniqueStationCount = new Set(validFileStations.map((station) => station.lotteryStationId)).size;
+    const hasQuantityMismatch = (preview?.groups ?? []).some((group) =>
+        group.status !== 'OUT_OF_WINDOW'
+        && group.groupIssues.some((issue) => issue.code === 'DECLARED_QUANTITY_MISMATCH')
     );
-    const hasAllocationIssue = allocationRows.some((row) => row.issue !== null);
-
-    const selectedBatchIntake = useMemo(() => {
-        if (!selectedSupplier || !selectedBatchDrawDate) {
-            return null;
-        }
-        return evaluateIntake(selectedSupplier, selectedBatchDrawDate);
-    }, [evaluateIntake, selectedSupplier, selectedBatchDrawDate]);
-
-    const activeIntakeAlert = useMemo(() => {
-        if (!selectedSupplier || supplierId <= 0) {
-            return null;
-        }
-        if (selectedDraftBatch) {
-            if (selectedBatchIntake && (selectedBatchIntake.blocked || selectedBatchIntake.notYetAllowed)) {
-                return selectedBatchIntake;
-            }
-            return null;
-        }
-        if (todayIntake.blocked || todayIntake.notYetAllowed) {
-            return todayIntake;
-        }
-        return null;
-    }, [selectedSupplier, supplierId, selectedDraftBatch, selectedBatchIntake, todayIntake]);
-
-    const returnBufferMinutes =
-        intakeTimePolicy?.returnBufferMinutes ?? DEFAULT_RETURN_BUFFER_MINUTES;
-
-    const allBatchOptions = useMemo(
-        () => collectOcrBatchOptions(draftBatches),
-        [draftBatches]
-    );
-
-    const eligibleBatchOptions = useMemo(
-        () =>
-            filterEligibleOcrBatches(allBatchOptions, {
-                supplierId: supplierId || null,
-                returnCutOffTime: selectedSupplier?.returnCutOffTime,
-                returnBufferMinutes,
-            }),
-        [
-            allBatchOptions,
-            supplierId,
-            selectedSupplier?.returnCutOffTime,
-            returnBufferMinutes,
-        ]
-    );
-
-    const blockedByIntakeCount = useMemo(
-        () =>
-            countOcrBatchesBlockedByIntake(allBatchOptions, {
-                supplierId: supplierId || null,
-                returnCutOffTime: selectedSupplier?.returnCutOffTime,
-                returnBufferMinutes,
-            }),
-        [
-            allBatchOptions,
-            supplierId,
-            selectedSupplier?.returnCutOffTime,
-            returnBufferMinutes,
-        ]
-    );
-
-    const intakeClosedHint = useMemo(() => {
-        if (blockedByIntakeCount <= 0 || !selectedSupplier) {
-            return null;
-        }
-        return buildImportIntakeClosedMessage({
-            supplierName: selectedSupplier.name,
-            returnCutOffTime: selectedSupplier.returnCutOffTime,
-            returnBufferMinutes,
-            drawDate: todayDrawDate,
-        });
-    }, [blockedByIntakeCount, selectedSupplier, returnBufferMinutes, todayDrawDate]);
-
-    const handleSelectDraftBatch = useCallback((batchId: number | null) => {
-        setSelectedImportBatchId(batchId);
-        setPreview(null);
-        setSelectedDates([]);
-    }, []);
+    const invoiceDuplicatesTicketFile = Boolean(invoiceFile && file
+        && invoiceFile.name === file.name
+        && invoiceFile.size === file.size
+        && invoiceFile.lastModified === file.lastModified);
+    const activeIntakeAlert = selectedSupplier && (todayIntake.blocked || todayIntake.notYetAllowed)
+        ? todayIntake : null;
+    const blockedSelectedDate = selectedDates.find(isDrawDateIntakeBlocked);
+    const blockedSelectedDateIntake = blockedSelectedDate
+        ? evaluateIntake(selectedSupplier, blockedSelectedDate)
+        : null;
+    const commitDisabledReason = busy
+        ? null
+        : !invoiceFile
+            ? 'Vui lòng tải lên tệp hóa đơn riêng trước khi tiến hành nhập.'
+            : invoiceDuplicatesTicketFile
+                ? 'Tệp hóa đơn phải là tệp riêng, không được trùng với tệp danh sách vé.'
+                : hasQuantityMismatch
+                    ? 'Số sê-ri hợp lệ phải khớp với số lượng khai báo của từng nhà đài.'
+                    : selectedDates.length === 0
+                        ? 'Không có ngày quay hợp lệ để nhập.'
+                        : blockedSelectedDateIntake?.blocked
+                            ? blockedSelectedDateIntake.message
+                                ?? 'Kỳ quay đã qua giờ cho phép nhập lô.'
+                            : null;
 
     useEffect(() => {
-        if (!open) {
-            return;
-        }
-        if (prefillSupplierId != null && prefillSupplierId > 0) {
+        if (open && prefillSupplierId != null && prefillSupplierId > 0) {
             setSupplierId(prefillSupplierId);
         }
-        if (prefillBatchId != null && prefillBatchId > 0) {
-            handleSelectDraftBatch(prefillBatchId);
-        }
-    }, [open, prefillSupplierId, prefillBatchId, handleSelectDraftBatch]);
-
-    useEffect(() => {
-        if (loadingBatches || !supplierId) {
-            return;
-        }
-        if (selectedImportBatchId == null) {
-            if (eligibleBatchOptions.length === 1) {
-                handleSelectDraftBatch(eligibleBatchOptions[0].id);
-            }
-            return;
-        }
-        if (!eligibleBatchOptions.some((b) => b.id === selectedImportBatchId)) {
-            handleSelectDraftBatch(null);
-        }
-    }, [eligibleBatchOptions, selectedImportBatchId, supplierId, loadingBatches, handleSelectDraftBatch]);
-
-    const handleNavigateToCreateBatch = () => {
-        const createUrl = supplierId
-            ? `${ROUTES.ADMIN.IMPORT_BATCH.CREATE}?supplierId=${supplierId}&returnTo=file-import`
-            : `${ROUTES.ADMIN.IMPORT_BATCH.CREATE}?returnTo=file-import`;
-        router.push(createUrl);
-        onClose();
-    };
-
-    const handleEditBatchNavigate = (batchId: number) => {
-        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId));
-        onClose();
-    };
-
-    const handleDiscardDraftBatch = async (batchId: number) => {
-        setDiscardingBatchId(batchId);
-        try {
-            await cancelImportBatchDraft(batchId);
-            toast.success('Đã xóa phiếu nhập lô.');
-            if (selectedImportBatchId === batchId) {
-                handleSelectDraftBatch(null);
-            }
-            await refetchDraftBatches();
-        } catch (error: unknown) {
-            const message =
-                (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message ||
-                (error as { message?: string })?.message ||
-                'Không xóa được phiếu nhập lô.';
-            toast.error(message);
-        } finally {
-            setDiscardingBatchId(null);
-        }
-    };
+    }, [open, prefillSupplierId]);
 
     const issuerConfig = usePublicSystemConfigValues(ISSUER_CONFIG_KEYS, ISSUER_CONFIG_DEFAULTS);
     /**
@@ -999,8 +828,8 @@ export const ImportBatchFileImportDialog = ({
                 id: 'draw-date',
                 severity: drawDateProblem.blocking ? 'error' : 'warning',
                 title: drawDateProblem.blocking
-                    ? `Tệp không có dòng nào có thể nhập cho ngày quay ${formatDate(selectedBatchDrawDate ?? undefined)}`
-                    : `${drawDateProblem.outOfWindowRows + drawDateProblem.unreadableRows} dòng không thuộc ngày quay sẽ nhập`,
+                    ? 'Tệp không có dòng nào thuộc ngày quay có thể nhập'
+                    : `${drawDateProblem.outOfWindowRows + drawDateProblem.unreadableRows} dòng ngoài phạm vi nhập`,
                 detail: [
                     drawDateProblem.outOfWindowRows > 0
                         ? `${drawDateProblem.outOfWindowRows} dòng thuộc ngày ${drawDateProblem.dates}.`
@@ -1008,7 +837,7 @@ export const ImportBatchFileImportDialog = ({
                     drawDateProblem.unreadableRows > 0
                         ? `${drawDateProblem.unreadableRows} dòng không đọc được ngày quay.`
                         : '',
-                    `Phiếu đã chọn chỉ nhận vé của ngày quay ${formatDate(selectedBatchDrawDate ?? undefined)}.`,
+                    'Chỉ ngày quay hôm nay và ngày mai được phép nhập; các ngày khác sẽ được bỏ qua.',
                 ].filter(Boolean).join(' '),
             });
         }
@@ -1036,7 +865,7 @@ export const ImportBatchFileImportDialog = ({
         }
 
         return notices;
-    }, [drawDateProblem, pricingMismatches, scheduleMismatches, selectedSupplier, supplierIdentity, selectedBatchDrawDate]);
+    }, [drawDateProblem, pricingMismatches, scheduleMismatches, selectedSupplier, supplierIdentity]);
 
     const headerOptions = inspectResult?.detectedHeaders ?? [];
     const importsTickets = mappingImportsTickets(mapping);
@@ -1049,14 +878,11 @@ export const ImportBatchFileImportDialog = ({
         setStep(0);
         setBusy(false);
         setFile(null);
+        setInvoiceFile(null);
         setInspectResult(null);
         setMapping(null);
         setPreview(null);
         setSelectedDates([]);
-        setSelectedImportBatchId(null);
-        setAllocationOpen(false);
-        setBatchToDiscard(null);
-        setDiscardingBatchId(null);
         setAuxConfigOpen(false);
     };
 
@@ -1073,6 +899,7 @@ export const ImportBatchFileImportDialog = ({
         setInspectResult(null);
         setMapping(null);
         setPreview(null);
+        setSelectedDates([]);
         if (!chosen) {
             return;
         }
@@ -1105,7 +932,7 @@ export const ImportBatchFileImportDialog = ({
 
     const runPreview = async (nextMapping?: ImportBatchFileMapping) => {
         const effectiveMapping = nextMapping ?? mapping;
-        if (!file || !effectiveMapping || !supplierId || !selectedDraftBatch) {
+        if (!file || !effectiveMapping || !supplierId) {
             return;
         }
 
@@ -1114,7 +941,7 @@ export const ImportBatchFileImportDialog = ({
             const response = await previewImportBatchFile(file, {
                 supplierId,
                 mapping: effectiveMapping,
-                importBatchId: selectedImportBatchId ?? undefined,
+                commitMode: 'AUTO',
             });
             const result = response.data;
             if (!result) {
@@ -1124,7 +951,7 @@ export const ImportBatchFileImportDialog = ({
             setPreview(result);
             setMapping(result.appliedMapping);
             const selectableDates = result.groups
-                .filter((group) => isGroupSelectable(group) && group.drawDate === selectedBatchDrawDate)
+                .filter((group) => isGroupSelectable(group))
                 .map((group) => group.drawDate as string);
             setSelectedDates(selectableDates);
             setStep(2);
@@ -1159,95 +986,39 @@ export const ImportBatchFileImportDialog = ({
         await runPreview();
     };
 
-    const evaluateSelectedQuantity = (): ImportQuantityCheck => {
-        if (!preview) {
-            return mergeImportQuantityChecks([]);
-        }
-        const checks = selectedDates.map((drawDate) => {
-            const group =
-                preview.groups.find(
-                    (item) =>
-                        item.drawDate === drawDate ||
-                        (item.drawDate != null &&
-                            dayjs(item.drawDate).format('YYYY-MM-DD') === drawDate)
-                ) ?? { stations: [], ticketCount: 0, totalSerialCount: 0 };
-            return checkFileImportGroupQuantity(group, selectedDraftBatch);
-        });
-        return mergeImportQuantityChecks(checks);
-    };
-
-    const handleCommit = async (options?: { acknowledgeShortfall?: boolean }) => {
-        if (!preview || !file || !supplierId || !mapping) {
+    const handleCommit = async () => {
+        if (!preview || !file || !invoiceFile || !supplierId || !mapping
+            || invoiceDuplicatesTicketFile || hasQuantityMismatch) {
+            toast.warning('Vui lòng chọn tệp vé và tải lên hóa đơn riêng.');
             return;
         }
         if (selectedDates.length === 0) {
-            toast.warning('Chưa chọn ngày quay nào để nạp vé.');
+            toast.warning('Không có ngày quay hợp lệ để nhập. Vui lòng kiểm tra lỗi trong tệp.');
             return;
         }
-        const blockedDates = selectedDates.filter((drawDate) => isDrawDateIntakeBlocked(drawDate));
-        if (blockedDates.length > 0) {
+        const blockedDate = selectedDates.find(isDrawDateIntakeBlocked);
+        if (blockedDate) {
             toast.error(
-                evaluateIntake(selectedSupplier, blockedDates[0]).message ??
+                evaluateIntake(selectedSupplier, blockedDate).message ??
                     'Đã qua giờ cho phép nhập lô cho kỳ quay hôm nay.'
             );
-            return;
-        }
-        if (!selectedDraftBatch || selectedDates.some((date) => date !== selectedBatchDrawDate)) {
-            toast.warning('Phiếu nhập đã chọn không khớp ngày quay trong tệp.');
-            return;
-        }
-        if (hasAllocationIssue) {
-            setAllocationOpen(true);
-            return;
-        }
-
-        const quantityCheck = evaluateSelectedQuantity();
-        if (quantityCheck.isOverCapacity) {
-            const stationHint =
-                quantityCheck.stationExcesses.length > 0
-                    ? quantityCheck.stationExcesses
-                          .map(
-                              (item) =>
-                                  `${item.stationName}: tệp ${item.selected}, còn ${item.remaining}`
-                          )
-                          .join('; ')
-                    : null;
-            toast.error(
-                stationHint
-                    ? `Số vé trong tệp vượt chỗ còn lại trên phiếu. Hãy chỉnh sửa phiếu nhập hoặc tệp. (${stationHint})`
-                    : `Tệp có ${quantityCheck.selectedCount} vé nhưng phiếu chỉ còn ${quantityCheck.remainingCapacity} chỗ. Vui lòng chỉnh sửa phiếu nhập hoặc tệp.`
-            );
-            return;
-        }
-        if (quantityCheck.isShortfall && !options?.acknowledgeShortfall) {
-            setShortfallCheck(quantityCheck);
             return;
         }
 
         setBusy(true);
         try {
-            const selectionSnapshot = buildImportBatchSelectionSnapshot(selectedDraftBatch);
-            const latestBatch = (await getImportBatchById(selectedDraftBatch.id)).data;
-            if (!latestBatch || !importBatchMatchesSelectionSnapshot(latestBatch, selectionSnapshot)) {
-                setStaleImportBatchId(selectedDraftBatch.id);
-                return;
-            }
-            const manualBatchBindings = selectedDates.map((drawDate) => ({
-                drawDate,
-                importBatchId: selectedDraftBatch.id,
-                selectionSnapshot,
-            }));
+            const invoiceEvidenceUrl = await uploadImportBatchInvoiceEvidence(invoiceFile);
             const response = await commitImportBatchFile(file, {
                 supplierId,
                 fileHash: preview.fileHash,
                 mapping,
                 drawDates: selectedDates,
-                commitMode: 'MANUAL',
-                manualBatchBindings,
+                commitMode: 'AUTO',
+                invoiceEvidenceUrl,
             });
             const result = response.data;
             if (!result) {
-                toast.error('Không nạp được vé vào phiếu nhập từ tệp.');
+                toast.error('Không tạo được phiếu nhập từ tệp.');
                 return;
             }
 
@@ -1261,37 +1032,20 @@ export const ImportBatchFileImportDialog = ({
                     .catch(() => undefined);
             }
 
-            const shortfall = result.items.filter(
-                (item) =>
-                    item.success &&
-                    (item.importedSerialCount ?? 0) < (item.declaredSerialCount ?? 0)
-            );
-
             if (result.failedCount > 0) {
                 const failures = result.items
                     .filter((item) => !item.success)
                     .map((item) => `${formatDate(item.drawDate)}: ${item.message ?? item.errorCode}`)
                     .join('; ');
-                toast.warning(
-                    `Đã gắn ${result.createdCount}/${result.requestedCount} ngày quay. ${failures}`
-                );
-            } else if (shortfall.length > 0) {
-                toast.warning(
-                    `Đã gắn ${result.createdCount} ngày quay. Có ${shortfall.length} phiếu nhập chưa đủ vé, hãy hoàn tất ở màn hình nhập vé.`
-                );
-            } else {
-                toast.success(`Đã nhập vào ${result.createdCount} phiếu nhập lô vé từ tệp.`);
+                toast.warning(`Đã tạo ${result.createdCount}/${result.requestedCount} phiếu nhập. ${failures}`);
+                return;
             }
-
+            toast.success(`Đã tạo và nhập ${result.createdCount} phiếu nhập lô từ tệp.`);
             onImported?.();
             reset();
             onClose();
         } catch (err: unknown) {
-            if (isImportBatchSelectionStaleError(err)) {
-                setStaleImportBatchId(selectedDraftBatch?.id ?? null);
-                return;
-            }
-            toast.error(fileImportRequestErrorMessage(err, 'Không nhập được vé từ tệp vào phiếu nhập.'));
+            toast.error(fileImportRequestErrorMessage(err, 'Không nhập được vé từ tệp.'));
         } finally {
             setBusy(false);
         }
@@ -1299,11 +1053,6 @@ export const ImportBatchFileImportDialog = ({
 
     const handleCommitClick = async () => {
         await handleCommit();
-    };
-
-    const handleConfirmShortfallContinue = async () => {
-        setShortfallCheck(null);
-        await handleCommit({ acknowledgeShortfall: true });
     };
 
     const updateMapping = (patch: Partial<ImportBatchFileMapping>) => {
@@ -1469,7 +1218,7 @@ export const ImportBatchFileImportDialog = ({
                                 </Typography>
                                 <Typography variant="body2" color="#1e3a8a" sx={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
                                     • <b>Phạm vi ngày quay:</b> Nhập từ tệp chỉ áp dụng cho <b>ngày quay hôm nay</b>, và phải trước giờ kiểm vé chuẩn bị trả của nhà cung cấp. Ngày đã qua hoặc chưa tới sẽ bị bỏ qua.<br />
-                                    • <b>Chế độ nhập vé:</b> Vé trong tệp sẽ được gắn vào phiếu nhập lô nháp đã chọn. Nếu tệp có cột <b>dãy số</b> và <b>danh sách sê-ri</b> (phân cách bằng dấu <b>;</b>), hệ thống sẽ nhập vé vào kho. Nếu chỉ có cột <b>số lượng</b> thì hệ thống sẽ cập nhật số lượng khai báo.
+                                    • <b>Chế độ nhập vé:</b> Hệ thống tạo phiếu nhập và dòng nhà đài theo các vé hợp lệ trong tệp. Hóa đơn được tải lên riêng; tệp Excel là minh chứng danh sách vé nhập. Số lượng khai báo phải khớp số sê-ri hợp lệ.
                                 </Typography>
                             </Box>
                         </Box>
@@ -1495,7 +1244,7 @@ export const ImportBatchFileImportDialog = ({
                                 onChange={(event) => {
                                     const nextSupplierId = Number(event.target.value);
                                     setSupplierId(nextSupplierId);
-                                    setSelectedImportBatchId(null);
+                                    setInvoiceFile(null);
                                     setFile(null);
                                     setInspectResult(null);
                                     setMapping(null);
@@ -1584,305 +1333,22 @@ export const ImportBatchFileImportDialog = ({
                             )}
 
                             {supplierId > 0 && (
-                                <Stack spacing={1.25} sx={{ mt: 2.5 }}>
-                                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                        <Stack direction="row" spacing={1} alignItems="center">
-                                            <Typography variant="body2" fontWeight={700} color="#334155">
-                                                Phiếu nhập lô tiếp nhận
-                                            </Typography>
-                                            <Chip
-                                                size="small"
-                                                label="Bắt buộc"
-                                                sx={{
-                                                    height: 20,
-                                                    fontSize: '0.675rem',
-                                                    fontWeight: 700,
-                                                    bgcolor: '#fee2e2',
-                                                    color: '#b91c1c',
-                                                }}
-                                            />
-                                        </Stack>
-                                        <Stack direction="row" spacing={1}>
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                startIcon={<RefreshOutlinedIcon />}
-                                                disabled={loadingBatches}
-                                                onClick={() => void refetchDraftBatches()}
-                                                sx={{ textTransform: 'none', fontWeight: 700 }}
-                                            >
-                                                Tải lại
-                                            </Button>
-                                            {eligibleBatchOptions.length > 0 && (
-                                                <Button
-                                                    size="small"
-                                                    startIcon={<AddCircleOutlineIcon />}
-                                                    onClick={handleNavigateToCreateBatch}
-                                                    sx={{
-                                                        textTransform: 'none',
-                                                        fontWeight: 700,
-                                                        fontSize: '0.775rem',
-                                                        color: '#2563eb',
-                                                    }}
-                                                >
-                                                    Khai báo thêm phiếu
-                                                </Button>
-                                            )}
-                                        </Stack>
-                                    </Stack>
-
-                                    {loadingBatches ? (
-                                        <Stack alignItems="center" py={2}>
-                                            <CircularProgress size={24} />
-                                            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                                                Đang tải danh sách phiếu nhập…
-                                            </Typography>
-                                        </Stack>
-                                    ) : eligibleBatchOptions.length === 0 ? (
-                                        <Paper
-                                            elevation={0}
-                                            sx={{
-                                                p: 2.25,
-                                                borderRadius: '12px',
-                                                bgcolor: '#fffbeb',
-                                                border: '1px solid #fef08a',
-                                                display: 'flex',
-                                                flexDirection: { xs: 'column', sm: 'row' },
-                                                alignItems: { xs: 'flex-start', sm: 'center' },
-                                                justifyContent: 'space-between',
-                                                gap: 2,
-                                            }}
-                                        >
-                                            <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ flex: 1 }}>
-                                                <WarningAmberOutlinedIcon sx={{ color: '#d97706', fontSize: '1.4rem', flexShrink: 0, mt: 0.25 }} />
-                                                <Box>
-                                                    <Typography variant="body2" color="#92400e" fontWeight={700} sx={{ lineHeight: 1.4 }}>
-                                                        {blockedByIntakeCount > 0
-                                                            ? 'Phiếu nhập lô hiện có đã quá thời hạn cho phép tiếp nhận vé.'
-                                                            : 'Nhà cung cấp này chưa có phiếu nhập lô nào đang mở để tiếp nhận vé.'}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="#a16207" sx={{ display: 'block', mt: 0.5, lineHeight: 1.4 }}>
-                                                        {intakeClosedHint
-                                                            ? intakeClosedHint
-                                                            : 'Vui lòng khai báo phiếu nhập lô mới cho nhà cung cấp trước khi thực hiện tải lên tệp vé.'}
-                                                    </Typography>
-                                                </Box>
-                                            </Stack>
-
-                                            <Button
-                                                variant="contained"
-                                                size="small"
-                                                startIcon={<AddCircleOutlineIcon />}
-                                                onClick={handleNavigateToCreateBatch}
-                                                sx={{
-                                                    whiteSpace: 'nowrap',
-                                                    fontWeight: 700,
-                                                    fontSize: '0.8rem',
-                                                    textTransform: 'none',
-                                                    borderRadius: '8px',
-                                                    bgcolor: '#d97706',
-                                                    color: '#ffffff',
-                                                    px: 2,
-                                                    py: 0.75,
-                                                    boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
-                                                    '&:hover': {
-                                                        bgcolor: '#b45309',
-                                                    },
-                                                    alignSelf: { xs: 'stretch', sm: 'center' },
-                                                }}
-                                            >
-                                                Khai báo phiếu nhập
-                                            </Button>
-                                        </Paper>
-                                    ) : (
-                                        <Stack spacing={1}>
-                                            {eligibleBatchOptions.map((option) => {
-                                                const selected = selectedImportBatchId === option.id;
-                                                const isReceiving = option.status === 'RECEIVING';
-                                                const isPartial = option.status === 'PARTIALLY_IMPORTED';
-                                                return (
-                                                    <Paper
-                                                        key={option.id}
-                                                        elevation={0}
-                                                        onClick={() => handleSelectDraftBatch(selected ? null : option.id)}
-                                                        sx={{
-                                                            border: selected ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                                                            borderRadius: '12px',
-                                                            p: 1.5,
-                                                            cursor: 'pointer',
-                                                            bgcolor: selected ? '#eff6ff' : '#ffffff',
-                                                            boxShadow: selected ? '0 2px 8px rgba(37, 99, 235, 0.08)' : '0 1px 2px rgba(0,0,0,0.02)',
-                                                            transition: 'all 0.15s ease-in-out',
-                                                            '&:hover': {
-                                                                borderColor: selected ? '#2563eb' : '#94a3b8',
-                                                                bgcolor: selected ? '#eff6ff' : '#f8fafc',
-                                                            },
-                                                        }}
-                                                    >
-                                                        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}>
-                                                            <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" sx={{ flex: 1 }}>
-                                                                <Chip
-                                                                    size="small"
-                                                                    label={formatImportBatchHeaderCode(option.batchCode, option.id)}
-                                                                    sx={{
-                                                                        fontWeight: 800,
-                                                                        fontSize: '0.8rem',
-                                                                        bgcolor: selected ? '#2563eb' : '#f1f5f9',
-                                                                        color: selected ? '#ffffff' : '#1e293b',
-                                                                        borderRadius: '6px',
-                                                                    }}
-                                                                />
-                                                                <Stack direction="row" spacing={0.5} alignItems="center">
-                                                                    <CalendarTodayOutlinedIcon sx={{ fontSize: '0.875rem', color: '#64748b' }} />
-                                                                    <Typography variant="body2" color="#475569" fontWeight={600}>
-                                                                        Ngày quay: {dayjs(option.drawDate).format('DD/MM/YYYY')}
-                                                                    </Typography>
-                                                                </Stack>
-                                                                {isReceiving ? (
-                                                                    <Chip
-                                                                        size="small"
-                                                                        label="Đang nhập"
-                                                                        variant="outlined"
-                                                                        sx={{
-                                                                            height: 22,
-                                                                            fontSize: '0.7rem',
-                                                                            fontWeight: 700,
-                                                                            borderColor: '#93c5fd',
-                                                                            color: '#1d4ed8',
-                                                                            bgcolor: '#eff6ff',
-                                                                        }}
-                                                                    />
-                                                                ) : isPartial ? (
-                                                                    <Chip
-                                                                        size="small"
-                                                                        label="Đã nhập 1 nửa"
-                                                                        variant="outlined"
-                                                                        sx={{
-                                                                            height: 22,
-                                                                            fontSize: '0.7rem',
-                                                                            fontWeight: 700,
-                                                                            borderColor: '#fde68a',
-                                                                            color: '#b45309',
-                                                                            bgcolor: '#fefce8',
-                                                                        }}
-                                                                    />
-                                                                ) : (
-                                                                    <Chip
-                                                                        size="small"
-                                                                        label="Bản nháp"
-                                                                        variant="outlined"
-                                                                        sx={{
-                                                                            height: 22,
-                                                                            fontSize: '0.7rem',
-                                                                            fontWeight: 600,
-                                                                            borderColor: '#cbd5e1',
-                                                                            color: '#64748b',
-                                                                            bgcolor: '#f8fafc',
-                                                                        }}
-                                                                    />
-                                                                )}
-                                                            </Stack>
-
-                                                            <Stack direction="row" spacing={1} alignItems="center">
-                                                                {selected ? (
-                                                                    <Chip
-                                                                        size="small"
-                                                                        icon={<CheckCircleIcon sx={{ fontSize: '1rem !important', color: '#2563eb !important' }} />}
-                                                                        label="Đang chọn"
-                                                                        sx={{
-                                                                            bgcolor: '#dbeafe',
-                                                                            color: '#1d4ed8',
-                                                                            fontWeight: 700,
-                                                                            fontSize: '0.75rem',
-                                                                            height: 28,
-                                                                            px: 0.5,
-                                                                            border: '1px solid #bfdbfe',
-                                                                        }}
-                                                                    />
-                                                                ) : (
-                                                                    <Button
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                        onClick={(event) => {
-                                                                            event.stopPropagation();
-                                                                            handleSelectDraftBatch(option.id);
-                                                                        }}
-                                                                        sx={{
-                                                                            textTransform: 'none',
-                                                                            fontWeight: 600,
-                                                                            borderRadius: '8px',
-                                                                            fontSize: '0.775rem',
-                                                                            py: 0.25,
-                                                                        }}
-                                                                    >
-                                                                        Chọn
-                                                                    </Button>
-                                                                )}
-                                                                <Tooltip title="Chỉnh sửa phiếu nhập này">
-                                                                    <IconButton
-                                                                        size="small"
-                                                                        onClick={(event) => {
-                                                                            event.stopPropagation();
-                                                                            handleEditBatchNavigate(option.id);
-                                                                        }}
-                                                                        sx={{
-                                                                            p: 0.75,
-                                                                            borderRadius: '8px',
-                                                                            color: '#475569',
-                                                                            bgcolor: '#f1f5f9',
-                                                                            '&:hover': { bgcolor: '#e2e8f0', color: '#0f172a' },
-                                                                        }}
-                                                                    >
-                                                                        <EditOutlinedIcon sx={{ fontSize: '1.15rem' }} />
-                                                                    </IconButton>
-                                                                </Tooltip>
-                                                                {canShowImportBatchDelete(option) && (
-                                                                <Tooltip title={getImportBatchDeleteDisabledReason(option) || 'Xóa phiếu nhập này'}>
-                                                                    <span>
-                                                                    <IconButton
-                                                                        size="small"
-                                                                        color="error"
-                                                                        disabled={
-                                                                            discardingBatchId === option.id ||
-                                                                            !canDeleteImportBatch(option)
-                                                                        }
-                                                                        onClick={(event) => {
-                                                                            event.stopPropagation();
-                                                                            setBatchToDiscard(option);
-                                                                        }}
-                                                                        sx={{
-                                                                            p: 0.75,
-                                                                            borderRadius: '8px',
-                                                                            '&:hover': { bgcolor: '#fee2e2' },
-                                                                        }}
-                                                                    >
-                                                                        {discardingBatchId === option.id ? (
-                                                                            <CircularProgress size={16} />
-                                                                        ) : (
-                                                                            <DeleteOutlineIcon sx={{ fontSize: '1.15rem' }} />
-                                                                        )}
-                                                                    </IconButton>
-                                                                    </span>
-                                                                </Tooltip>
-                                                                )}
-                                                            </Stack>
-                                                        </Stack>
-                                                        <ImportBatchReceptionLineSummary
-                                                            batch={option}
-                                                            onChanged={async () => {
-                                                                await refetchDraftBatches();
-                                                            }}
-                                                        />
-                                                    </Paper>
-                                                );
-                                            })}
-                                        </Stack>
-                                    )}
-
-                                    {!selectedImportBatchId && eligibleBatchOptions.length > 0 && (
-                                        <FormHelperText sx={{ color: '#d97706', fontWeight: 600, mx: 0 }}>
-                                            ⚠️ Vui lòng nhấp chọn một phiếu nhập lô ở trên để tiếp tục
-                                        </FormHelperText>
+                                <Stack spacing={1} sx={{ mt: 2.5 }}>
+                                    <Typography variant="body2" fontWeight={700} color="#334155">
+                                        Hóa đơn nhập lô (tệp riêng) *
+                                    </Typography>
+                                    <Button component="label" variant="outlined" disabled={busy}
+                                        startIcon={<UploadFileOutlinedIcon />}
+                                        sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
+                                        {invoiceFile ? invoiceFile.name : 'Chọn tệp hóa đơn'}
+                                        <input hidden type="file" accept="image/*,.pdf,.xlsx,.xls,.csv"
+                                            onChange={(event) => setInvoiceFile(event.target.files?.[0] ?? null)} />
+                                    </Button>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Tệp Excel danh sách vé được lưu riêng làm minh chứng danh sách vé nhập.
+                                    </Typography>
+                                    {invoiceDuplicatesTicketFile && (
+                                        <Alert severity="error">Hóa đơn phải là tệp riêng, khác tệp danh sách vé.</Alert>
                                     )}
                                 </Stack>
                             )}
@@ -1919,12 +1385,12 @@ export const ImportBatchFileImportDialog = ({
                                     flexDirection: 'column',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    bgcolor: file ? '#f0fdf4' : !supplierId || !selectedImportBatchId ? '#f8fafc' : '#f8fafc',
-                                    cursor: !supplierId || !selectedImportBatchId || busy ? 'not-allowed' : 'pointer',
-                                    opacity: !supplierId || !selectedImportBatchId ? 0.6 : 1,
+                                    bgcolor: file ? '#f0fdf4' : '#f8fafc',
+                                    cursor: !supplierId || busy ? 'not-allowed' : 'pointer',
+                                    opacity: !supplierId ? 0.6 : 1,
                                     transition: 'all 0.2s',
                                     textAlign: 'center',
-                                    '&:hover': !supplierId || !selectedImportBatchId || busy ? {} : {
+                                    '&:hover': !supplierId || busy ? {} : {
                                         borderColor: '#2563eb',
                                         bgcolor: 'rgba(37, 99, 235, 0.04)',
                                     },
@@ -1934,7 +1400,7 @@ export const ImportBatchFileImportDialog = ({
                                     hidden
                                     type="file"
                                     accept={IMPORT_BATCH_FILE_ACCEPT}
-                                    disabled={!supplierId || !selectedDraftBatch || busy}
+                                    disabled={!supplierId || busy}
                                     onChange={(event) =>
                                         handleFileChosen(event.target.files?.[0] ?? null)
                                     }
@@ -1990,9 +1456,7 @@ export const ImportBatchFileImportDialog = ({
                                             <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
                                                 {!supplierId
                                                     ? 'Vui lòng chọn nhà cung cấp trước'
-                                                    : !selectedImportBatchId
-                                                      ? 'Vui lòng chọn phiếu nhập lô ở trên'
-                                                      : 'Kéo thả tệp hoặc bấm vào đây để chọn'}
+                                                    : 'Kéo thả tệp hoặc bấm vào đây để chọn'}
                                             </Typography>
                                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                                 Hỗ trợ định dạng Microsoft Excel (.xlsx) hoặc CSV (.csv)
@@ -2001,12 +1465,6 @@ export const ImportBatchFileImportDialog = ({
                                     </Stack>
                                 )}
                             </Box>
-
-                            {supplierId > 0 && !selectedImportBatchId && (
-                                <FormHelperText sx={{ color: '#d97706', fontWeight: 600, mt: 1.5, textAlign: 'center' }}>
-                                    ⚠️ Vui lòng chọn phiếu nhập lô tiếp nhận ở bước trên trước khi tải lên tệp dữ liệu
-                                </FormHelperText>
-                            )}
 
                             {/* Template & Helper Buttons */}
                             <Stack
@@ -2213,20 +1671,36 @@ export const ImportBatchFileImportDialog = ({
                             successLabel={supplierMatchedLabel}
                         />
 
-                        {selectedDraftBatch && (
-                            <ImportBatchFileAllocationSummary
-                                batch={selectedDraftBatch}
-                                supplierName={selectedSupplier?.name || selectedDraftBatch.supplierName || 'Nhà cung cấp'}
-                                rows={allocationRows}
-                                onEdit={() => setAllocationOpen(true)}
-                                onExport={() => void downloadImportBatchProgressCsv(preview, mapping, file?.name, {
-                                    issuer: templateIssuer,
-                                    operatorName,
-                                    supplier: templateSupplier || undefined,
-                                    stationPricing,
-                                })}
-                            />
-                        )}
+                        <Paper elevation={0} sx={{ p: 2, border: '1px solid #e2e8f0', borderRadius: 2 }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center" gap={2}>
+                                <Typography variant="subtitle2" fontWeight={800}>
+                                    Nhà đài trong tệp ({uniqueStationCount})
+                                </Typography>
+                                <Button variant="outlined" size="small" startIcon={<DownloadOutlinedIcon />}
+                                    onClick={() => void downloadImportBatchProgressCsv(preview, mapping, file?.name, {
+                                        issuer: templateIssuer,
+                                        operatorName,
+                                        supplier: templateSupplier || undefined,
+                                        stationPricing,
+                                    })}>
+                                    Xuất đối chiếu
+                                </Button>
+                            </Stack>
+                            <Stack spacing={0.5} sx={{ mt: 1 }}>
+                                {preview.groups.filter((group) => group.status !== 'OUT_OF_WINDOW').flatMap((group) =>
+                                    group.stations.map((station) => (
+                                        <Typography key={`${group.drawDate}-${station.lotteryStationId}`} variant="body2">
+                                            {station.stationName} · {formatDate(group.drawDate)} — {station.serialCount.toLocaleString('vi-VN')} vé
+                                        </Typography>
+                                    ))
+                                )}
+                            </Stack>
+                            {hasQuantityMismatch && (
+                                <Alert severity="error" sx={{ mt: 2 }}>
+                                    Số lượng khai báo không khớp số sê-ri hợp lệ. Hãy sửa tệp Excel và tải lại trước khi nhập.
+                                </Alert>
+                            )}
+                        </Paper>
 
                         {/* KPI Summary Cards */}
                         <Box
@@ -2305,20 +1779,10 @@ export const ImportBatchFileImportDialog = ({
                             </Paper>
                         </Box>
 
-                        {/* Anomalies Table */}
-                        <AnomalyTable
-                            anomalies={collectAnomalies(preview.groups)}
-                            mapping={mapping}
-                            busy={busy}
-                            hideEmptySuccess={previewNotices.length > 0 || !!supplierMatchedLabel}
-                            onChooseStation={handleChooseStation}
-                        />
-
                         {/* Preview tickets: Unified Flattened Table with Search, Filters, and Pagination */}
                         <PreviewTicketFlatTable
                             preview={preview}
                             mapping={mapping}
-                            targetDrawDate={selectedBatchDrawDate}
                             selectedDates={selectedDates}
                             busy={busy}
                             importsTickets={preview.importsTickets}
@@ -2381,7 +1845,7 @@ export const ImportBatchFileImportDialog = ({
                         <Button
                             variant="contained"
                             onClick={() => runPreview()}
-                            disabled={busy || !mappingReady || !selectedDraftBatch}
+                            disabled={busy || !mappingReady}
                             endIcon={busy ? <CircularProgress size={16} color="inherit" /> : <ArrowForwardIcon />}
                             sx={{
                                 textTransform: 'none',
@@ -2397,48 +1861,45 @@ export const ImportBatchFileImportDialog = ({
                 )}
 
                 {step === 2 && (
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Button
-                            onClick={() => setStep(1)}
-                            disabled={busy}
-                            startIcon={<ArrowBackIcon />}
-                            sx={{ textTransform: 'none', fontWeight: 600 }}
-                        >
-                            Quay lại
-                        </Button>
-                        <Button
-                            variant="contained"
-                            onClick={() => void handleCommitClick()}
-                            disabled={
-                                busy
-                                || selectedDates.length === 0
-                                || selectedDates.some(isDrawDateIntakeBlocked)
-                                || hasAllocationIssue
-                            }
-                            startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon />}
-                            sx={{
-                                textTransform: 'none',
-                                fontWeight: 700,
-                                borderRadius: 1.5,
-                                bgcolor: '#2563eb',
-                                '&:hover': { bgcolor: '#1d4ed8' },
-                            }}
-                        >
-                            {busy ? 'Đang nhập…' : `Tiến hành nhập (${selectedDates.length} ngày)`}
-                        </Button>
+                    <Stack spacing={0.5} alignItems="flex-end">
+                        {commitDisabledReason && (
+                            <Typography variant="caption" color="error.main" sx={{ fontWeight: 600 }}>
+                                {commitDisabledReason}
+                            </Typography>
+                        )}
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Button
+                                onClick={() => setStep(1)}
+                                disabled={busy}
+                                startIcon={<ArrowBackIcon />}
+                                sx={{ textTransform: 'none', fontWeight: 600 }}
+                            >
+                                Quay lại
+                            </Button>
+                            <Tooltip title={commitDisabledReason ?? ''} arrow>
+                                <span>
+                                    <Button
+                                        variant="contained"
+                                        onClick={() => void handleCommitClick()}
+                                        disabled={busy || Boolean(commitDisabledReason)}
+                                        startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon />}
+                                        sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 700,
+                                            borderRadius: 1.5,
+                                            bgcolor: '#2563eb',
+                                            '&:hover': { bgcolor: '#1d4ed8' },
+                                        }}
+                                    >
+                                        {busy ? 'Đang nhập…' : `Tiến hành nhập (${selectedDates.length} ngày)`}
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                        </Stack>
                     </Stack>
                 )}
             </DialogActions>
 
-            <ImportBatchQuickAllocationModal
-                open={allocationOpen}
-                onClose={() => setAllocationOpen(false)}
-                batch={selectedDraftBatch}
-                fileStations={selectedGroup?.stations ?? []}
-                onBatchUpdated={async () => {
-                    await refetchDraftBatches();
-                }}
-            />
 
             {/* Modal Cấu hình phụ trợ */}
             <Dialog
@@ -2560,112 +2021,6 @@ export const ImportBatchFileImportDialog = ({
                 </DialogActions>
             </Dialog>
 
-            <Dialog
-                open={Boolean(shortfallCheck)}
-                onClose={() => setShortfallCheck(null)}
-                maxWidth="xs"
-                fullWidth
-            >
-                <DialogTitle sx={{ fontWeight: 800 }}>Số vé chưa đủ so với phiếu nhập</DialogTitle>
-                <DialogContent>
-                    <DialogContentText component="div" sx={{ color: 'text.primary' }}>
-                        Tệp đang nhập <strong>{shortfallCheck?.selectedCount ?? 0}</strong> vé trong khi
-                        các phiếu còn <strong>{shortfallCheck?.remainingCapacity ?? 0}</strong> chỗ
-                        (thiếu <strong>{shortfallCheck?.shortfallCount ?? 0}</strong> vé).
-                        Bạn vẫn có thể tiếp tục; phần còn thiếu cần bổ sung sau.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={() => setShortfallCheck(null)} sx={{ textTransform: 'none' }}>
-                        Quay lại
-                    </Button>
-                    <Button
-                        variant="contained"
-                        color="warning"
-                        disabled={busy}
-                        onClick={() => void handleConfirmShortfallContinue()}
-                        sx={{ textTransform: 'none', fontWeight: 700 }}
-                    >
-                        Vẫn tiếp tục nhập
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Modal xác nhận hủy / xóa phiếu nhập nháp */}
-            <Dialog
-                open={Boolean(batchToDiscard)}
-                onClose={() => !discardingBatchId && setBatchToDiscard(null)}
-                maxWidth="xs"
-                fullWidth
-                PaperProps={{
-                    sx: {
-                        borderRadius: 3,
-                        p: 1,
-                    },
-                }}
-            >
-                <DialogTitle sx={{ pb: 1, pt: 2, px: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box
-                        sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: '50%',
-                            bgcolor: '#fee2e2',
-                            color: '#dc2626',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                        }}
-                    >
-                        <DeleteOutlineIcon sx={{ fontSize: 20 }} />
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.05rem' }}>
-                        Xóa phiếu nhập lô
-                    </Typography>
-                </DialogTitle>
-                <DialogContent sx={{ px: 2.5, py: 1.5 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                        Bạn có chắc chắn muốn xóa phiếu nhập lô{' '}
-                        <Box component="span" fontWeight={700} color="text.primary">
-                            {batchToDiscard ? formatImportBatchHeaderCode(batchToDiscard.batchCode, batchToDiscard.id) : ''}
-                            {batchToDiscard?.drawDate ? ` - ${dayjs(batchToDiscard.drawDate).format('DD/MM/YYYY')}` : ''}
-                        </Box>{' '}
-                        không? Thao tác này không thể hoàn tác.
-                    </Typography>
-                </DialogContent>
-                <DialogActions sx={{ px: 2.5, pb: 2, pt: 1, gap: 1 }}>
-                    <Button
-                        variant="outlined"
-                        disabled={Boolean(discardingBatchId)}
-                        onClick={() => setBatchToDiscard(null)}
-                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
-                    >
-                        Hủy bỏ
-                    </Button>
-                    <Button
-                        variant="contained"
-                        color="error"
-                        disabled={Boolean(discardingBatchId)}
-                        startIcon={
-                            discardingBatchId ? (
-                                <CircularProgress size={16} color="inherit" />
-                            ) : (
-                                <DeleteOutlineIcon />
-                            )
-                        }
-                        onClick={async () => {
-                            if (batchToDiscard) {
-                                await handleDiscardDraftBatch(batchToDiscard.id);
-                                setBatchToDiscard(null);
-                            }
-                        }}
-                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5 }}
-                    >
-                        {discardingBatchId ? 'Đang xóa…' : 'Xác nhận xóa'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
 
             <ImportBatchFileConfigDialog
                 open={configOpen}
@@ -2703,172 +2058,10 @@ export const ImportBatchFileImportDialog = ({
                 // reflects the correction.
                 onSaved={() => void runPreview()}
             />
-            <ImportBatchStateChangedDialog
-                open={staleImportBatchId != null}
-                importBatchId={staleImportBatchId}
-                onAcknowledge={async () => {
-                    setStaleImportBatchId(null);
-                    await refetchDraftBatches();
-                }}
-            />
         </Dialog>
     );
 };
 
-type AnomalyTableProps = {
-    anomalies: ImportBatchFileAnomaly[];
-    mapping: ImportBatchFileMapping | null;
-    busy: boolean;
-    hideEmptySuccess?: boolean;
-    onChooseStation: (row: ImportBatchFileRow, lotteryStationId: number) => void;
-};
-
-const AnomalyTable = ({ anomalies, mapping, busy, hideEmptySuccess, onChooseStation }: AnomalyTableProps) => {
-    if (anomalies.length === 0) {
-        if (hideEmptySuccess) {
-            return null;
-        }
-        return (
-            <Paper
-                elevation={0}
-                sx={{
-                    px: 1.75,
-                    py: 1.1,
-                    borderRadius: '14px',
-                    border: '1px solid #bbf7d0',
-                    bgcolor: '#f0fdf4',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                }}
-            >
-                <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 20 }} />
-                <Typography variant="body2" fontWeight={700} color="#15803d">
-                    Tất cả nhà đài, ngày quay và số lượng vé đều hợp lệ.
-                </Typography>
-            </Paper>
-        );
-    }
-
-    const errorCount = anomalies.filter(({ row }) => row.status === 'ERROR').length;
-
-    return (
-        <Paper
-            elevation={0}
-            sx={{
-                border: '1px solid #fecaca',
-                borderRadius: '16px',
-                p: 2.5,
-                bgcolor: '#fff',
-                overflow: 'hidden',
-            }}
-        >
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
-                <WarningAmberIcon color="error" />
-                <Typography variant="subtitle1" fontWeight={800} color="#991b1b">
-                    Các dòng cần kiểm tra hoặc khớp đài ({anomalies.length})
-                </Typography>
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.875rem' }}>
-                {errorCount > 0
-                    ? `${errorCount} dòng bị lỗi sẽ không thể nạp vào phiếu cho tới khi bạn chọn đúng nhà đài hoặc sửa tệp.`
-                    : 'Các dòng cảnh báo này vẫn có thể nhập được, nhưng bạn nên xem lại trước khi xác nhận.'}
-            </Typography>
-
-            <Box sx={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: '12px' }}>
-                <Table size="small">
-                    <TableHead sx={{ bgcolor: '#f8fafc' }}>
-                        <TableRow>
-                            <TableCell sx={{ fontWeight: 800 }}>Dòng</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Ngày quay</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Tên đài trong tệp</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Dãy số</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 800 }}>Số vé</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Chi tiết vấn đề</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Xử lý</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {anomalies.map(({ drawDate, row }) => {
-                            const suggestions = row.issues.flatMap((issue) => issue.suggestions ?? []);
-                            const rawStation = mapping?.stationColumn ? row.rawValues[mapping.stationColumn] : '';
-                            const rawQuantity = mapping?.quantityColumn
-                                ? row.rawValues[mapping.quantityColumn]
-                                : String(row.serialNumbers?.length ?? row.declareQuantity ?? '');
-                            const rawDrawDate = mapping?.drawDateColumn
-                                ? row.rawValues[mapping.drawDateColumn]
-                                : formatDate(drawDate);
-
-                            return (
-                                <TableRow key={`${drawDate ?? 'undated'}-${row.rowNumber}`} hover>
-                                    <TableCell sx={{ fontWeight: 700 }}>#{row.rowNumber}</TableCell>
-                                    <TableCell>{rawDrawDate || '—'}</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>{rawStation || '—'}</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>
-                                        <AdminLuckyDisplay
-                                            value={(mapping?.numbersColumn ? row.rawValues[mapping.numbersColumn] : row.numbers) || ''}
-                                            ticket
-                                        />
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700 }}>{rawQuantity || '—'}</TableCell>
-                                    <TableCell>
-                                        <Stack spacing={0.5}>
-                                            {row.issues
-                                                .filter((issue) => issue.severity !== 'SKIPPED')
-                                                .map((issue, index) => (
-                                                    <Tooltip
-                                                        key={`${issue.code}-${index}`}
-                                                        title={issue.message}
-                                                    >
-                                                        <Typography
-                                                            variant="caption"
-                                                            fontWeight={600}
-                                                            color={issue.severity === 'ERROR' ? 'error.main' : 'warning.main'}
-                                                            sx={{ display: 'block' }}
-                                                        >
-                                                            • {formatPreviewIssueNote(issue)}
-                                                        </Typography>
-                                                    </Tooltip>
-                                                ))}
-                                        </Stack>
-                                    </TableCell>
-                                    <TableCell>
-                                        {suggestions.length > 0 ? (
-                                            <TextField
-                                                select
-                                                size="small"
-                                                label="Chọn đài khớp"
-                                                value=""
-                                                disabled={busy}
-                                                onChange={(event) =>
-                                                    onChooseStation(row, Number(event.target.value))
-                                                }
-                                                sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                                            >
-                                                {suggestions.map((suggestion) => (
-                                                    <MenuItem
-                                                        key={suggestion.lotteryStationId}
-                                                        value={suggestion.lotteryStationId}
-                                                    >
-                                                        {suggestion.name}
-                                                    </MenuItem>
-                                                ))}
-                                            </TextField>
-                                        ) : (
-                                            <Typography variant="caption" color="text.secondary">
-                                                Sửa lại tệp nguồn
-                                            </Typography>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
-            </Box>
-        </Paper>
-    );
-};
 
 type FlatPreviewSerialRow = {
     id: string;
@@ -2899,7 +2092,6 @@ type FlatPreviewSerialRow = {
 type PreviewTicketFlatTableProps = {
     preview: ImportBatchFilePreviewResult;
     mapping: ImportBatchFileMapping | null;
-    targetDrawDate: string | null;
     selectedDates: string[];
     busy: boolean;
     importsTickets: boolean;
@@ -2918,7 +2110,6 @@ const formatCommissionDisplay = (value: string) => {
 const PreviewTicketFlatTable = ({
     preview,
     mapping,
-    targetDrawDate,
     selectedDates,
     busy,
     importsTickets,
@@ -3155,7 +2346,7 @@ const PreviewTicketFlatTable = ({
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={0.5}>
                                 <Typography variant="subtitle2" fontWeight={800} color="#991b1b" sx={{ fontSize: '0.875rem' }}>
-                                    Tệp không có vé hợp lệ cho ngày quay đã chọn
+                                    Tệp không có vé hợp lệ cho ngày quay được phép nhập
                                 </Typography>
                                 <Chip
                                     size="small"
@@ -3171,7 +2362,7 @@ const PreviewTicketFlatTable = ({
                                 />
                             </Stack>
                             <Typography variant="body2" color="#7f1d1d" sx={{ mt: 0.5, fontSize: '0.8125rem', lineHeight: 1.45 }}>
-                                Tệp không có vé hợp lệ cho ngày quay của phiếu nhập đã chọn ({formatDate(targetDrawDate ?? undefined)}). Vui lòng kiểm tra lại ngày quay trong tệp hoặc chọn phiếu nhập khác.
+                                Tệp không có vé hợp lệ cho ngày quay được phép nhập. Vui lòng kiểm tra ngày quay, lịch nhà đài và số lượng trong tệp.
                             </Typography>
                         </Box>
                     </Stack>
@@ -4013,7 +3204,7 @@ const PreviewTicketFlatTable = ({
                                                     Ngày quay ngoài hạn nhập
                                                 </Typography>
                                                 <Typography variant="caption" color="text.secondary">
-                                                    Ngày quay không nằm trong phạm vi cho phép tiếp nhận của phiếu nhập.
+                                                    Ngày quay không nằm trong phạm vi được phép nhập từ tệp.
                                                 </Typography>
                                             </Paper>
                                         )}

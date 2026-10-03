@@ -56,6 +56,10 @@ public enum ImportBatchFileIssueCode {
             ImportBatchFileIssueSeverity.ERROR,
             "Cấu hình đang không cho phép nhập dở dang. Vui lòng sửa hết dòng lỗi rồi tải lại tệp."
     ),
+    DECLARED_QUANTITY_MISMATCH(
+            ImportBatchFileIssueSeverity.ERROR,
+            "Số lượng khai báo không khớp số sê-ri hợp lệ. Vui lòng sửa tệp và tải lại."
+    ),
 
     // ---- row level ---------------------------------------------------
     MISSING_REQUIRED_COLUMN(

@@ -108,6 +108,11 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
     }
 
     @Override
+    public boolean existsImportedLineForStationAndDrawDate(Long stationId, LocalDate drawDate) {
+        return importBatchLineRepository.existsImportedLineForStationAndDrawDate(stationId, drawDate);
+    }
+
+    @Override
     public Optional<Long> findDraftBatchIdForStationAndDrawDate(Long stationId, LocalDate drawDate) {
         return importBatchLineRepository.findDraftBatchIdsForStationAndDrawDate(stationId, drawDate).stream()
                 .findFirst();
