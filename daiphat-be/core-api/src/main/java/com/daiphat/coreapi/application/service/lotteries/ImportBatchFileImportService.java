@@ -3,6 +3,8 @@ package com.daiphat.coreapi.application.service.lotteries;
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketNumberSectionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchLineRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchFileImportCommitRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchFileMappingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchFilePreviewRequest;
@@ -108,6 +110,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -144,9 +148,8 @@ import java.util.stream.Stream;
  * upload picks up the rows that have come into range. Rows outside that window are
  * reported as skipped, never as errors.
  *
- * <p>Nothing here re-implements a business rule: batches go through
- * {@link ImportBatchServicePort#create} and tickets through
- * {@link LotteryTicketServicePort#createBulk}, exactly as manual entry does.
+ * <p>Batches and tickets still use the existing creation services. The AUTO
+ * path creates and fills each draw-date batch in one transaction.
  */
 @Service
 @RequiredArgsConstructor
@@ -198,6 +201,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
     private final ImportBatchFileImportJobRepository importJobRepository;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final PlatformTransactionManager transactionManager;
 
     // ------------------------------------------------------------ inspect
 
@@ -550,7 +554,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
 
         ImportBatchFileResolution resolution =
                 resolve(content, fileName, request.mapping(), supplier, operatorId, now, config,
-                        request::manualBatchIdFor);
+                        request::manualBatchIdFor,
+                        request.resolvedCommitMode() == ImportBatchFileCommitMode.AUTO);
 
         List<ImportBatchFileRowResponse> allRows = resolution.allRows();
         return ImportBatchFilePreviewResponse.builder()
@@ -574,8 +579,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
     // ------------------------------------------------------------- commit
 
     /**
-     * Deliberately not transactional. Tickets are added to existing batch lines
-     * through {@link LotteryTicketServicePort#createBulk}, one station at a time.
+     * Deliberately not transactional at this level: AUTO wraps each draw date in
+     * its own transaction, while MANUAL preserves the existing partial-import flow.
      */
     @Override
     public ImportBatchFileImportResultResponse commit(
@@ -593,35 +598,45 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
         LocalDateTime now = LocalDateTime.now(clock);
 
-        if (request.resolvedCommitMode() != ImportBatchFileCommitMode.MANUAL) {
-            throw new DomainException(ErrorCode.INVALID_INPUT,
-                    "Chỉ có thể nhập vé từ tệp vào phiếu nhập đã tạo trước.");
-        }
         if (!request.mapping().importsTickets()) {
             throw new DomainException(ErrorCode.INVALID_INPUT,
                     "Tệp phải có dãy số và sê-ri vé để nhập vào phiếu.");
         }
-        if (request.drawDates().stream().anyMatch(date -> request.manualBatchIdFor(date) == null)) {
-            throw new DomainException(ErrorCode.INVALID_INPUT,
-                    "Mỗi ngày quay cần có phiếu nhập đã tạo trước.");
-        }
-
-        // Stop before parsing/uploading if the allocation reviewed by the operator is stale.
-        for (LocalDate drawDate : request.drawDates()) {
-            importBatchSelectionSnapshotValidator.validate(
-                    request.manualBatchIdFor(drawDate),
-                    request.selectionSnapshotFor(drawDate)
-            );
+        boolean auto = request.resolvedCommitMode() == ImportBatchFileCommitMode.AUTO;
+        if (auto) {
+            if (request.invoiceEvidenceUrl() == null || request.invoiceEvidenceUrl().isBlank()) {
+                throw new DomainException(ErrorCode.IMPORT_BATCH_INVOICE_REQUIRED);
+            }
+        } else {
+            if (request.drawDates().stream().anyMatch(date -> request.manualBatchIdFor(date) == null)) {
+                throw new DomainException(ErrorCode.INVALID_INPUT,
+                        "Mỗi ngày quay cần có phiếu nhập đã tạo trước.");
+            }
+            for (LocalDate drawDate : request.drawDates()) {
+                importBatchSelectionSnapshotValidator.validate(
+                        request.manualBatchIdFor(drawDate), request.selectionSnapshotFor(drawDate));
+            }
         }
 
         ImportBatchFileResolution resolution =
                 resolve(content, fileName, request.mapping(), supplier, operatorId, now, config,
-                        request::manualBatchIdFor);
+                        request::manualBatchIdFor, auto);
 
-        // Store the original file for the import log; a failed upload must not block import.
-        StorageResult evidence = config.storeOriginalFile()
-                ? storeOriginalFile(content, fileName)
-                : null;
+        // A mismatch is never silently reduced to a partial batch. The file must be corrected.
+        if (auto && resolution.groups().stream()
+                .filter(group -> group.status() != ImportBatchFileGroupStatus.OUT_OF_WINDOW)
+                .anyMatch(group -> group.groupIssues().stream()
+                        .anyMatch(issue -> issue.code() == ImportBatchFileIssueCode.DECLARED_QUANTITY_MISMATCH))) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Số lượng khai báo không khớp sê-ri hợp lệ. Vui lòng sửa tệp và tải lại.");
+        }
+
+        // AUTO requires the original file as batch evidence; MANUAL retains the
+        // optional upload used by the import log.
+        StorageResult evidence = auto
+                ? importBatchServicePort.uploadTicketListImage(new UploadRequest(
+                        content, fileName, resolveContentType(fileName), null))
+                : config.storeOriginalFile() ? storeOriginalFile(content, fileName) : null;
         ImportBatchFileImportJobEntity job =
                 startJob(request, fileName, evidence, operatorId, now);
 
@@ -633,7 +648,17 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                         "Ngày quay này không còn hợp lệ để nạp vé vào phiếu nhập."));
                 continue;
             }
-            items.add(importOne(request, fileName, evidence, job, group, supplier, operatorId));
+            if (auto) {
+                try {
+                    items.add(new TransactionTemplate(transactionManager).execute(ignored ->
+                            importOneAuto(request, fileName, evidence, job, group, supplier, operatorId)));
+                } catch (DomainException e) {
+                    log.warn("File import failed for drawDate={}: {}", drawDate, e.getMessage());
+                    items.add(failure(drawDate, e.getErrorCode().getCode(), e.getMessage()));
+                }
+            } else {
+                items.add(importOne(request, fileName, evidence, job, group, supplier, operatorId));
+            }
         }
 
         int created = (int) items.stream().filter(ImportBatchFileImportItemResultResponse::success).count();
@@ -680,7 +705,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         }
 
         int importedSerials = request.mapping().importsTickets()
-                ? importTickets(batch, group, request.mapping(), operatorId)
+                ? importTickets(batch, group, request.mapping(), operatorId, false)
                 : 0;
 
         importLogRepository.save(ImportBatchFileImportLogEntity.builder()
@@ -705,6 +730,69 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .ticketCount(group.ticketCount())
                 .declaredSerialCount(group.totalDeclareQuantity())
                 .importedSerialCount(importedSerials)
+                .build();
+    }
+
+    private ImportBatchFileImportItemResultResponse importOneAuto(
+            ImportBatchFileImportCommitRequest request,
+            String fileName,
+            StorageResult evidence,
+            ImportBatchFileImportJobEntity job,
+            ImportBatchFileGroupResponse group,
+            LotterySupplierModel supplier,
+            UUID operatorId
+    ) {
+        LocalDate drawDate = group.drawDate();
+        if (importLogRepository.existsByFileHashAndSupplierIdAndDrawDateAndImportedBy(
+                request.fileHash(), supplier.getId(), drawDate, operatorId)) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_FILE_ALREADY_IMPORTED);
+        }
+        if (evidence == null || evidence.url() == null || evidence.url().isBlank()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Không lưu được tệp danh sách vé làm minh chứng nhập lô.");
+        }
+        List<CreateImportBatchLineRequest> lines = group.stations().stream()
+                .map(station -> CreateImportBatchLineRequest.builder()
+                        .lotteryStationId(station.lotteryStationId())
+                        .declareQuantity(station.declaredQuantity())
+                        .build())
+                .toList();
+        ImportBatchResponse batch = importBatchServicePort.createFromFile(
+                CreateImportBatchRequest.builder()
+                        .drawDate(drawDate)
+                        .supplierId(supplier.getId())
+                        .importMode(group.importMode())
+                        .invoiceEvidenceUrl(request.invoiceEvidenceUrl())
+                        .ticketListImageUrls(List.of(evidence.url()))
+                        .totalDeclareQuantity(group.totalDeclareQuantity())
+                        .lines(lines)
+                        .build(), operatorId);
+        int imported = importTickets(batch, group, request.mapping(), operatorId, true);
+        if (imported != group.totalSerialCount() || imported != group.totalDeclareQuantity()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Số sê-ri nhập không khớp số lượng khai báo trong tệp.");
+        }
+        importLogRepository.save(ImportBatchFileImportLogEntity.builder()
+                .fileHash(request.fileHash())
+                .fileName(fileName)
+                .supplierId(supplier.getId())
+                .drawDate(drawDate)
+                .importedBy(operatorId)
+                .importBatchId(batch.id())
+                .lineCount(lines.size())
+                .originalFileUrl(evidence.url())
+                .originalFilePublicId(evidence.publicId())
+                .jobId(job == null ? null : job.getId())
+                .build());
+        return ImportBatchFileImportItemResultResponse.builder()
+                .drawDate(drawDate)
+                .success(true)
+                .importBatchId(batch.id())
+                .batchCode(batch.batchCode())
+                .lineCount(lines.size())
+                .ticketCount(group.ticketCount())
+                .declaredSerialCount(group.totalDeclareQuantity())
+                .importedSerialCount(imported)
                 .build();
     }
 
@@ -759,7 +847,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             ImportBatchResponse batch,
             ImportBatchFileGroupResponse group,
             ImportBatchFileMappingRequest mapping,
-            UUID operatorId
+            UUID operatorId,
+            boolean strict
     ) {
         Map<Long, Long> lineIdByStation = batch.lines().stream()
                 .filter(line -> line.status() != ImportBatchLineStatus.CANCELLED
@@ -773,6 +862,10 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         for (ImportBatchFileStationSummaryResponse station : group.stations()) {
             Long lineId = lineIdByStation.get(station.lotteryStationId());
             if (lineId == null) {
+                if (strict) {
+                    throw new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND,
+                            "Không tìm thấy dòng nhập cho nhà đài #" + station.lotteryStationId());
+                }
                 log.warn("No open import batch line for stationId={} in batchId={}",
                         station.lotteryStationId(), batch.id());
                 continue;
@@ -798,6 +891,9 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 );
                 imported += station.serialCount();
             } catch (DomainException e) {
+                if (strict) {
+                    throw e;
+                }
                 // The line stays open with whatever was already imported; the
                 // operator finishes it from the existing ticket entry screen.
                 log.warn("File import could not create tickets for stationId={} lineId={}: {}",
@@ -838,7 +934,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             UUID operatorId,
             LocalDateTime now,
             ImportBatchFileConfig config,
-            Function<LocalDate, Long> targetBatchResolver
+            Function<LocalDate, Long> targetBatchResolver,
+            boolean autoCreate
     ) {
         TabularTable table = tabularFileParser.parse(content, fileName, new TabularParseOptions(
                 mapping.headerRowIndex(), mapping.delimiter(), mapping.charset(), config.maxRows()));
@@ -870,7 +967,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .map(entry -> buildGroup(
                         entry.getKey(), entry.getValue(), mapping, supplier, aliasIndex, now,
                         operatorId, config, supplierIdentity,
-                        targetBatchResolver != null ? targetBatchResolver.apply(entry.getKey()) : null))
+                        targetBatchResolver != null ? targetBatchResolver.apply(entry.getKey()) : null,
+                        autoCreate))
                 .collect(Collectors.toCollection(ArrayList::new));
         if (!undated.isEmpty()) {
             groups.add(buildUndatedGroup(undated, mapping));
@@ -980,7 +1078,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             UUID operatorId,
             ImportBatchFileConfig config,
             ImportBatchFileSupplierIdentityResponse supplierIdentity,
-            Long targetBatchId
+            Long targetBatchId,
+            boolean autoCreate
     ) {
         if (!drawDateWindowPolicy.containsForFileImport(drawDate, now)) {
             // The file legitimately covers dates that are not importable yet;
@@ -1006,7 +1105,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 : mapping.serialSeparator();
         GroupContext context = new GroupContext(
                 drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
-                offScheduleStationsByName(stationsById), targetBatchId);
+                offScheduleStationsByName(stationsById), targetBatchId, autoCreate);
         List<ImportBatchFileRowResponse> resolved = new ArrayList<>();
         for (PendingRow row : rows) {
             resolved.add(mapping.importsTickets()
@@ -1053,6 +1152,33 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                     List.of()));
             status = ImportBatchFileGroupStatus.BLOCKED;
         }
+        if (autoCreate) {
+            List<ImportBatchFileRowResponse> mismatched = resolved.stream()
+                    .filter(row -> row.lotteryStationId() != null)
+                    .filter(row -> row.issues().stream().anyMatch(issue ->
+                            issue.code() == ImportBatchFileIssueCode.QUANTITY_ABOVE_SERIAL_COUNT
+                                    || issue.code() == ImportBatchFileIssueCode.QUANTITY_BELOW_SERIAL_COUNT))
+                    .toList();
+            Map<Long, Integer> declaredByStation = resolved.stream()
+                    .filter(row -> row.lotteryStationId() != null && !row.isMergedAway())
+                    .collect(Collectors.groupingBy(
+                            ImportBatchFileRowResponse::lotteryStationId,
+                            Collectors.summingInt(row -> Optional.ofNullable(row.declareQuantity()).orElse(0))));
+            Map<Long, Integer> validSerialsByStation = stations.stream()
+                    .collect(Collectors.toMap(
+                            ImportBatchFileStationSummaryResponse::lotteryStationId,
+                            ImportBatchFileStationSummaryResponse::serialCount));
+            boolean summaryMismatch = declaredByStation.entrySet().stream()
+                    .anyMatch(entry -> !entry.getValue().equals(
+                            validSerialsByStation.getOrDefault(entry.getKey(), 0)));
+            if (!mismatched.isEmpty() || summaryMismatch) {
+                groupIssues.add(ImportBatchFileIssueResponse.of(
+                        ImportBatchFileIssueCode.DECLARED_QUANTITY_MISMATCH, null,
+                        "Số lượng khai báo khác số sê-ri hợp lệ. Vui lòng sửa tệp Excel và tải lại.",
+                        List.of()));
+                status = ImportBatchFileGroupStatus.BLOCKED;
+            }
+        }
         // Prices are checked before anything else about the rows, because a batch
         // costed from the wrong figures quietly corrupts supplier settlement later.
         List<ImportBatchFilePricingMismatchResponse> pricingMismatches =
@@ -1091,12 +1217,13 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             status = ImportBatchFileGroupStatus.BLOCKED;
         }
 
-        Long existingBatchId = operatorId == null ? null : importBatchRepositoryPort
+        Long existingBatchId = autoCreate || operatorId == null ? null : importBatchRepositoryPort
                 .findEditableBatchByImportedByAndDrawDateAndSupplierAndImportMode(
                         operatorId, drawDate, supplier.getId(), importMode)
                 .map(batch -> batch.getId())
                 .orElse(null);
-        if (existingBatchId != null && (targetBatchId == null || !targetBatchId.equals(existingBatchId))) {
+        if (!autoCreate && existingBatchId != null
+                && (targetBatchId == null || !targetBatchId.equals(existingBatchId))) {
             groupIssues.add(ImportBatchFileIssueResponse.of(
                     ImportBatchFileIssueCode.DRAFT_ALREADY_EXISTS,
                     null,
@@ -1394,7 +1521,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             return StationResolution.unresolved();
         }
 
-        boolean draftExists = context.targetBatchId() != null
+        boolean draftExists = context.autoCreate() ? false : context.targetBatchId() != null
                 ? importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDateExcludingBatch(
                         stationId, context.drawDate(), context.targetBatchId())
                 : importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(
@@ -1403,7 +1530,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             issues.add(ImportBatchFileIssueResponse.of(ImportBatchFileIssueCode.STATION_DRAFT_EXISTS));
             return StationResolution.blocked(stationId, station.getName());
         }
-        if (!stationEligibilityResolver.isEligibleForSelection(
+        if (!context.autoCreate() && !stationEligibilityResolver.isEligibleForSelection(
                 station, context.drawDate(), context.now(), context.importMode(), context.targetBatchId())) {
             issues.add(ImportBatchFileIssueResponse.of(ImportBatchFileIssueCode.STATION_NOT_ELIGIBLE));
             return StationResolution.blocked(stationId, station.getName());
@@ -1418,7 +1545,11 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         return new StationResolution(
                 stationId,
                 station.getName(),
-                classification.resolvedBatchType(),
+                context.autoCreate()
+                        ? (importBatchLineRepositoryPort.existsImportedLineForStationAndDrawDate(
+                                stationId, context.drawDate())
+                                ? ImportBatchType.SUPPLEMENTARY : ImportBatchType.NEW)
+                        : classification.resolvedBatchType(),
                 ImportCostCalculator.fromStation(station),
                 RegionLength.of(station),
                 true
@@ -2812,6 +2943,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
              */
             Map<String, LotteryStationModel> offScheduleByName,
             Long targetBatchId,
+            boolean autoCreate,
             /** Filled while resolving rows; one entry per offending station. */
             Map<Long, ImportBatchFileScheduleMismatchResponse> scheduleMismatches,
             Map<Long, Integer> firstRowByStation,
@@ -2828,7 +2960,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 String serialSeparator
         ) {
             this(drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
-                    Map.of(), null, new LinkedHashMap<>(),
+                    Map.of(), null, false, new LinkedHashMap<>(),
                     new HashMap<>(), new HashMap<>(), new HashSet<>());
         }
 
@@ -2843,7 +2975,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 Map<String, LotteryStationModel> offScheduleByName
         ) {
             this(drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
-                    offScheduleByName, null, new LinkedHashMap<>(),
+                    offScheduleByName, null, false, new LinkedHashMap<>(),
                     new HashMap<>(), new HashMap<>(), new HashSet<>());
         }
 
@@ -2856,10 +2988,11 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 LocalDateTime now,
                 String serialSeparator,
                 Map<String, LotteryStationModel> offScheduleByName,
-                Long targetBatchId
+                Long targetBatchId,
+                boolean autoCreate
         ) {
             this(drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
-                    offScheduleByName, targetBatchId, new LinkedHashMap<>(),
+                    offScheduleByName, targetBatchId, autoCreate, new LinkedHashMap<>(),
                     new HashMap<>(), new HashMap<>(), new HashSet<>());
         }
     }

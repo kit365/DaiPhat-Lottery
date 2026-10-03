@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +35,12 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     private final LotteryStationRepository lotteryStationRepository;
     private final AllocationBatchRepository allocationBatchRepository;
     private final ReturnBatchPersistenceMapper returnBatchPersistenceMapper;
+
+    @Override
+    public void synchronizeInspectionStatuses(LocalDateTime now, int bufferMinutes) {
+        returnBatchRepository.markNotOpenBeforeInspectionWindow(now, bufferMinutes);
+        returnBatchRepository.markPendingWhenInspectionWindowOpens(now, bufferMinutes);
+    }
 
     @Override
     public ReturnBatchModel save(ReturnBatchModel model) {

@@ -75,7 +75,13 @@ const getFileNameFromUrl = (url?: string | null, fallback = 'Tệp đính kèm')
         }
         const clean = url.split('?')[0].split('#')[0];
         const seg = clean.substring(clean.lastIndexOf('/') + 1);
-        if (seg && seg.length > 0 && !seg.includes(':')) {
+        if (
+            seg &&
+            seg.length > 0 &&
+            !seg.includes(':') &&
+            !/^(png|jpg|jpeg|webp|gif|svg|bmp|pdf|xlsx|xls|csv|docx|doc|txt)$/i.test(seg) &&
+            !/^\d+x\d+$/i.test(seg)
+        ) {
             return decodeURIComponent(seg);
         }
         return fallback;
@@ -246,7 +252,14 @@ const AttachmentPreviewItem = ({
                         fontWeight={700}
                         color="#0f172a"
                         noWrap
-                        sx={{ fontSize: '0.825rem', mb: 0.25 }}
+                        sx={{
+                            fontSize: '0.825rem',
+                            mb: 0.25,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '100%',
+                        }}
                     >
                         {fileName}
                     </Typography>

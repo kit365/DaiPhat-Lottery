@@ -1679,6 +1679,63 @@ class SupplierSettlementReconciliationServiceTest {
     }
 
     @Test
+    @DisplayName("resolveReturn system-overstated uses the return-specific fault flow")
+    void resolveReturn_systemOverstated_usesReturnDiscrepancyFaultFlow() {
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(10L)
+                .lotterySupplierId(3L)
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
+                .returnQuantityMismatch(true)
+                .returnDiscrepancyResolved(false)
+                .importDiscrepancyResolved(true)
+                .unitPriceDiscrepancyResolved(true)
+                .discrepancyTypes(List.of(SupplierSettlementDiscrepancyType.RETURN_QUANTITY))
+                .discrepancyItems(List.of(SettlementDiscrepancyItem.ofQuantity(
+                        SupplierSettlementDiscrepancyType.RETURN_QUANTITY, -1
+                )))
+                .build();
+        var serial = com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel.builder()
+                .id(401L)
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(TicketCondition.GOOD)
+                .returnBatchLineId(51L)
+                .build();
+
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.findPreparedReturnSerialsBySettlementId(10L))
+                .thenReturn(resolvableRows(401L, 1));
+        when(lotteryTicketSerialRepositoryPort.findById(401L)).thenReturn(Optional.of(serial));
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(supplierSettlementApplicationMapper.toResponse(any())).thenReturn(
+                SupplierSettlementResponse.builder().id(10L).build()
+        );
+
+        ResolveReturnDiscrepancyRequest request = new ResolveReturnDiscrepancyRequest(
+                List.of(401L),
+                "LOST",
+                SupplierSettlementAdjustmentReasonCode.LOST_DURING_RETURN,
+                new BigDecimal("10000"),
+                "Mất trong quá trình trả",
+                true,
+                null
+        );
+
+        supplierSettlementService.resolveReturnDiscrepancy(10L, request, ACTOR);
+
+        verify(lotteryTicketSerialServicePort).reportReturnDiscrepancyFault(
+                eq(401L),
+                any(com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest.class),
+                eq(ACTOR)
+        );
+        verify(lotteryTicketSerialServicePort, never()).reportFault(
+                eq(401L),
+                any(com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest.class),
+                eq(ACTOR)
+        );
+    }
+
+    @Test
     @DisplayName("addSettlementMonetaryAdjustment rejects without receipt")
     void addMonetary_rejectsWithoutReceipt() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()

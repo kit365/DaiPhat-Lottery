@@ -56,6 +56,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -116,7 +117,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                 .drawDate(request.drawDate())
                 .supplierSettlementId(settlement.getId())
                 .note(trimToNull(request.note()))
-                .status(ReturnBatchStatus.PENDING_INSPECTION)
+                .status(initialInspectionStatus(request.drawDate(), supplier.getReturnCutOffTime()))
                 .totalQuantity(0)
                 .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                 .build();
@@ -149,6 +150,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     public ReturnBatchResponse getById(Long id) {
         ReturnBatchModel batch = getBatchOrThrow(id);
         if (isSupplierReturn(batch)) {
+            synchronizeInspectionStatus(batch);
             returnBatchAutoCancelService.cancelIfPastCutoff(batch);
             syncSummaryIfReturnWindowOpen(id);
         }
@@ -156,7 +158,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PageResponse<ReturnBatchResponse> getAll(
             int page,
             int size,
@@ -173,15 +175,18 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         ReturnBatchType effectiveReturnBatchType = returnBatchType != null
                 ? returnBatchType
                 : ReturnBatchType.SUPPLIER_RETURN;
+        if (effectiveReturnBatchType == ReturnBatchType.SUPPLIER_RETURN) {
+            returnBatchRepositoryPort.synchronizeInspectionStatuses(
+                    LocalDateTime.now(clock), importBatchConfigResolver.resolveReturnBufferMinutes());
+        }
         String field = sortBy != null && SORTABLE_FIELDS.contains(sortBy) ? sortBy : "drawDate";
         PageRequest pageRequest = PageRequest.of(
                 Math.max(page - 1, 0),
                 size,
                 SortUtils.createSort(field, direction != null ? direction : "desc")
         );
-        // List is a read-only projection of stored aggregates.
-        // Auto-cancel / inventory summary sync / detail enrichment belong on getById,
-        // inspection mutations, and schedulers — not on every list GET (was causing multi-second loads).
+        // The two bulk status updates above keep filtering/pagination accurate without
+        // recalculating inventory or enriching every receipt in the list.
         Page<ReturnBatchResponse> responsePage = returnBatchRepositoryPort
                 .findAll(
                         pageRequest,
@@ -720,7 +725,8 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     public ReturnBatchResponse updateLineStatus(Long batchId, Long lineId, UpdateReturnBatchLineStatusRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
         requireSupplierReturn(batch);
-        if (batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
+        if (batch.getStatus() == ReturnBatchStatus.NOT_OPEN
+                || (batch.getStatus() != null && batch.getStatus().isOpenForInspection())) {
             ensureInspectionMutable(batch);
         }
         if (batch.getStatus() != null && batch.getStatus().isTerminal()) {
@@ -826,8 +832,14 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     }
 
     private void ensureInspectionMutable(ReturnBatchModel batch) {
+        if (isSupplierReturn(batch)) {
+            synchronizeInspectionStatus(batch);
+        }
         if (batch.getStatus() != null && batch.getStatus().isCancelled()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INSPECTION_EXPIRED);
+        }
+        if (batch.getStatus() == ReturnBatchStatus.NOT_OPEN) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_INSPECTION_NOT_OPEN);
         }
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             return;
@@ -908,6 +920,9 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         boolean hasAttached = lines.stream()
                 .anyMatch(line -> lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(line.getId()) > 0);
 
+        if (batch.getStatus() == ReturnBatchStatus.NOT_OPEN) {
+            return;
+        }
         if (hasAttached || batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             returnBatchSummaryCalculator.recalculate(batchId);
             return;
@@ -1036,6 +1051,32 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     private boolean isSupplierReturn(ReturnBatchModel batch) {
         return batch.getReturnBatchType() == null
                 || batch.getReturnBatchType() == ReturnBatchType.SUPPLIER_RETURN;
+    }
+
+    private ReturnBatchStatus initialInspectionStatus(LocalDate drawDate, LocalTime cutoff) {
+        LocalDateTime start = ReturnBatchCutoffTiming.inspectionWindowStartAt(
+                drawDate, cutoff, importBatchConfigResolver.resolveReturnBufferMinutes());
+        return start != null && LocalDateTime.now(clock).isBefore(start)
+                ? ReturnBatchStatus.NOT_OPEN : ReturnBatchStatus.PENDING_INSPECTION;
+    }
+
+    private void synchronizeInspectionStatus(ReturnBatchModel batch) {
+        if (batch.getStatus() != ReturnBatchStatus.NOT_OPEN
+                && batch.getStatus() != ReturnBatchStatus.PENDING_INSPECTION) {
+            return;
+        }
+        LocalDateTime start = ReturnBatchCutoffTiming.inspectionWindowStartAt(
+                batch.getDrawDate(), batch.getReturnCutOffTime(),
+                importBatchConfigResolver.resolveReturnBufferMinutes());
+        if (start == null) {
+            return;
+        }
+        ReturnBatchStatus next = LocalDateTime.now(clock).isBefore(start)
+                ? ReturnBatchStatus.NOT_OPEN : ReturnBatchStatus.PENDING_INSPECTION;
+        if (batch.getStatus() != next) {
+            batch.setStatus(next);
+            returnBatchRepositoryPort.save(batch);
+        }
     }
 
     /** Supplier endpoints must not mutate a vendor receipt created by the allocation flow. */

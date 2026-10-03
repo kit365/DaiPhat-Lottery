@@ -132,7 +132,13 @@ export const finalizeSettlementProcessing = async (
     id: number | string,
     payload: FinalizeSettlementProcessingPayload
 ): Promise<ApiResponse<SupplierSettlement>> => {
-    const response = await apiApp.post(`${BASE_URL}/${id}/reconciliation/finalize-processing`, payload);
+    const response = await apiApp.post(
+        `${BASE_URL}/${id}/reconciliation/finalize-processing`,
+        payload,
+        { skipGlobalErrorToast: true } as Parameters<typeof apiApp.post>[2] & {
+            skipGlobalErrorToast?: boolean;
+        }
+    );
     return response.data;
 };
 

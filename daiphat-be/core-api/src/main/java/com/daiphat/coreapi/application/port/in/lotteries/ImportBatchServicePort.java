@@ -29,6 +29,9 @@ public interface ImportBatchServicePort {
 
     ImportBatchResponse create(CreateImportBatchRequest request, UUID operatorId);
 
+    /** Create a batch from a validated file, without the manual workflow's unfinished-batch guard. */
+    ImportBatchResponse createFromFile(CreateImportBatchRequest request, UUID operatorId);
+
     ImportBatchResponse update(Long id, UpdateImportBatchRequest request);
 
     /**

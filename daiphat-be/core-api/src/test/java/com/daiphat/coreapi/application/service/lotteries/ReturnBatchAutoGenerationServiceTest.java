@@ -191,16 +191,32 @@ class ReturnBatchAutoGenerationServiceTest {
     }
 
     @Test
-    @DisplayName("does not create before returnCutOffTime - RETURN_BUFFER_TIME")
-    void generate_skipsBeforeTrigger() {
+    @DisplayName("recovers a missing receipt before cutoff without calculating its return value")
+    void generate_createsWithoutSummaryBeforeTrigger() {
         // 14:00 local — trigger is 15:15
         when(clock.instant()).thenReturn(Instant.parse("2026-07-31T07:00:00Z"));
         when(lotterySupplierRepositoryPort.findAllActive()).thenReturn(List.of(minhChinh));
+        when(importBatchRepositoryPort.existsNonCancelledBySupplierAndDrawDate(1L, DRAW_DATE)).thenReturn(true);
+        when(importBatchLineRepositoryPort.findEligibleStationIdsBySupplierAndDrawDate(1L, DRAW_DATE))
+                .thenReturn(List.of(10L));
+        when(returnBatchRepositoryPort.findPrimarySupplierReturnBySupplierAndDrawDate(1L, DRAW_DATE))
+                .thenReturn(Optional.empty());
+        when(supplierSettlementServicePort.findOrCreateForImport(minhChinh, DRAW_DATE))
+                .thenReturn(SupplierSettlementModel.builder().id(101L).build());
+        when(returnBatchRepositoryPort.save(any())).thenAnswer(invocation -> {
+            ReturnBatchModel model = invocation.getArgument(0);
+            model.setId(50L);
+            return model;
+        });
 
         int created = service.generateDueReturnBatches();
 
-        assertThat(created).isZero();
-        verify(importBatchRepositoryPort, never()).existsNonCancelledBySupplierAndDrawDate(any(), any());
+        assertThat(created).isEqualTo(1);
+        ArgumentCaptor<ReturnBatchModel> batchCaptor = ArgumentCaptor.forClass(ReturnBatchModel.class);
+        verify(returnBatchRepositoryPort).save(batchCaptor.capture());
+        assertThat(batchCaptor.getValue().getStatus()).isEqualTo(ReturnBatchStatus.NOT_OPEN);
+        verify(returnBatchRepositoryPort).saveLine(any());
+        verify(returnBatchSummaryCalculator, never()).recalculate(any());
     }
 
     @Test

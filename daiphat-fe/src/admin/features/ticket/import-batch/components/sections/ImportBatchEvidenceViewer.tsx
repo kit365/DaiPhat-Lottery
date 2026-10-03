@@ -47,7 +47,13 @@ const getFileNameFromUrl = (url?: string | null, fallback = 'Tài liệu đính 
         }
         const clean = url.split('?')[0].split('#')[0];
         const seg = clean.substring(clean.lastIndexOf('/') + 1);
-        if (seg && seg.length > 0 && !seg.includes(':')) {
+        if (
+            seg &&
+            seg.length > 0 &&
+            !seg.includes(':') &&
+            !/^(png|jpg|jpeg|webp|gif|svg|bmp|pdf|xlsx|xls|csv|docx|doc|txt)$/i.test(seg) &&
+            !/^\d+x\d+$/i.test(seg)
+        ) {
             return decodeURIComponent(seg);
         }
         return fallback;
@@ -60,9 +66,17 @@ const getFileExtension = (url?: string | null): string => {
     if (!url) return '';
     try {
         const clean = url.split('?')[0].split('#')[0];
-        const lastDot = clean.lastIndexOf('.');
-        if (lastDot !== -1 && lastDot < clean.length - 1) {
-            return clean.substring(lastDot + 1).toUpperCase();
+        const lastSlash = clean.lastIndexOf('/');
+        const lastSegment = lastSlash !== -1 ? clean.substring(lastSlash + 1) : clean;
+        const lastDot = lastSegment.lastIndexOf('.');
+        if (lastDot !== -1 && lastDot < lastSegment.length - 1) {
+            const ext = lastSegment.substring(lastDot + 1).trim();
+            if (ext.length >= 1 && ext.length <= 6 && /^[a-zA-Z0-9]+$/.test(ext)) {
+                return ext.toUpperCase();
+            }
+        }
+        if (/^(jpg|jpeg|png|webp|gif|svg|bmp|pdf|xlsx|xls|csv|docx|doc|txt)$/i.test(lastSegment)) {
+            return lastSegment.toUpperCase();
         }
     } catch {
         // Ignore
@@ -292,9 +306,9 @@ export const ImportBatchEvidenceViewer = ({
                     </Box>
 
                     {/* Metadata & Actions */}
-                    <Stack spacing={1}>
-                        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                    <Stack spacing={1} sx={{ maxWidth: '100%', overflow: 'hidden' }}>
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ maxWidth: '100%', overflow: 'hidden' }}>
+                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                                 <Chip
                                     size="small"
                                     label={formatConfig.label}
@@ -305,6 +319,7 @@ export const ImportBatchEvidenceViewer = ({
                                         bgcolor: formatConfig.bg,
                                         color: formatConfig.color,
                                         border: `1px solid ${formatConfig.borderColor}`,
+                                        flexShrink: 0,
                                     }}
                                 />
                                 <Tooltip title={fileName} placement="top">
@@ -313,7 +328,14 @@ export const ImportBatchEvidenceViewer = ({
                                         fontWeight={700}
                                         color="#0f172a"
                                         noWrap
-                                        sx={{ maxWidth: 160, fontSize: '0.75rem' }}
+                                        sx={{
+                                            flex: 1,
+                                            minWidth: 0,
+                                            fontSize: '0.75rem',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                        }}
                                     >
                                         {fileName}
                                     </Typography>
@@ -331,6 +353,7 @@ export const ImportBatchEvidenceViewer = ({
                                         border: '1px solid #e2e8f0',
                                         bgcolor: '#f8fafc',
                                         color: '#334155',
+                                        flexShrink: 0,
                                         '&:hover': { bgcolor: '#eff6ff', color: '#2563eb', borderColor: '#bfdbfe' },
                                     }}
                                 >
@@ -364,6 +387,7 @@ export const ImportBatchEvidenceViewer = ({
                     cursor: 'pointer',
                     transition: 'all 0.2s ease-in-out',
                     border: '1.5px solid #e2e8f0',
+                    overflow: 'hidden',
                     '&:hover': {
                         borderColor: formatConfig.color,
                         bgcolor: formatConfig.bg,
@@ -376,7 +400,7 @@ export const ImportBatchEvidenceViewer = ({
                     },
                 }}
             >
-                <Stack direction="row" spacing={1.75} alignItems="center">
+                <Stack direction="row" spacing={1.75} alignItems="center" sx={{ maxWidth: '100%', overflow: 'hidden' }}>
                     {/* File icon box */}
                     <Box
                         sx={{
@@ -390,6 +414,8 @@ export const ImportBatchEvidenceViewer = ({
                             alignItems: 'center',
                             justifyContent: 'center',
                             flexShrink: 0,
+                            overflow: 'hidden',
+                            px: 0.5,
                             gap: 0.25,
                         }}
                     >
@@ -402,6 +428,11 @@ export const ImportBatchEvidenceViewer = ({
                                 color: formatConfig.color,
                                 lineHeight: 1,
                                 letterSpacing: '0.02em',
+                                maxWidth: 46,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                textAlign: 'center',
                             }}
                         >
                             {formatConfig.label}
@@ -409,8 +440,8 @@ export const ImportBatchEvidenceViewer = ({
                     </Box>
 
                     {/* File details */}
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.25 }}>
+                    <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.25, maxWidth: '100%' }}>
                             <Chip
                                 size="small"
                                 label={formatConfig.fullType}
@@ -421,6 +452,7 @@ export const ImportBatchEvidenceViewer = ({
                                     bgcolor: formatConfig.bg,
                                     color: formatConfig.color,
                                     border: `1px solid ${formatConfig.borderColor}`,
+                                    maxWidth: '100%',
                                 }}
                             />
                         </Stack>
@@ -431,7 +463,14 @@ export const ImportBatchEvidenceViewer = ({
                                 fontWeight={700}
                                 color="#0f172a"
                                 noWrap
-                                sx={{ fontSize: '0.85rem', lineHeight: 1.35 }}
+                                sx={{
+                                    fontSize: '0.85rem',
+                                    lineHeight: 1.35,
+                                    maxWidth: '100%',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}
                             >
                                 {fileName}
                             </Typography>

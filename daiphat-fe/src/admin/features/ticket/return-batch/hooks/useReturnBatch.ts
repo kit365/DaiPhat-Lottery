@@ -221,8 +221,9 @@ export const useReturnBatchList = () => {
 
     const { data, isLoading, error } = useReturnBatches(queryParams, {
         placeholderData: keepPreviousData,
-        // List polling every 30s was amplifying a heavy BE path; refresh on focus/mount is enough.
-        staleTime: 15_000,
+        // Opening the list must re-query so time-driven NOT_OPEN/PENDING_INSPECTION is current.
+        staleTime: 0,
+        refetchOnMount: 'always',
         refetchOnWindowFocus: true,
     });
 

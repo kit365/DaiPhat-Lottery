@@ -99,6 +99,7 @@ public class ImportBatchService implements ImportBatchServicePort {
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final ImportBatchImportModeResolver importBatchImportModeResolver;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
+    private final ReturnBatchImportSyncService returnBatchImportSyncService;
     private final StoragePort storagePort;
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final Clock clock;
@@ -106,6 +107,17 @@ public class ImportBatchService implements ImportBatchServicePort {
     @Override
     @Transactional
     public ImportBatchResponse create(CreateImportBatchRequest request, UUID operatorId) {
+        return createInternal(request, operatorId, false);
+    }
+
+    @Override
+    @Transactional
+    public ImportBatchResponse createFromFile(CreateImportBatchRequest request, UUID operatorId) {
+        return createInternal(request, operatorId, true);
+    }
+
+    private ImportBatchResponse createInternal(
+            CreateImportBatchRequest request, UUID operatorId, boolean fromFile) {
         log.info("Creating import batch with {} line(s) on draw date {}", request.lines().size(), request.drawDate());
 
         ensureUniqueStations(request.lines());
@@ -127,10 +139,12 @@ public class ImportBatchService implements ImportBatchServicePort {
                     "Hình thức nhập không khớp với ngày quay đã chọn."
             );
         }
-        validateInDayCreateAllowed(request);
-        validateNoUnfinishedBatchForDrawDate(request.drawDate());
+        if (!fromFile) {
+            validateInDayCreateAllowed(request);
+            validateNoUnfinishedBatchForDrawDate(request.drawDate());
+        }
 
-        if (!Boolean.TRUE.equals(request.forceCreate())) {
+        if (!fromFile && !Boolean.TRUE.equals(request.forceCreate())) {
             importBatchRepositoryPort
                     .findEditableBatchByImportedByAndDrawDateAndSupplierAndImportMode(
                             operatorId,
@@ -167,7 +181,14 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         for (CreateImportBatchLineRequest lineRequest : request.lines()) {
             LotteryStationModel station = getActiveStationOrThrow(lineRequest.lotteryStationId());
-            validateStationEligibility(request.drawDate(), station, request.importMode());
+            if (fromFile) {
+                if (!stationEligibilityResolver.isScheduledOnDrawDate(station, request.drawDate())) {
+                    throw new DomainException(ErrorCode.IMPORT_BATCH_DRAW_DATE_INVALID,
+                            "Ngày quay không khớp lịch quay của đài " + station.getName() + ".");
+                }
+            } else {
+                validateStationEligibility(request.drawDate(), station, request.importMode());
+            }
             validateDeclareQuantity(lineRequest.declareQuantity());
             BigDecimal importCost = ImportCostCalculator.fromStation(station);
             validateImportCost(importCost);
@@ -185,10 +206,15 @@ public class ImportBatchService implements ImportBatchServicePort {
 
             ImportBatchLineModel line = importBatchApplicationMapper.toLineModel(lineRequest);
             line.setImportCost(importCost);
-            line.applyResolvedBatchType(classification.resolvedBatchType());
+            ImportBatchType batchType = fromFile
+                    ? (importBatchLineRepositoryPort.existsImportedLineForStationAndDrawDate(
+                            lineRequest.lotteryStationId(), request.drawDate())
+                            ? ImportBatchType.SUPPLEMENTARY : ImportBatchType.NEW)
+                    : classification.resolvedBatchType();
+            line.applyResolvedBatchType(batchType);
             line.setBatchCode(importBatchCodeGenerator.generateLineCode(
                     station,
-                    classification.resolvedBatchType(),
+                    batchType,
                     request.drawDate()
             ));
             line.recalculateDeclaredCostValue();
@@ -208,6 +234,11 @@ public class ImportBatchService implements ImportBatchServicePort {
         header.setSupplierSettlementId(settlement.getId());
 
         ImportBatchModel saved = importBatchRepositoryPort.save(header);
+        returnBatchImportSyncService.refreshOpenPrimarySupplierReturn(
+                saved.getSupplierId(),
+                saved.getDrawDate(),
+                saved.getSupplierSettlementId()
+        );
         if (saved.getSupplierSettlementId() != null) {
             supplierSettlementServicePort.recalculateTotalImportValue(saved.getSupplierSettlementId());
         }

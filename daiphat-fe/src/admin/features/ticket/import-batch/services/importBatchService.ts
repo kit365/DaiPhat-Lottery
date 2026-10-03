@@ -356,6 +356,7 @@ export const inspectImportBatchFile = async (
 export interface ImportBatchFilePreviewPayload {
     supplierId: number;
     mapping: ImportBatchFileMapping;
+    commitMode?: 'AUTO' | 'MANUAL';
     importBatchId?: number | null;
     manualBatchBindings?: ImportBatchFileManualBatchBinding[];
 }

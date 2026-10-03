@@ -1,6 +1,7 @@
 import type { ReturnBatchLineStatus, ReturnBatchStatus } from '../types/returnBatch.type';
 
 export const RETURN_BATCH_STATUS_LABELS: Record<ReturnBatchStatus, string> = {
+    NOT_OPEN: 'Chưa mở',
     PENDING_INSPECTION: 'Chờ kiểm tra',
     INSPECTING: 'Đang kiểm tra',
     PENDING_HANDOVER: 'Chờ bàn giao',
@@ -27,6 +28,8 @@ export const getReturnBatchLineStatusLabel = (
 
 export const getReturnBatchStatusBadgeClass = (status?: ReturnBatchStatus | null) => {
     switch (status) {
+        case 'NOT_OPEN':
+            return 'admin-status-badge--draft';
         case 'PENDING_INSPECTION':
             return 'admin-status-badge--pending';
         case 'INSPECTING':
@@ -60,6 +63,7 @@ export const getReturnBatchLineStatusBadgeClass = (status?: ReturnBatchLineStatu
 export const getReturnBatchStatusChipColor = (
     status?: ReturnBatchStatus | null
 ): 'default' | 'warning' | 'info' | 'success' | 'error' => {
+    if (status === 'NOT_OPEN') return 'default';
     if (status === 'PENDING_INSPECTION') return 'warning';
     if (status === 'INSPECTING') return 'info';
     if (status === 'PENDING_HANDOVER') return 'warning';
@@ -88,6 +92,14 @@ export const getReturnBatchStatusColorTheme = (
     status?: ReturnBatchStatus | null
 ): ReturnBatchStatusColorTheme => {
     switch (status) {
+        case 'NOT_OPEN':
+            return {
+                main: '#64748b',
+                bg: '#f1f5f9',
+                border: '#cbd5e1',
+                text: '#475569',
+                label: 'Chưa mở',
+            };
         case 'PENDING_INSPECTION':
             return {
                 main: '#f59e0b',

@@ -22,6 +22,7 @@ import {
     TableBody,
     TableCell,
     TableHead,
+    TablePagination,
     TableRow,
     Tabs,
     TextField,
@@ -87,6 +88,8 @@ export const MissingReturnTicketsPanel = ({
     // Filter & Search states
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedStation, setSelectedStation] = useState<string>('ALL');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
 
     // Extract unique station names with item counts
     const stationList = useMemo(() => {
@@ -114,32 +117,38 @@ export const MissingReturnTicketsPanel = ({
         });
     }, [serials, searchQuery, selectedStation]);
 
-    const filteredIds = useMemo(() => filteredSerials.map((s) => s.serialId), [filteredSerials]);
-    const selectedInFilteredIds = useMemo(
-        () => filteredIds.filter((id) => selected.includes(id)),
-        [filteredIds, selected]
+    const pageCount = Math.max(1, Math.ceil(filteredSerials.length / rowsPerPage));
+    const effectivePage = Math.min(page, pageCount - 1);
+    const paginatedSerials = useMemo(
+        () => filteredSerials.slice(effectivePage * rowsPerPage, effectivePage * rowsPerPage + rowsPerPage),
+        [filteredSerials, effectivePage, rowsPerPage]
     );
-    const unselectedFilteredIds = useMemo(
-        () => filteredIds.filter((id) => !selected.includes(id)),
-        [filteredIds, selected]
+    const pageIds = useMemo(() => paginatedSerials.map((s) => s.serialId), [paginatedSerials]);
+    const selectedOnPageIds = useMemo(
+        () => pageIds.filter((id) => selected.includes(id)),
+        [pageIds, selected]
+    );
+    const unselectedOnPageIds = useMemo(
+        () => pageIds.filter((id) => !selected.includes(id)),
+        [pageIds, selected]
     );
 
-    const isAllFilteredSelected =
-        filteredIds.length > 0
-        && selectedInFilteredIds.length > 0
-        && selectedInFilteredIds.length === Math.min(filteredIds.length, requiredQuantity)
-        && (unselectedFilteredIds.length === 0 || isAtSelectionLimit);
-    const isSomeFilteredSelected =
-        selectedInFilteredIds.length > 0 && !isAllFilteredSelected;
+    const isAllPageSelected =
+        pageIds.length > 0
+        && selectedOnPageIds.length > 0
+        && selectedOnPageIds.length === Math.min(pageIds.length, requiredQuantity)
+        && (unselectedOnPageIds.length === 0 || isAtSelectionLimit);
+    const isSomePageSelected =
+        selectedOnPageIds.length > 0 && !isAllPageSelected;
     const headerSelectDisabled =
-        filteredIds.length === 0 || (isAtSelectionLimit && selectedInFilteredIds.length === 0);
+        pageIds.length === 0 || (isAtSelectionLimit && selectedOnPageIds.length === 0);
 
-    const toggleSelectAllFiltered = () => {
+    const toggleSelectAllOnPage = () => {
         if (headerSelectDisabled) {
             return;
         }
-        if (selectedInFilteredIds.length > 0 && (isAtSelectionLimit || isAllFilteredSelected)) {
-            setSelected((prev) => prev.filter((id) => !filteredIds.includes(id)));
+        if (selectedOnPageIds.length > 0 && (isAtSelectionLimit || isAllPageSelected)) {
+            setSelected((prev) => prev.filter((id) => !pageIds.includes(id)));
             return;
         }
         setSelected((prev) => {
@@ -147,7 +156,7 @@ export const MissingReturnTicketsPanel = ({
             if (remaining === 0) {
                 return prev;
             }
-            const toAdd = unselectedFilteredIds.filter((id) => !prev.includes(id)).slice(0, remaining);
+            const toAdd = unselectedOnPageIds.filter((id) => !prev.includes(id)).slice(0, remaining);
             return Array.from(new Set([...prev, ...toAdd]));
         });
     };
@@ -241,7 +250,10 @@ export const MissingReturnTicketsPanel = ({
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
                 <Tabs
                     value={selectedStation}
-                    onChange={(_, val) => setSelectedStation(val)}
+                    onChange={(_, val) => {
+                        setSelectedStation(val);
+                        setPage(0);
+                    }}
                     variant="scrollable"
                     scrollButtons="auto"
                     sx={{
@@ -322,7 +334,10 @@ export const MissingReturnTicketsPanel = ({
                     size="small"
                     placeholder="Tìm kiếm theo mã sê-ri hoặc nhà đài..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setPage(0);
+                    }}
                     InputProps={{
                         startAdornment: (
                             <InputAdornment position="start">
@@ -331,7 +346,13 @@ export const MissingReturnTicketsPanel = ({
                         ),
                         endAdornment: searchQuery ? (
                             <InputAdornment position="end">
-                                <IconButton size="small" onClick={() => setSearchQuery('')}>
+                                <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setPage(0);
+                                    }}
+                                >
                                     <ClearIcon fontSize="small" />
                                 </IconButton>
                             </InputAdornment>
@@ -390,9 +411,9 @@ export const MissingReturnTicketsPanel = ({
                                 <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', fontSize: '0.8rem', py: 1.2 } }}>
                                     <TableCell padding="checkbox">
                                         <Checkbox
-                                            checked={isAllFilteredSelected}
-                                            indeterminate={isSomeFilteredSelected}
-                                            onChange={toggleSelectAllFiltered}
+                                            checked={isAllPageSelected}
+                                            indeterminate={isSomePageSelected}
+                                            onChange={toggleSelectAllOnPage}
                                             disabled={headerSelectDisabled}
                                             size="small"
                                         />
@@ -403,7 +424,7 @@ export const MissingReturnTicketsPanel = ({
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {filteredSerials.map((s) => {
+                                {paginatedSerials.map((s) => {
                                     const isRowSelected = selected.includes(s.serialId);
                                     const rowDisabled = !isRowSelected && isAtSelectionLimit;
                                     return (
@@ -473,6 +494,31 @@ export const MissingReturnTicketsPanel = ({
                             </TableBody>
                         </Table>
                     </Box>
+                    {filteredSerials.length > 0 && (
+                        <TablePagination
+                            component="div"
+                            count={filteredSerials.length}
+                            page={effectivePage}
+                            rowsPerPage={rowsPerPage}
+                            rowsPerPageOptions={[5, 10, 20, 50]}
+                            onPageChange={(_, nextPage) => setPage(nextPage)}
+                            onRowsPerPageChange={(event) => {
+                                setRowsPerPage(Number(event.target.value));
+                                setPage(0);
+                            }}
+                            labelRowsPerPage="Số dòng mỗi trang:"
+                            labelDisplayedRows={({ from, to, count }) => `${from}–${to} trên ${count}`}
+                            sx={{
+                                borderTop: '1px solid #f1f5f9',
+                                '& .MuiTablePagination-toolbar': { minHeight: 48, px: 2 },
+                                '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                                    fontSize: '0.8rem',
+                                    fontWeight: 600,
+                                    color: '#64748b',
+                                },
+                            }}
+                        />
+                    )}
                 </Paper>
             )}
 

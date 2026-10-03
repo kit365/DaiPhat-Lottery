@@ -193,7 +193,8 @@ export const ReturnBatchDetailPage = () => {
     const showInspectButton =
         !batch.inspectionExpired &&
         batch.status !== 'CANCELLED' &&
-        (batch.status === 'PENDING_INSPECTION' ||
+        (batch.status === 'NOT_OPEN' ||
+            batch.status === 'PENDING_INSPECTION' ||
             batch.status === 'INSPECTING' ||
             (batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0));
     const canInspectTickets = showInspectButton && Boolean(batch.inInspectionWindow);
@@ -320,7 +321,7 @@ export const ReturnBatchDetailPage = () => {
                             <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                                 <Button
                                     label={
-                                        batch.status === 'INSPECTING' || remainingInspectable > 0
+                                        batch.status === 'INSPECTING'
                                             ? 'Tiến hành kiểm tra (Tiếp tục)'
                                             : 'Tiến hành kiểm tra'
                                     }
@@ -1270,11 +1271,6 @@ export const ReturnBatchDetailPage = () => {
                             {!returnEvidenceFile && !isEvidenceUploading && !evidenceUploadError && (
                                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
                                     Bắt buộc chọn ảnh bằng chứng trước khi xác nhận bàn giao.
-                                </Typography>
-                            )}
-                            {evidenceUploadError && (
-                                <Typography variant="caption" color="error" sx={{ mt: 0.75, display: 'block' }}>
-                                    {evidenceUploadError}
                                 </Typography>
                             )}
                         </Box>

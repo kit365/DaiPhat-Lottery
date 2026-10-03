@@ -1504,7 +1504,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                 LotteryTicketSerialFaultedBy faultedBy = "VOIDED".equals(resolution)
                         ? LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT
                         : LotteryTicketSerialFaultedBy.LOST_DURING_RETURN;
-                lotteryTicketSerialServicePort.reportFault(
+                lotteryTicketSerialServicePort.reportReturnDiscrepancyFault(
                         serialId,
                         new ReportSerialFaultRequest(
                                 condition,
