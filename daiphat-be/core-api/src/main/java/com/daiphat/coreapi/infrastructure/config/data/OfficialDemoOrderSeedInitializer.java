@@ -20,6 +20,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderDetailRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,8 +48,8 @@ import java.util.List;
 @ConditionalOnProperty(value = "daiphat.official-demo.seed.enabled", havingValue = "true")
 public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
 
-    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
-    private boolean rebuildDemo;
+    @Value("${daiphat.order.seed.rebuild-demo:false}")
+    private boolean rebuildOrders;
 
     private static final String ACTOR = "official-demo-seed";
     private static final String CODE_MARKER = "-DO";
@@ -58,16 +59,16 @@ public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
     private final ImportBatchRepository importBatchRepository;
     private final LotteryTicketSerialRepository serialRepository;
     private final OrderRepository orderRepository;
+    private final OrderDetailRepository orderDetailRepository;
     private final TransactionRepository transactionRepository;
     private final Clock clock;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (!rebuildDemo) return;
+        if (!rebuildOrders) return;
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate tomorrow = now.toLocalDate().plusDays(1);
-        clearPreviousOrders();
 
         // A payment complaint needs the real ten-minute payment timeout. Tomorrow's
         // intake cannot have opened before 08:00, so wait until 08:15 for the matrix.
@@ -76,6 +77,15 @@ public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
             return;
         }
 
+        List<OrderEntity> priorOrders = findPreviousOrders();
+        List<LotteryTicketSerialEntity> priorSerials = priorOrders.stream()
+                .flatMap(order -> orderDetailRepository.findByOrder_Id(order.getId()).stream())
+                .map(OrderDetailEntity::getLotteryTicketSerial)
+                .filter(java.util.Objects::nonNull)
+                .filter(serial -> tomorrow.equals(serial.getDrawDate()))
+                .filter(serial -> serial.getTicketCondition() == TicketCondition.GOOD)
+                .filter(serial -> serial.getReturnBatchLineId() == null)
+                .toList();
         List<LotteryTicketSerialEntity> available = importBatchRepository
                 .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN")
                 .stream()
@@ -84,6 +94,11 @@ public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
                 .filter(serial -> serial.getStatus() == LotteryTicketSerialStatus.IN_STOCK)
                 .filter(serial -> serial.getTicketCondition() == TicketCondition.GOOD)
                 .filter(serial -> serial.getReturnBatchLineId() == null)
+                .toList();
+        java.util.LinkedHashMap<Long, LotteryTicketSerialEntity> availableById = new java.util.LinkedHashMap<>();
+        available.forEach(serial -> availableById.put(serial.getId(), serial));
+        priorSerials.forEach(serial -> availableById.putIfAbsent(serial.getId(), serial));
+        available = availableById.values().stream()
                 // Spread purchases over ticket numbers, leaving sellable stock on
                 // every number rather than exhausting all ten serials of one row.
                 .sorted(Comparator
@@ -115,6 +130,8 @@ public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
             }
         }
 
+        clearPreviousOrders(priorOrders, priorSerials);
+
         int cursor = 0;
         for (int memberIndex = 0; memberIndex < 3; memberIndex++) {
             UserEntity member = accountResolver.findOfficialDemoMember(memberIndex);
@@ -136,8 +153,8 @@ public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
         log.info("Seeded 84 official-demo lifecycle orders from {} tomorrow serials.", cursor);
     }
 
-    void clearPreviousOrders() {
-        List<OrderEntity> prior = orderRepository.findAll().stream()
+    private List<OrderEntity> findPreviousOrders() {
+        return orderRepository.findAll().stream()
                 .filter(order -> order.getOrderCode() != null
                         && order.getOrderCode().matches("ORD-\\d{8}-DO\\d{6}"))
                 .filter(order -> order.getUser() != null
@@ -146,11 +163,24 @@ public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
                                 .filter(java.util.Objects::nonNull)
                                 .anyMatch(member -> member.getId().equals(order.getUser().getId())))
                 .toList();
-        if (prior.isEmpty()) {
-            return;
+    }
+
+    /** Full-demo cleanup runs before import inventory is rebuilt, so no serials are reused. */
+    void clearPreviousOrders() {
+        clearPreviousOrders(findPreviousOrders(), List.of());
+    }
+
+    private void clearPreviousOrders(List<OrderEntity> prior, List<LotteryTicketSerialEntity> priorSerials) {
+        if (prior.isEmpty()) return;
+        // The matrix owns these serials; release them before rebuilding its orders.
+        for (LotteryTicketSerialEntity serial : priorSerials) {
+            serial.setStatus(LotteryTicketSerialStatus.IN_STOCK);
+            serial.setReservedByOrderId(null);
+            serial.setReservedAt(null);
+            serial.setReservationExpiresAt(null);
+            serial.setLastModifiedBy(ACTOR);
         }
-        // Refund requests are cleared by the downstream refund seeder before the
-        // old order details are removed on the next import reset.
+        serialRepository.saveAll(priorSerials);
         transactionRepository.deleteByPaymentRefStartingWith("PAYOS-DEMO-");
         orderRepository.deleteAll(prior);
         orderRepository.flush();

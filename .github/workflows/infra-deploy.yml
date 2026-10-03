@@ -70,8 +70,10 @@ jobs:
           [[ "$dozzle_username" =~ ^[A-Za-z0-9._-]+$ ]]
           [[ "$dozzle_password_hash" =~ ^\$2[aby]\$ ]]
           printf '%s\n' "$ENV_FILE_CONTENT" \
-            | awk -F= '$1 != "DOZZLE_AUTH_USERNAME" && $1 != "DOZZLE_AUTH_PASSWORD_HASH"' \
+            | awk -F= '$1 != "DOZZLE_AUTH_USERNAME" && $1 != "DOZZLE_AUTH_PASSWORD_HASH" && $1 != "LOTTERY_SEED_REBUILD_DEMO" && $1 != "ORDER_SEED_REBUILD_DEMO"' \
             > .env.prod
+          # Rebuild order fixtures only; keep the full lottery/demo rebuild disabled.
+          printf '%s\n' 'LOTTERY_SEED_REBUILD_DEMO=false' 'ORDER_SEED_REBUILD_DEMO=true' >> .env.prod
           {
             printf 'users:\n'
             printf '  %s:\n' "$dozzle_username"
