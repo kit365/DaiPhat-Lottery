@@ -109,9 +109,13 @@ public class OrderSeedInitializer implements ApplicationRunner {
     /** Per-run cache: stationId|drawDate → import batch/line under MINH_CHINH. */
     private Map<String, ImportLink> importLinksByStationDate = Map.of();
 
+    @Value("${daiphat.lottery.seed.daily-only:true}")
+    private boolean dailyOnly;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (dailyOnly) return;
         if (!rebuildOrders) return;
         UserEntity member = seedAccountResolver.findMember();
         UserEntity operator = seedAccountResolver.findOperator();

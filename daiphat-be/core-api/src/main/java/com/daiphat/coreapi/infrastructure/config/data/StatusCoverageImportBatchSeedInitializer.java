@@ -94,9 +94,13 @@ public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunn
     private final UserRepository userRepository;
     private final Clock clock;
 
+    @Value("${daiphat.lottery.seed.daily-only:true}")
+    private boolean dailyOnly;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (dailyOnly) return;
         if (!rebuildDemo) return;
         UserEntity operator = findSeedOperator();
         if (operator == null) {

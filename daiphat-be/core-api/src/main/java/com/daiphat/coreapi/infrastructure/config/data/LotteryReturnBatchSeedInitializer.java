@@ -88,9 +88,13 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
     private final SeedAccountResolver seedAccountResolver;
     private final Clock clock;
 
+    @Value("${daiphat.lottery.seed.daily-only:true}")
+    private boolean dailyOnly;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (dailyOnly) return;
         if (!rebuildDemo) return;
         LocalDateTime now = LocalDateTime.now(clock);
 
