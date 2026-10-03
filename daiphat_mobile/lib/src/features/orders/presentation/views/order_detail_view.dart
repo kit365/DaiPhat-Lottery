@@ -975,7 +975,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'DP${order.orderCode}',
+                  order.orderCode,
                   style: AppTypography.mainWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
