@@ -165,7 +165,12 @@ public class OfficialDemoOrderSeedInitializer implements ApplicationRunner {
                 .toList();
     }
 
-    void clearPreviousOrders(List<OrderEntity> prior, List<LotteryTicketSerialEntity> priorSerials) {
+    /** Full-demo cleanup runs before import inventory is rebuilt, so no serials are reused. */
+    void clearPreviousOrders() {
+        clearPreviousOrders(findPreviousOrders(), List.of());
+    }
+
+    private void clearPreviousOrders(List<OrderEntity> prior, List<LotteryTicketSerialEntity> priorSerials) {
         if (prior.isEmpty()) return;
         // The matrix owns these serials; release them before rebuilding its orders.
         for (LotteryTicketSerialEntity serial : priorSerials) {
