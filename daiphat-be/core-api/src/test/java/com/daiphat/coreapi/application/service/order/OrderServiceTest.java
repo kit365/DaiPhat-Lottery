@@ -1172,7 +1172,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
         OrderResponse result = orderService.reviewPaymentTimeoutComplaint(orderId, true, null, operatorId);
 
         assertThat(result).isNotNull();
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PREPARING);
         assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.PROXY_HOLDING);
         verify(lotteryTicketServicePort).markSoldForOrder(8L);
     }
