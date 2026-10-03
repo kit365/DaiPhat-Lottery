@@ -21,6 +21,21 @@ export type ImportBatchEditDraft = {
 export const importBatchEditDraftStorageKey = (batchId: string | number) =>
     `import-batch-edit-draft:${batchId}`;
 
+/**
+ * A pending line deletion belongs only to the current edit session. Persisting
+ * the `removed` flag would keep the row hidden after a browser refresh even
+ * though the backend has not deleted it yet. Other unsaved edits remain
+ * recoverable as usual.
+ */
+const withoutPendingLineRemovals = (
+    values: UpdateImportBatchFormValues
+): UpdateImportBatchFormValues => ({
+    ...values,
+    lines: (values.lines ?? []).map((line) =>
+        line.removed ? { ...line, removed: false } : line
+    ),
+});
+
 export const readLocalImportBatchEditDraft = (
     batchId: string | number
 ): ImportBatchEditDraft | null => {
@@ -33,7 +48,12 @@ export const readLocalImportBatchEditDraft = (
         if (!parsed || Number(parsed.batchId) !== Number(batchId) || !parsed.values) {
             return null;
         }
-        return parsed;
+        return {
+            ...parsed,
+            // Also migrate drafts saved before pending removals became
+            // session-only, so a refresh always restores server-backed rows.
+            values: withoutPendingLineRemovals(parsed.values),
+        };
     } catch {
         return null;
     }
@@ -47,7 +67,7 @@ export const writeLocalImportBatchEditDraft = (
         const payload: ImportBatchEditDraft = {
             batchId: Number(batchId),
             savedAt: new Date().toISOString(),
-            values,
+            values: withoutPendingLineRemovals(values),
         };
         localStorage.setItem(importBatchEditDraftStorageKey(batchId), JSON.stringify(payload));
     } catch {
@@ -278,7 +298,9 @@ const mergeDraftLineWithServerLine = (
         lotteryStationId: draftStationId > 0 ? draftStationId : serverLine.lotteryStationId,
         resolvedBatchType: draftLine.resolvedBatchType ?? serverLine.resolvedBatchType,
         stationName: draftLine.stationName ?? serverLine.stationName,
-        removed: draftLine.removed ?? false,
+        // Deletion is intentionally session-only until the update request is
+        // confirmed. Never revive a pending removal from a browser draft.
+        removed: false,
         status: serverLine.status,
         totalQuantity: serverLine.totalQuantity,
         readOnly: serverLine.readOnly,

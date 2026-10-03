@@ -659,8 +659,13 @@ export const MatchingActualsForm = ({
                 },
                 returnBatches
             ),
-        [settlement.isReturnExpired, settlement.periodTo, settlement.periodFrom, supplier?.returnCutOffTime, returnBatches]
+        [settlement.isReturnExpired, settlement.periodTo, settlement.periodFrom, supplier?.returnCutOffTime, returnBatches, clockTick]
     );
+
+    // Once the return cutoff has passed, handover is no longer possible. The
+    // return quantity is already locked to the system's handed-over total, so
+    // an unfinished return batch must not block matching indefinitely.
+    const requiresReturnHandover = hasUnhandedReturnBatches && !isReturnOverdue;
 
     /** Status-only forfeit (no handover yet) OR overdue + unhanded → agent bears remaining inventory. */
     const isReturnForfeited = useMemo(
@@ -1650,7 +1655,7 @@ export const MatchingActualsForm = ({
                 `Số lượng trả thực tế không được vượt quá ${systemReturnQty.toLocaleString('vi-VN')} vé (số lượng hệ thống)`
             );
         }
-        if (hasUnhandedReturnBatches) {
+        if (requiresReturnHandover) {
             items.push('Hoàn tất bàn giao các phiếu trả vé trước khi đối chiếu');
         }
         return items;
@@ -1673,7 +1678,7 @@ export const MatchingActualsForm = ({
         systemReturnQty,
         returnLockDetails.beforeStart,
         returnLockDetails.summaryMessage,
-        hasUnhandedReturnBatches,
+        requiresReturnHandover,
     ]);
 
     const highlightActualPaid = isActualPaidEmpty;
@@ -2094,7 +2099,7 @@ export const MatchingActualsForm = ({
             submitMatching();
             return;
         }
-        if (hasUnhandedReturnBatches) {
+        if (requiresReturnHandover) {
             AppToast.warning('Phiếu trả vé chưa ở trạng thái đã bàn giao. Vui lòng hoàn tất bàn giao trước khi xác nhận đối chiếu.');
             return;
         }
@@ -4963,7 +4968,7 @@ export const MatchingActualsForm = ({
                             borderTop: '1px solid #f1f5f9',
                         }}
                     >
-                        {hasUnhandedReturnBatches ? (
+                        {requiresReturnHandover ? (
                             <Stack
                                 direction="row"
                                 spacing={1.25}
@@ -5021,7 +5026,7 @@ export const MatchingActualsForm = ({
 
                         <Tooltip
                             title={
-                                hasUnhandedReturnBatches
+                                requiresReturnHandover
                                     ? 'Phiếu trả vé chưa ở trạng thái đã bàn giao. Vui lòng hoàn tất bàn giao trước khi xác nhận đối chiếu.'
                                     : submitBlockers.length > 0
                                         ? submitBlockers.join(' · ')
@@ -5031,7 +5036,7 @@ export const MatchingActualsForm = ({
                             <span>
                                 <Button
                                     variant="contained"
-                                    disabled={!canSubmit || isSubmitting || hasUnhandedReturnBatches}
+                                    disabled={!canSubmit || isSubmitting || requiresReturnHandover}
                                     onClick={handleSubmit}
                                     startIcon={
                                         isSubmitting ? (
