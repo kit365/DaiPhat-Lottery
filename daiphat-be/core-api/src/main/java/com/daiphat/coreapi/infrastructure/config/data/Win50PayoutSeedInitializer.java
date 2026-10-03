@@ -46,6 +46,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -84,6 +85,9 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
 
     private static final BigDecimal TICKET_PRICE = BigDecimal.valueOf(10_000);
     private static final int MAX_LOOKBACK_DAYS = 30;
+    private static final int OFFICIAL_LOOKBACK_DAYS = 7;
+    // At most four southern stations per day; cover the whole eligible week.
+    private static final int OFFICIAL_MAX_RESULT_DRAWS = OFFICIAL_LOOKBACK_DAYS * 4;
     private static final int MAX_RESULT_DRAWS = 6;
     private static final int MAX_RESULT_SYNC_ATTEMPTS = 12;
     private final SeedAccountResolver seedAccountResolver;
@@ -204,14 +208,14 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
         Set<Win50PayoutSeedCatalog.DrawResultKey> officialDraws = new LinkedHashSet<>();
         int syncAttempts = 0;
         for (Win50PayoutSeedCatalog.DrawResultKey key : candidateDraws) {
-            if (officialDraws.size() >= MAX_RESULT_DRAWS) {
+            if (officialDraws.size() >= (officialDemoEnabled ? OFFICIAL_MAX_RESULT_DRAWS : MAX_RESULT_DRAWS)) {
                 break;
             }
             if (hasOfficialResult(key)) {
                 officialDraws.add(key);
                 continue;
             }
-            if (syncAttempts >= MAX_RESULT_SYNC_ATTEMPTS) {
+            if (syncAttempts >= (officialDemoEnabled ? OFFICIAL_MAX_RESULT_DRAWS : MAX_RESULT_SYNC_ATTEMPTS)) {
                 continue;
             }
             syncAttempts++;
@@ -267,7 +271,7 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
         List<LotteryTicketSerialEntity> pool = loadClaimableInventory().stream()
                 .filter(serial -> drawResults.containsKey(drawKeyOf(serial)))
                 .toList();
-        List<ClaimedWinner> winners = claimWinnersFromPool(pool, drawResults, requiredWinners);
+        List<ClaimedWinner> winners = claimWinnersFromPool(pool, drawResults, requiredWinners, missingPlans);
         if (winners.size() != requiredWinners) {
             throw new IllegalStateException(
                     "claimed " + winners.size() + " winners, expected " + requiredWinners
@@ -367,7 +371,7 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
     private List<LotteryTicketSerialEntity> loadClaimableInventory() {
         LocalDate today = vietnamClock.today();
         return loadClaimableInventory(
-                officialDemoEnabled ? today.minusDays(1) : today.minusDays(MAX_LOOKBACK_DAYS),
+                officialDemoEnabled ? today.minusDays(OFFICIAL_LOOKBACK_DAYS) : today.minusDays(MAX_LOOKBACK_DAYS),
                 today.minusDays(1));
     }
 
@@ -378,7 +382,8 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
     private List<ClaimedWinner> claimWinnersFromPool(
             List<LotteryTicketSerialEntity> pool,
             Map<Win50PayoutSeedCatalog.DrawResultKey, Map<String, List<String>>> drawResults,
-            int requiredWinners
+            int requiredWinners,
+            List<Win50PayoutSeedCatalog.OrderPlan> plans
     ) {
         // One serial per ticket id so we do not double-claim.
         Map<Long, LotteryTicketSerialEntity> byTicketId = new LinkedHashMap<>();
@@ -400,6 +405,10 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
                 .comparing(Win50PayoutSeedCatalog.DrawResultKey::drawDate)
                 .thenComparing(Win50PayoutSeedCatalog.DrawResultKey::stationId));
 
+        List<LocalDate> officialMemberDrawDates = officialDemoEnabled
+                ? chooseOfficialMemberDrawDates(unique, drawResults, plans)
+                : List.of();
+
         List<ClaimedWinner> winners = new ArrayList<>();
         Set<Long> usedTicketIds = new HashSet<>();
         Set<String> usedDbSlots = new HashSet<>();
@@ -414,8 +423,18 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
             for (int variant = 0; variant < count; variant++) {
                 boolean placed = false;
                 for (int attempt = 0; attempt < 500 && !placed; attempt++) {
-                    Win50PayoutSeedCatalog.DrawResultKey key =
-                            drawKeys.get((dayI + attempt) % drawKeys.size());
+                    List<Win50PayoutSeedCatalog.DrawResultKey> eligibleDrawKeys = drawKeys;
+                    if (officialDemoEnabled) {
+                        LocalDate targetDate = officialMemberDrawDates.get(winners.size());
+                        eligibleDrawKeys = drawKeys.stream()
+                                .filter(candidate -> targetDate.equals(candidate.drawDate()))
+                                .toList();
+                    }
+                    if (eligibleDrawKeys.isEmpty()) {
+                        continue;
+                    }
+                    Win50PayoutSeedCatalog.DrawResultKey key = eligibleDrawKeys.get(
+                            (dayI + attempt) % eligibleDrawKeys.size());
                     List<LotteryTicketSerialEntity> candidates = byDraw.get(key);
                     if (candidates == null || candidates.isEmpty()) {
                         continue;
@@ -522,6 +541,87 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
             );
         }
         return winners;
+    }
+
+    /** Assign each official demo member a separate draw date, with all dates within one week. */
+    private List<LocalDate> chooseOfficialMemberDrawDates(
+            List<LotteryTicketSerialEntity> pool,
+            Map<Win50PayoutSeedCatalog.DrawResultKey, Map<String, List<String>>> drawResults,
+            List<Win50PayoutSeedCatalog.OrderPlan> plans
+    ) {
+        Map<Integer, Integer> winnerCountByMember = new LinkedHashMap<>();
+        for (Win50PayoutSeedCatalog.OrderPlan plan : plans) {
+            int memberIndex = (plan.orderN() - 1) / 2;
+            winnerCountByMember.merge(memberIndex, plan.slots(), Integer::sum);
+        }
+
+        Map<LocalDate, Set<Long>> ticketIdsByDate = new LinkedHashMap<>();
+        for (LotteryTicketSerialEntity serial : pool) {
+            if (drawResults.containsKey(drawKeyOf(serial))) {
+                ticketIdsByDate.computeIfAbsent(serial.getTicket().getDrawDate(), ignored -> new HashSet<>())
+                        .add(serial.getTicket().getId());
+            }
+        }
+
+        List<LocalDate> availableDates = ticketIdsByDate.keySet().stream()
+                .sorted(Comparator.reverseOrder())
+                .toList();
+        Map<Integer, LocalDate> selectedDates = new LinkedHashMap<>();
+        // A missing second order must retain its member's existing draw date.
+        for (Win50PayoutSeedCatalog.OrderPlan plan : Win50PayoutSeedCatalog.OFFICIAL_ORDER_PLANS) {
+            var existing = orderRepository.findByOrderCode(
+                    Win50PayoutSeedCatalog.ORDER_CODE_PREFIX + String.format("%03d", plan.orderN()));
+            if (existing.isEmpty() || existing.get().getOrderDetails() == null) continue;
+            for (OrderDetailEntity detail : existing.get().getOrderDetails()) {
+                if (detail.getLotteryTicket() == null || detail.getLotteryTicket().getDrawDate() == null) continue;
+                int memberIndex = (plan.orderN() - 1) / 2;
+                LocalDate date = detail.getLotteryTicket().getDrawDate();
+                LocalDate previous = selectedDates.putIfAbsent(memberIndex, date);
+                if (previous != null && !previous.equals(date)) {
+                    throw new IllegalStateException("WIN50_PAYOUT: existing member orders span multiple draw dates; preserve payout progress.");
+                }
+            }
+        }
+        if (new HashSet<>(selectedDates.values()).size() != selectedDates.size()
+                || !datesWithinWeek(selectedDates.values())
+                || !assignMemberDrawDates(new ArrayList<>(winnerCountByMember.keySet()), 0,
+                        winnerCountByMember, availableDates, ticketIdsByDate, selectedDates)) {
+            throw new IllegalStateException(
+                    "WIN50_PAYOUT: need enough unclaimed tickets on separate member draw dates within the last 7 days; existing orders are preserved.");
+        }
+        List<LocalDate> targetDates = new ArrayList<>();
+        for (Win50PayoutSeedCatalog.OrderPlan plan : plans) {
+            targetDates.addAll(java.util.Collections.nCopies(
+                    plan.slots(), selectedDates.get((plan.orderN() - 1) / 2)));
+        }
+        return targetDates;
+    }
+
+    private boolean assignMemberDrawDates(
+            List<Integer> members, int index, Map<Integer, Integer> required,
+            List<LocalDate> availableDates, Map<LocalDate, Set<Long>> tickets,
+            Map<Integer, LocalDate> selected
+    ) {
+        if (index == members.size()) return true;
+        int member = members.get(index);
+        LocalDate existing = selected.get(member);
+        List<LocalDate> candidates = existing == null ? availableDates : List.of(existing);
+        for (LocalDate date : candidates) {
+            if (tickets.getOrDefault(date, Set.of()).size() < required.get(member)
+                    || (existing == null && selected.containsValue(date))) continue;
+            selected.put(member, date);
+            if (datesWithinWeek(selected.values()) && assignMemberDrawDates(
+                    members, index + 1, required, availableDates, tickets, selected)) return true;
+            if (existing == null) selected.remove(member);
+        }
+        return false;
+    }
+
+    private boolean datesWithinWeek(java.util.Collection<LocalDate> dates) {
+        if (dates.isEmpty()) return true;
+        LocalDate earliest = dates.stream().min(LocalDate::compareTo).orElseThrow();
+        LocalDate latest = dates.stream().max(LocalDate::compareTo).orElseThrow();
+        return ChronoUnit.DAYS.between(earliest, latest) <= OFFICIAL_LOOKBACK_DAYS;
     }
 
     private void persistOrders(

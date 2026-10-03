@@ -312,8 +312,8 @@ apiApp.interceptors.response.use(
 
             switch (status) {
                 case 401: {
-                    // Đã refresh 1 lần vẫn 401 → phiên hết.
-                    if (!isAuthEndpoint(originalRequest?.url)) {
+                    // Đã refresh 1 lần vẫn 401 trên API bắt buộc auth cơ bản (như /users/me) → phiên thật sự hết.
+                    if (isAuthRequiredRequest(originalRequest?.url)) {
                         handleExpiredSession();
                     }
                     break;

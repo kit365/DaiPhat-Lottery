@@ -115,7 +115,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (dailyOnly) return;
         if (!rebuildOrders) return;
         UserEntity member = seedAccountResolver.findMember();
         UserEntity operator = seedAccountResolver.findOperator();
@@ -174,13 +173,22 @@ public class OrderSeedInitializer implements ApplicationRunner {
             line.setTotalCostValue(importedCost);
             ImportBatchSeedStatusHelper.applyLineStatus(line, now);
 
-            ImportBatchEntity batch = link.batch();
-            batch.setLineCount(1);
-            batch.setTotalDeclareQuantity(quantity);
-            batch.setTotalDeclaredCostValue(importedCost);
-            batch.setTotalImportedQuantity(quantity);
-            batch.setTotalImportedCostValue(importedCost);
-            ImportBatchSeedStatusHelper.applyHeaderStatus(batch, List.of(line), now);
+            importBatchLineRepository.save(line);
+        }
+        for (ImportBatchEntity batch : importLinksByStationDate.values().stream()
+                .map(ImportLink::batch).distinct().toList()) {
+            List<ImportBatchLineEntity> lines = importBatchLineRepository
+                    .findByImportBatch_IdAndDeletedAtIsNull(batch.getId());
+            batch.setLineCount(lines.size());
+            batch.setTotalDeclareQuantity(lines.stream()
+                    .mapToInt(line -> line.getDeclareQuantity() == null ? 0 : line.getDeclareQuantity()).sum());
+            batch.setTotalImportedQuantity(lines.stream()
+                    .mapToInt(line -> line.getTotalQuantity() == null ? 0 : line.getTotalQuantity()).sum());
+            batch.setTotalDeclaredCostValue(lines.stream().map(ImportBatchLineEntity::getDeclaredCostValue)
+                    .filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add));
+            batch.setTotalImportedCostValue(lines.stream().map(ImportBatchLineEntity::getTotalCostValue)
+                    .filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add));
+            ImportBatchSeedStatusHelper.applyHeaderStatus(batch, lines, now);
             importBatchRepository.save(batch);
         }
     }
@@ -904,6 +912,25 @@ public class OrderSeedInitializer implements ApplicationRunner {
     ) {
         String cacheKey = station.getId() + "|" + drawDate;
         return importLinksByStationDate.computeIfAbsent(cacheKey, ignored -> {
+            if (dailyOnly) {
+                ImportBatchEntity batch = importBatchRepository
+                        .findByNoteStartingWithAndDeletedAtIsNull(
+                                SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN").stream()
+                        .filter(candidate -> drawDate.equals(candidate.getDrawDate()))
+                        .filter(candidate -> candidate.getSupplier() != null
+                                && SHARED_SUPPLIER_CODE.equalsIgnoreCase(candidate.getSupplier().getCode()))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "Daily order seed requires the main import for " + drawDate));
+                ImportBatchLineEntity line = importBatchLineRepository.findByImportBatch_Id(batch.getId()).stream()
+                        .filter(candidate -> candidate.getLotteryStation() != null
+                                && station.getId().equals(candidate.getLotteryStation().getId()))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "Daily order seed requires an import line for station " + station.getId()
+                                        + " on " + drawDate));
+                return new ImportLink(batch, line);
+            }
             LotterySupplierEntity supplier = lotterySupplierRepository
                     .findByCodeIgnoreCaseAndDeletedAtIsNull(SHARED_SUPPLIER_CODE)
                     .orElseThrow(() -> new IllegalStateException(
@@ -985,6 +1012,25 @@ public class OrderSeedInitializer implements ApplicationRunner {
                         b.getName() != null ? b.getName() : ""
                 ))
                 .toList();
+        if (dailyOnly) {
+            Set<Long> dailyImportStationIds = importBatchRepository
+                    .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN")
+                    .stream()
+                    .filter(batch -> drawDate.equals(batch.getDrawDate()))
+                    .flatMap(batch -> importBatchLineRepository.findByImportBatch_Id(batch.getId()).stream())
+                    .map(ImportBatchLineEntity::getLotteryStation)
+                    .filter(java.util.Objects::nonNull)
+                    .map(LotteryStationEntity::getId)
+                    .collect(java.util.stream.Collectors.toSet());
+            LotteryStationEntity linkedStation = activeStations.stream()
+                    .filter(station -> dailyImportStationIds.contains(station.getId()))
+                    .filter(station -> isScheduledOn(station, drawDate))
+                    .findFirst()
+                    .orElse(null);
+            if (linkedStation != null) {
+                return linkedStation;
+            }
+        }
         return activeStations.stream()
                 .filter(station -> isScheduledOn(station, drawDate))
                 .findFirst()

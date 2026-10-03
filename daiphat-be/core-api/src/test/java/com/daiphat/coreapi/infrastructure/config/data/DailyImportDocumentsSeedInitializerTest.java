@@ -26,11 +26,15 @@ class DailyImportDocumentsSeedInitializerTest {
         var first = ImportBatchEntity.builder().id(10L).supplier(supplier).drawDate(today).build();
         var second = ImportBatchEntity.builder().id(11L).supplier(supplier).drawDate(today.plusDays(1)).build();
         var old = ImportBatchEntity.builder().id(12L).supplier(supplier).drawDate(today.minusDays(1)).build();
-        when(imports.findByNoteStartingWithAndDeletedAtIsNull(anyString())).thenReturn(List.of(first, second, old));
+        var history = ImportBatchEntity.builder().id(13L).supplier(supplier).drawDate(today.minusDays(2))
+                .note(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN-WINNERS-" + today.minusDays(2)).build();
+        when(imports.findByNoteStartingWithAndDeletedAtIsNull(anyString())).thenReturn(List.of(first, second, old, history));
         var model = LotterySupplierModel.builder().id(1L).build();
         when(suppliers.getActiveModelById(1L)).thenReturn(model);
         when(settlements.findOrCreateForImport(model, today)).thenReturn(SupplierSettlementModel.builder().id(20L).build());
         when(settlements.findOrCreateForImport(model, today.plusDays(1))).thenReturn(SupplierSettlementModel.builder().id(21L).build());
+        when(settlements.findOrCreateForImport(model, today.minusDays(2)))
+                .thenReturn(SupplierSettlementModel.builder().id(22L).build());
         var seed = new DailyImportDocumentsSeedInitializer(imports, suppliers, settlements, returns,
                 Clock.fixed(Instant.parse("2026-10-03T05:00:00Z"), ZoneId.of("Asia/Ho_Chi_Minh")));
         seed.run(null);
@@ -41,5 +45,8 @@ class DailyImportDocumentsSeedInitializerTest {
         verify(settlements).recalculateTotalImportValue(20L);
         verify(settlements).recalculateTotalImportValue(21L);
         verify(imports, never()).saveAndFlush(old);
+        assertThat(history.getSupplierSettlementId()).isEqualTo(22L);
+        verify(returns).refreshOpenPrimarySupplierReturn(1L, today.minusDays(2), 22L);
+        verify(settlements).recalculateTotalImportValue(22L);
     }
 }
