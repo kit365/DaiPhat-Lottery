@@ -65,8 +65,22 @@ class Win50PayoutSeedInitializerTest {
         assertThat(storedOrders.values().stream().mapToInt(o -> o.getOrderDetails().size()).sum()).isEqualTo(50);
         for (int i = 0; i < 3; i++) {
             final String username = "member" + i;
-            assertThat(storedOrders.values().stream().filter(o -> username.equals(o.getUser().getUsername())).count()).isEqualTo(2);
+            var memberOrders = storedOrders.values().stream()
+                    .filter(o -> username.equals(o.getUser().getUsername())).toList();
+            assertThat(memberOrders).hasSize(2);
+            assertThat(memberOrders.stream().flatMap(o -> o.getOrderDetails().stream())
+                    .map(d -> d.getLotteryTicket().getDrawDate()).distinct()).hasSize(1);
         }
+        List<LocalDate> memberDrawDates = storedOrders.values().stream()
+                .collect(java.util.stream.Collectors.groupingBy(o -> o.getUser().getUsername()))
+                .values().stream()
+                .map(orders -> orders.stream().flatMap(o -> o.getOrderDetails().stream())
+                        .map(d -> d.getLotteryTicket().getDrawDate()).findFirst().orElseThrow())
+                .toList();
+        assertThat(memberDrawDates).doesNotHaveDuplicates();
+        assertThat(java.time.temporal.ChronoUnit.DAYS.between(
+                memberDrawDates.stream().min(LocalDate::compareTo).orElseThrow(),
+                memberDrawDates.stream().max(LocalDate::compareTo).orElseThrow())).isLessThanOrEqualTo(7);
         initializer.run(null);
         verify(orders, times(6)).save(any());
         verify(orders, never()).deleteAll(any(Iterable.class));
@@ -97,7 +111,7 @@ class Win50PayoutSeedInitializerTest {
     void unavailableOfficialResultLeavesExistingOrdersAndStockUntouched() {
         enableOrderSeed();
         var pool = inventory(50);
-        when(support.loadClaimableInventory(true, yesterday, yesterday)).thenReturn(pool);
+        when(support.loadClaimableInventory(true, yesterday.minusDays(6), yesterday)).thenReturn(pool);
         when(resultService.ensureResultForBoard(1L, yesterday)).thenThrow(new IllegalStateException("unavailable"));
         initializer.run(null);
         verify(orders, never()).save(any());
@@ -123,17 +137,28 @@ class Win50PayoutSeedInitializerTest {
     }
 
     private void supplyOfficialInventory(int count) {
-        var pool = inventory(count);
-        when(support.loadClaimableInventory(true, yesterday, yesterday)).thenReturn(pool);
+        List<LotteryTicketSerialEntity> pool = new ArrayList<>();
+        LocalDate[] dates = {yesterday, yesterday.minusDays(1), yesterday.minusDays(2)};
+        if (count == 7) {
+            pool.addAll(inventory(count, yesterday, 1));
+        } else {
+            for (int index = 0; index < count; index++) {
+                int dayIndex = index < 18 ? 0 : index < 36 ? 1 : 2;
+                pool.addAll(inventory(1, dates[dayIndex], index + 1));
+            }
+        }
+        when(support.loadClaimableInventory(true, yesterday.minusDays(6), yesterday)).thenReturn(pool);
         for (var serial : pool) {
             when(serials.findByTicket_IdAndDeletedAtIsNull(serial.getTicket().getId())).thenReturn(List.of(serial));
+            when(results.findByStation_IdAndDrawDateAndDeletedAtIsNull(1L, serial.getTicket().getDrawDate()))
+                    .thenReturn(Optional.of(LotteryResultEntity.builder().id(1L).status(LotteryResultStatus.COMPLETED).build()));
         }
-        when(results.findByStation_IdAndDrawDateAndDeletedAtIsNull(1L, yesterday))
-                .thenReturn(Optional.of(LotteryResultEntity.builder().id(1L).status(LotteryResultStatus.COMPLETED).build()));
         when(resultDetails.findByLotteryResult_IdAndDeletedAtIsNullOrderByPrizeStructure_DisplayOrderAscWinningNumberAsc(1L))
                 .thenReturn(Win50PayoutSeedCatalog.RESULT_DETAIL_CODES.stream().<LotteryResultDetailEntity>map(p -> LotteryResultDetailEntity.builder()
                         .prizeStructure(PrizeStructureEntity.builder().prizeCode(p).build())
                         .winningNumber(p.equals("G8") ? "89" : "111111").build()).toList());
+        when(orders.findByOrderCode(anyString())).thenAnswer(invocation ->
+                Optional.ofNullable(storedOrders.get(invocation.getArgument(0))));
         when(orders.save(any())).thenAnswer(invocation -> {
             OrderEntity order = invocation.getArgument(0);
             storedOrders.put(order.getOrderCode(), order);
@@ -142,10 +167,14 @@ class Win50PayoutSeedInitializerTest {
     }
 
     private List<LotteryTicketSerialEntity> inventory(int count) {
+        return inventory(count, yesterday, 1);
+    }
+
+    private List<LotteryTicketSerialEntity> inventory(int count, LocalDate drawDate, int firstId) {
         var station = LotteryStationEntity.builder().id(1L).name("Vĩnh Long").build();
-        return IntStream.rangeClosed(1, count).<LotteryTicketSerialEntity>mapToObj(i -> LotteryTicketSerialEntity.builder()
+        return IntStream.range(firstId, firstId + count).<LotteryTicketSerialEntity>mapToObj(i -> LotteryTicketSerialEntity.builder()
                 .id((long) i).serialNumber("sample" + i).status(LotteryTicketSerialStatus.EXPIRED)
-                .ticket(LotteryTicketEntity.builder().id((long) i).station(station).drawDate(yesterday).numbers("000001").build())
+                .ticket(LotteryTicketEntity.builder().id((long) i).station(station).drawDate(drawDate).numbers("000001").build())
                 .build()).toList();
     }
 }

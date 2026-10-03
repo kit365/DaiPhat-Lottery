@@ -10,10 +10,16 @@ The daily document runner also repairs missing supplier returns and settlements 
 these existing imports, using the same services as normal imports. Return availability
 and settlement deadlines continue to follow the supplier and draw-date rules.
 
-Historical inventory backfill and additional import/return/settlement scenario fixtures
-are skipped in daily mode, including the legacy order fixture that creates its own imports.
-Existing winning-order fixtures can still use historical stock already in the database;
-on an empty database the winning-order matrix may defer until that stock exists.
+When winning-order seeding is enabled and winning orders are missing, startup also
+creates a small historical fixture: yesterday (18 ticket numbers), two days ago (18),
+and three days ago (14), with one serial per number. Existing main imports for those
+dates are reused without duplicate headers. These historical fixtures also receive
+matching return receipts and settlements through the live import services.
+A fresh official demo therefore has five import headers: two daily plus three historical.
+Winning orders still require complete official draw results; if the result source is
+unavailable, the inventory is retained and winning-order creation retries on restart.
+Other additional import/return/settlement scenario fixtures are skipped in daily mode.
+The lifecycle order fixture links its test serials to the daily main import lines.
 `past-days` does not control daily mode. Set `LOTTERY_SEED_DAILY_ONLY=false` to opt back
 into the extended fixture behavior described below.
 
@@ -44,6 +50,12 @@ before the official lifecycle matrix runs. `LOTTERY_SEED_REBUILD_DEMO` can stay
 - In official-demo mode, the expected dataset is six completed orders with 50 G8
   winning tickets: two orders each for `phamngoclinh1` (18 tickets), `vominhquan2`
   (18 tickets), and `dangthikimngan3` (14 tickets).
+- New official winning orders use three distinct draw dates in the previous seven
+  calendar days. Each member's two orders share that member's date. The dates use
+  existing unclaimed inventory and complete official results; insufficient dates
+  defer the fixture; the historical bootstrap above supplies stock for a fresh database.
+- A missing second winning order keeps its member's existing draw date and avoids
+  dates assigned to the other members. Old winning orders are not moved to new dates.
 - Existing winning orders and payout progress are kept; partial datasets only get
   the missing order codes. An ordinary restart does not reset winners.
 - If historical inventory is insufficient, the enabled import seeder adds only
