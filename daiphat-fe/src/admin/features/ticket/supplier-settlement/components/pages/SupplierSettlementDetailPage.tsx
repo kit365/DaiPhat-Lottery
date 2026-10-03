@@ -76,7 +76,9 @@ export const SupplierSettlementDetailPage = () => {
             ),
         [overview?.returnBatches]
     );
-    const hasPendingReturnBatches = pendingReturnBatches.length > 0;
+    // After the cutoff the return is read-only and handover cannot be completed.
+    // The expired-return notice already explains how its amount is settled.
+    const hasPendingReturnBatches = !isExpired && pendingReturnBatches.length > 0;
     const returnBatches = overview?.returnBatches || [];
     const isSettlementFinalized = settlement?.status === 'WAITING_FOR_PAYMENT' || settlement?.status === 'COMPLETED';
     // Import/return-line metadata is only considered complete after the return ticket
