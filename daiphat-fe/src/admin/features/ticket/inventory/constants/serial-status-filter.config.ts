@@ -11,6 +11,7 @@ export const SERIAL_STATUS_FILTER_OPTIONS: SerialStatusFilterOption[] = [
     { value: 'PROXY_HOLDING', label: 'Giữ hộ' },
     { value: 'SOLD', label: 'Đã bán' },
     { value: 'EXPIRED', label: 'Hết hạn' },
+    { value: 'CANCELLED', label: 'Đã hủy' },
     { value: 'ISSUER_FAULT', label: 'Lỗi nhà đài' },
     { value: 'INTERNAL_FAULT', label: 'Lỗi nội bộ' },
 ];

@@ -377,7 +377,7 @@ export const StationOcrTemplateSection = ({
                             : fieldName === 'price'
                               ? 'DECIMAL'
                               : 'STRING',
-                    isRequired: !isFrame,
+                    isRequired: !isFrame && fieldName !== 'serialSymbol',
                 });
                 if (!res.success) {
                     toast.error(res.message || 'Lưu vùng thất bại.');

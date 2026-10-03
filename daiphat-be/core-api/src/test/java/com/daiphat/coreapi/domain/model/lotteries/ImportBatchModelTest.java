@@ -137,6 +137,45 @@ class ImportBatchModelTest {
         assertThat(batch.areAllActiveLinesCancelled()).isTrue();
     }
 
+    @Test
+    void refreshImportStatus_afterDeletingLastUncancelledLine_cancelsBatch() {
+        var removed = line(1L, ImportBatchLineStatus.OPEN, 10, 0);
+        removed.softDelete(NOW);
+        var batch = batchWithLines(ImportBatchStatus.DRAFT, removed,
+                line(2L, ImportBatchLineStatus.CANCELLED, 10, 0));
+        batch.refreshImportStatus(NOW);
+        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.CANCELLED);
+        assertThat(batch.getCancelReason()).isEqualTo(ImportBatchCancelReason.ALL_LINES_CANCELLED);
+    }
+
+    @Test
+    void refreshImportStatus_afterDeletingOnlyPartiallyReceivedLine_returnsToDraft() {
+        var removed = line(1L, ImportBatchLineStatus.PAUSED, 10, 3);
+        removed.softDelete(NOW);
+        var batch = batchWithLines(ImportBatchStatus.RECEIVING, removed,
+                line(2L, ImportBatchLineStatus.OPEN, 10, 0));
+        batch.refreshImportStatus(NOW);
+        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.DRAFT);
+    }
+
+    @Test
+    void refreshImportStatus_afterDeletingIncompleteLine_completesRemainingImportedLines() {
+        var removed = line(1L, ImportBatchLineStatus.PAUSED, 10, 3);
+        removed.softDelete(NOW);
+        var batch = batchWithLines(ImportBatchStatus.PARTIALLY_IMPORTED, removed,
+                line(2L, ImportBatchLineStatus.IMPORTED, 10, 10));
+        batch.refreshImportStatus(NOW);
+        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.IMPORTED);
+    }
+
+    @Test
+    void refreshImportStatus_noFullyImportedLine_recalculatesReceiving() {
+        var batch = batchWithLines(ImportBatchStatus.PARTIALLY_IMPORTED,
+                line(1L, ImportBatchLineStatus.PAUSED, 10, 3));
+        batch.refreshImportStatus(NOW);
+        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.RECEIVING);
+    }
+
     private static ImportBatchModel batchWithLines(ImportBatchStatus status, ImportBatchLineModel... lines) {
         return ImportBatchModel.builder()
                 .status(status)

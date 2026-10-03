@@ -10,6 +10,9 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateReturnBatchRe
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLineStatusRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnStationSummaryResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnTicketResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchLineResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.ReturnBatchApplicationMapper;
@@ -19,7 +22,10 @@ import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServi
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.ReturnInspectableSerialData;
+import com.daiphat.coreapi.application.port.out.lotteries.ReturnInspectableStationSummaryData;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
@@ -50,6 +56,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -82,6 +89,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     private final ImportBatchConfigResolver importBatchConfigResolver;
     private final ReturnBatchAutoCancelService returnBatchAutoCancelService;
     private final ReturnBatchCodeGenerator returnBatchCodeGenerator;
+    private final UserRepositoryPort userRepositoryPort;
     private final Clock clock;
 
     @Override
@@ -109,7 +117,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                 .drawDate(request.drawDate())
                 .supplierSettlementId(settlement.getId())
                 .note(trimToNull(request.note()))
-                .status(ReturnBatchStatus.PENDING_INSPECTION)
+                .status(initialInspectionStatus(request.drawDate(), supplier.getReturnCutOffTime()))
                 .totalQuantity(0)
                 .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                 .build();
@@ -142,6 +150,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     public ReturnBatchResponse getById(Long id) {
         ReturnBatchModel batch = getBatchOrThrow(id);
         if (isSupplierReturn(batch)) {
+            synchronizeInspectionStatus(batch);
             returnBatchAutoCancelService.cancelIfPastCutoff(batch);
             syncSummaryIfReturnWindowOpen(id);
         }
@@ -149,7 +158,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PageResponse<ReturnBatchResponse> getAll(
             int page,
             int size,
@@ -166,15 +175,18 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         ReturnBatchType effectiveReturnBatchType = returnBatchType != null
                 ? returnBatchType
                 : ReturnBatchType.SUPPLIER_RETURN;
+        if (effectiveReturnBatchType == ReturnBatchType.SUPPLIER_RETURN) {
+            returnBatchRepositoryPort.synchronizeInspectionStatuses(
+                    LocalDateTime.now(clock), importBatchConfigResolver.resolveReturnBufferMinutes());
+        }
         String field = sortBy != null && SORTABLE_FIELDS.contains(sortBy) ? sortBy : "drawDate";
         PageRequest pageRequest = PageRequest.of(
                 Math.max(page - 1, 0),
                 size,
                 SortUtils.createSort(field, direction != null ? direction : "desc")
         );
-        // List is a read-only projection of stored aggregates.
-        // Auto-cancel / inventory summary sync / detail enrichment belong on getById,
-        // inspection mutations, and schedulers — not on every list GET (was causing multi-second loads).
+        // The two bulk status updates above keep filtering/pagination accurate without
+        // recalculating inventory or enriching every receipt in the list.
         Page<ReturnBatchResponse> responsePage = returnBatchRepositoryPort
                 .findAll(
                         pageRequest,
@@ -235,6 +247,154 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public InspectableReturnTicketsResponse listInspectableTickets(
+            Long batchId,
+            int page,
+            int size,
+            String search,
+            Long lotteryStationId
+    ) {
+        ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
+        List<ReturnBatchLineModel> lines = returnBatchRepositoryPort.findLinesByBatchId(batchId);
+        Set<Long> stationIds = lines.stream()
+                .map(ReturnBatchLineModel::getLotteryStationId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (lotteryStationId != null && !stationIds.contains(lotteryStationId)) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
+        }
+        Map<Long, Long> lineIdByStation = lines.stream()
+                .filter(line -> line.getLotteryStationId() != null)
+                .collect(Collectors.toMap(
+                        ReturnBatchLineModel::getLotteryStationId,
+                        ReturnBatchLineModel::getId,
+                        (a, b) -> a
+                ));
+
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Page<Long> ticketIdsPage = lotteryTicketSerialRepositoryPort.findReturnEligibleTicketIds(
+                batch.getLotterySupplierId(),
+                batch.getDrawDate(),
+                stationIds,
+                lotteryStationId,
+                trimToNull(search),
+                PageRequest.of(safePage - 1, safeSize)
+        );
+        List<ReturnInspectableSerialData> rows = lotteryTicketSerialRepositoryPort
+                .findReturnEligibleSerialsByTicketIds(
+                        batch.getLotterySupplierId(),
+                        batch.getDrawDate(),
+                        stationIds,
+                        ticketIdsPage.getContent()
+                );
+        Map<Long, List<ReturnInspectableSerialData>> rowsByTicket = rows.stream()
+                .collect(Collectors.groupingBy(
+                        ReturnInspectableSerialData::ticketId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<InspectableReturnTicketResponse> tickets = ticketIdsPage.getContent().stream()
+                .map(ticketId -> toInspectableTicket(
+                        rowsByTicket.getOrDefault(ticketId, List.of()),
+                        lineIdByStation
+                ))
+                .filter(Objects::nonNull)
+                .toList();
+
+        List<ReturnInspectableStationSummaryData> summaryRows = lotteryTicketSerialRepositoryPort
+                .summarizeReturnEligibleByStation(
+                        batch.getLotterySupplierId(),
+                        batch.getDrawDate(),
+                        stationIds
+                );
+        long eligibleSerialCount = summaryRows.stream()
+                .mapToLong(ReturnInspectableStationSummaryData::eligibleSerialCount)
+                .sum();
+        BigDecimal eligibleReturnValue = summaryRows.stream()
+                .map(ReturnInspectableStationSummaryData::totalImportCost)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<InspectableReturnStationSummaryResponse> stationSummaries = summaryRows.stream()
+                .map(summary -> InspectableReturnStationSummaryResponse.builder()
+                        .lotteryStationId(summary.stationId())
+                        .lotteryStationName(summary.stationName())
+                        .eligibleSerialCount(summary.eligibleSerialCount())
+                        .totalImportCost(ImportCostCalculator.scaleMoney(
+                                summary.totalImportCost() != null ? summary.totalImportCost() : BigDecimal.ZERO
+                        ))
+                        .build())
+                .toList();
+
+        PageResponse.PaginationMetadata pagination = PageResponse.PaginationMetadata.builder()
+                .totalRecords(ticketIdsPage.getTotalElements())
+                .totalPages(ticketIdsPage.getTotalPages())
+                .currentPage(safePage)
+                .limit(safeSize)
+                .isFirst(safePage <= 1)
+                .isLast(ticketIdsPage.getTotalPages() == 0 || safePage >= ticketIdsPage.getTotalPages())
+                .build();
+
+        return InspectableReturnTicketsResponse.builder()
+                .recordList(tickets)
+                .pagination(pagination)
+                .eligibleSerialCount(eligibleSerialCount)
+                .eligibleReturnValue(ImportCostCalculator.scaleMoney(eligibleReturnValue))
+                .stationSummaries(stationSummaries)
+                .build();
+    }
+
+    private InspectableReturnTicketResponse toInspectableTicket(
+            List<ReturnInspectableSerialData> rows,
+            Map<Long, Long> lineIdByStation
+    ) {
+        if (rows == null || rows.isEmpty()) {
+            return null;
+        }
+        ReturnInspectableSerialData first = rows.getFirst();
+        return InspectableReturnTicketResponse.builder()
+                .ticketId(first.ticketId())
+                .ticketNumbers(first.ticketNumbers())
+                .drawDate(first.drawDate())
+                .lotteryStationId(first.stationId())
+                .lotteryStationName(first.stationName())
+                .targetReturnBatchLineId(lineIdByStation.get(first.stationId()))
+                .ticketPrice(first.ticketPrice())
+                .serials(rows.stream().map(row -> toInspectableSerial(row, null)).toList())
+                .build();
+    }
+
+    private InspectableReturnSerialResponse toInspectableSerial(
+            ReturnInspectableSerialData row,
+            Long returnBatchLineId
+    ) {
+        return InspectableReturnSerialResponse.builder()
+                .serialId(row.serialId())
+                .serialNumber(row.serialNumber())
+                .status(row.status())
+                .statusLabel(row.status() != null ? row.status().getLabel() : null)
+                .ticketCondition(row.ticketCondition())
+                .ticketConditionLabel(row.ticketCondition() != null ? row.ticketCondition().getLabel() : null)
+                .ticketId(row.ticketId())
+                .ticketNumbers(row.ticketNumbers())
+                .drawDate(row.drawDate())
+                .lotteryStationId(row.stationId())
+                .lotteryStationName(row.stationName())
+                .returnBatchLineId(returnBatchLineId)
+                .importBatchLineId(row.importBatchLineId())
+                .importCost(row.importCost() != null
+                        ? ImportCostCalculator.scaleMoney(row.importCost())
+                        : BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
+                .ticketPrice(row.ticketPrice() != null
+                        ? ImportCostCalculator.scaleMoney(row.ticketPrice())
+                        : null)
+                .build();
+    }
+
+    @Override
     @Transactional
     public ReturnBatchResponse startInspection(Long batchId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
@@ -269,9 +429,16 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
-        if (request == null || request.deliveryMode() == null
-                || request.serialIds() == null || request.serialIds().isEmpty()) {
+        if (request == null || request.deliveryMode() == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chọn sê-ri và hình thức giao trả.");
+        }
+        boolean confirmAllEligible = Boolean.TRUE.equals(request.allEligible());
+        boolean hasExplicitSerialIds = request.serialIds() != null && !request.serialIds().isEmpty();
+        if (confirmAllEligible == hasExplicitSerialIds) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Chỉ được chọn một phạm vi xác nhận: toàn bộ vé đủ điều kiện hoặc danh sách sê-ri cụ thể."
+            );
         }
 
         if (batch.getStatus() == ReturnBatchStatus.PENDING_INSPECTION) {
@@ -287,48 +454,40 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                         (a, b) -> a
                 ));
 
-        Set<Long> requestedIds = new HashSet<>(request.serialIds());
-        List<LotteryTicketSerialModel> serials = lotteryTicketSerialRepositoryPort.findAllByIds(requestedIds);
+        Set<Long> stationIds = lineByStation.keySet();
+        List<ReturnInspectableSerialData> latestEligibleSerials = lotteryTicketSerialRepositoryPort
+                .findInStockForSupplierAndDrawDate(
+                        batch.getLotterySupplierId(),
+                        batch.getDrawDate(),
+                        stationIds
+                );
+        Set<Long> requestedIds = confirmAllEligible
+                ? latestEligibleSerials.stream()
+                        .map(ReturnInspectableSerialData::serialId)
+                        .collect(Collectors.toCollection(HashSet::new))
+                : new HashSet<>(request.serialIds());
+        if (requestedIds.isEmpty()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Không có sê-ri đủ điều kiện để xác nhận.");
+        }
+        List<ReturnInspectableSerialData> serials = latestEligibleSerials.stream()
+                .filter(serial -> requestedIds.contains(serial.serialId()))
+                .toList();
         if (serials.size() != requestedIds.size()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
         }
 
-        Map<Long, LotteryTicketModel> ticketsById = loadTicketsIfStationOrDrawMissing(serials);
         Map<Long, List<Long>> serialIdsByLine = new LinkedHashMap<>();
         Set<Long> touchedLineIds = new HashSet<>();
 
-        for (LotteryTicketSerialModel serial : serials) {
-            if (serial.getStatus() != LotteryTicketSerialStatus.IN_STOCK
-                    && serial.getStatus() != LotteryTicketSerialStatus.EXPIRED) {
-                throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
-            }
-            if (serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported()) {
-                throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
-            }
-            if (serial.getReturnBatchLineId() != null) {
-                throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
-            }
-            Long stationId = serial.getStationId();
-            LocalDate drawDate = serial.getDrawDate();
-            if (stationId == null || drawDate == null) {
-                LotteryTicketModel ticket = ticketsById.get(serial.getTicketId());
-                if (ticket == null) {
-                    throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
-                }
-                stationId = ticket.getStationId();
-                drawDate = ticket.getDrawDate();
-            }
-            if (!Objects.equals(drawDate, batch.getDrawDate())) {
-                throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
-            }
-            ReturnBatchLineModel line = lineByStation.get(stationId);
+        for (ReturnInspectableSerialData serial : serials) {
+            ReturnBatchLineModel line = lineByStation.get(serial.stationId());
             if (line == null || line.getId() == null) {
                 throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
             }
             if (line.getStatus() == null || !line.getStatus().isOpenForInspection()) {
                 throw new DomainException(ErrorCode.RETURN_BATCH_LINE_INVALID_STATUS);
             }
-            serialIdsByLine.computeIfAbsent(line.getId(), key -> new ArrayList<>()).add(serial.getId());
+            serialIdsByLine.computeIfAbsent(line.getId(), key -> new ArrayList<>()).add(serial.serialId());
             touchedLineIds.add(line.getId());
         }
 
@@ -380,7 +539,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                 "Confirmed return inspection batchId={} mode={} serials={}",
                 batchId,
                 request.deliveryMode(),
-                request.serialIds().size()
+                requestedIds.size()
         );
         return toDetailResponse(batchId);
     }
@@ -566,7 +725,8 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     public ReturnBatchResponse updateLineStatus(Long batchId, Long lineId, UpdateReturnBatchLineStatusRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
         requireSupplierReturn(batch);
-        if (batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
+        if (batch.getStatus() == ReturnBatchStatus.NOT_OPEN
+                || (batch.getStatus() != null && batch.getStatus().isOpenForInspection())) {
             ensureInspectionMutable(batch);
         }
         if (batch.getStatus() != null && batch.getStatus().isTerminal()) {
@@ -672,8 +832,14 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     }
 
     private void ensureInspectionMutable(ReturnBatchModel batch) {
+        if (isSupplierReturn(batch)) {
+            synchronizeInspectionStatus(batch);
+        }
         if (batch.getStatus() != null && batch.getStatus().isCancelled()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INSPECTION_EXPIRED);
+        }
+        if (batch.getStatus() == ReturnBatchStatus.NOT_OPEN) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_INSPECTION_NOT_OPEN);
         }
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             return;
@@ -720,27 +886,6 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         }
     }
 
-    private Map<Long, LotteryTicketModel> loadTicketsIfStationOrDrawMissing(List<LotteryTicketSerialModel> serials) {
-        Set<Long> ticketIds = new HashSet<>();
-        for (LotteryTicketSerialModel serial : serials) {
-            if (serial.getStationId() == null || serial.getDrawDate() == null) {
-                if (serial.getTicketId() != null) {
-                    ticketIds.add(serial.getTicketId());
-                }
-            }
-        }
-        if (ticketIds.isEmpty()) {
-            return Map.of();
-        }
-        Map<Long, LotteryTicketModel> byId = new HashMap<>();
-        for (LotteryTicketModel ticket : lotteryTicketRepositoryPort.findAllByIds(ticketIds)) {
-            if (ticket.getId() != null) {
-                byId.put(ticket.getId(), ticket);
-            }
-        }
-        return byId;
-    }
-
     private void recalculateLineAggregates(ReturnBatchLineModel line) {
         List<LotteryTicketSerialModel> serials =
                 lotteryTicketSerialRepositoryPort.findAllByReturnBatchLineId(line.getId());
@@ -775,6 +920,9 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         boolean hasAttached = lines.stream()
                 .anyMatch(line -> lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(line.getId()) > 0);
 
+        if (batch.getStatus() == ReturnBatchStatus.NOT_OPEN) {
+            return;
+        }
         if (hasAttached || batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             returnBatchSummaryCalculator.recalculate(batchId);
             return;
@@ -824,7 +972,12 @@ public class ReturnBatchService implements ReturnBatchServicePort {
 
     private ReturnBatchResponse toListResponse(ReturnBatchModel model) {
         Integer remaining = countRemainingInspectable(model, null);
-        return returnBatchApplicationMapper.toResponse(model, null, remaining);
+        return returnBatchApplicationMapper.toResponse(
+                model,
+                null,
+                remaining,
+                resolveActorDisplayName(model.getReturnedBy())
+        );
     }
 
     private ReturnBatchResponse toDetailResponse(Long batchId) {
@@ -843,7 +996,29 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                     );
                 })
                 .toList();
-        return returnBatchApplicationMapper.toResponse(batch, lineResponses);
+        return returnBatchApplicationMapper.toResponse(
+                batch,
+                lineResponses,
+                null,
+                resolveActorDisplayName(batch.getReturnedBy())
+        );
+    }
+
+    private String resolveActorDisplayName(UUID actorId) {
+        if (actorId == null) {
+            return null;
+        }
+        return userRepositoryPort.findById(actorId)
+                .map(user -> {
+                    String fullName = user.getFullName();
+                    if (fullName != null && !fullName.isBlank() && !"User".equalsIgnoreCase(fullName)) {
+                        return fullName;
+                    }
+                    return user.getUsername() != null && !user.getUsername().isBlank()
+                            ? user.getUsername()
+                            : actorId.toString();
+                })
+                .orElse(actorId.toString());
     }
 
     private Integer countRemainingInspectable(ReturnBatchModel batch, Set<Long> stationIds) {
@@ -876,6 +1051,32 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     private boolean isSupplierReturn(ReturnBatchModel batch) {
         return batch.getReturnBatchType() == null
                 || batch.getReturnBatchType() == ReturnBatchType.SUPPLIER_RETURN;
+    }
+
+    private ReturnBatchStatus initialInspectionStatus(LocalDate drawDate, LocalTime cutoff) {
+        LocalDateTime start = ReturnBatchCutoffTiming.inspectionWindowStartAt(
+                drawDate, cutoff, importBatchConfigResolver.resolveReturnBufferMinutes());
+        return start != null && LocalDateTime.now(clock).isBefore(start)
+                ? ReturnBatchStatus.NOT_OPEN : ReturnBatchStatus.PENDING_INSPECTION;
+    }
+
+    private void synchronizeInspectionStatus(ReturnBatchModel batch) {
+        if (batch.getStatus() != ReturnBatchStatus.NOT_OPEN
+                && batch.getStatus() != ReturnBatchStatus.PENDING_INSPECTION) {
+            return;
+        }
+        LocalDateTime start = ReturnBatchCutoffTiming.inspectionWindowStartAt(
+                batch.getDrawDate(), batch.getReturnCutOffTime(),
+                importBatchConfigResolver.resolveReturnBufferMinutes());
+        if (start == null) {
+            return;
+        }
+        ReturnBatchStatus next = LocalDateTime.now(clock).isBefore(start)
+                ? ReturnBatchStatus.NOT_OPEN : ReturnBatchStatus.PENDING_INSPECTION;
+        if (batch.getStatus() != next) {
+            batch.setStatus(next);
+            returnBatchRepositoryPort.save(batch);
+        }
     }
 
     /** Supplier endpoints must not mutate a vendor receipt created by the allocation flow. */

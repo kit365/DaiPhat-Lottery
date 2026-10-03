@@ -88,6 +88,17 @@ class ReturnBatchAutoCancelServiceTest {
     }
 
     @Test
+    @DisplayName("a not-open receipt still expires at the supplier cutoff")
+    void cancelIfPastCutoff_notOpenBatch_expires() {
+        ReturnBatchModel batch = openBatch(15L, ReturnBatchStatus.NOT_OPEN);
+        when(returnBatchRepositoryPort.findLinesByBatchId(15L)).thenReturn(List.of());
+
+        assertThat(service.cancelIfPastCutoff(batch)).isTrue();
+        assertThat(batch.getStatus()).isEqualTo(ReturnBatchStatus.CANCELLED);
+        verify(returnBatchRepositoryPort).save(batch);
+    }
+
+    @Test
     @DisplayName("heals leftover open lines on an already cancelled batch")
     void cancelIfPastCutoff_healsLinesOnCancelledBatch() {
         ReturnBatchModel batch = ReturnBatchModel.builder()
@@ -153,6 +164,7 @@ class ReturnBatchAutoCancelServiceTest {
                 .build();
         ReturnBatchLineModel leftover = line(400L, ReturnBatchLineStatus.PENDING);
         when(returnBatchRepositoryPort.findByStatuses(List.of(
+                ReturnBatchStatus.NOT_OPEN,
                 ReturnBatchStatus.PENDING_INSPECTION,
                 ReturnBatchStatus.INSPECTING
         ))).thenReturn(List.of());

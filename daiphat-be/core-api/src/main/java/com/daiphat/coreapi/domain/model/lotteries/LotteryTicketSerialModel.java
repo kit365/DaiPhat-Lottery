@@ -262,10 +262,10 @@ public class LotteryTicketSerialModel {
             if (faultedBy == null || reason == null || reason.isBlank()) {
                 throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu thông tin báo lỗi vé.");
             }
-            // Preserve expiry; reporting a fault must never make this serial sellable again.
             this.ticketCondition = condition;
             this.faultedBy = faultedBy;
             this.damagedReason = reason.trim();
+            this.status = LotteryTicketSerialStatus.CANCELLED;
             this.reservedAt = null;
             this.reservationExpiresAt = null;
             this.reservedByOrderId = null;
@@ -274,6 +274,56 @@ public class LotteryTicketSerialModel {
         }
         this.damagedEvidenceUrl = condition == TicketCondition.DAMAGED
                 && evidenceUrl != null && !evidenceUrl.isBlank() ? evidenceUrl.trim() : null;
+    }
+
+    /**
+     * Records a terminal incident discovered while reconciling tickets already prepared
+     * for supplier return. The return-line link is intentionally retained for audit.
+     */
+    public void reportReturnDiscrepancyFault(
+            TicketCondition condition,
+            LotteryTicketSerialFaultedBy faultedBy,
+            String reason,
+            String evidenceUrl
+    ) {
+        ensureNotLockedForPayout();
+        if (this.returnBatchLineId == null || this.deletedAt != null) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Chỉ được xử lý vé đang thuộc phiếu trả nhà cung cấp."
+            );
+        }
+        if (this.status != LotteryTicketSerialStatus.IN_STOCK
+                && this.status != LotteryTicketSerialStatus.EXPIRED) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Sê-ri không còn đủ điều kiện xử lý chênh lệch trả."
+            );
+        }
+        if (this.ticketCondition != TicketCondition.GOOD) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Chỉ được xử lý sê-ri đang ở tình trạng tốt."
+            );
+        }
+        if (condition != TicketCondition.DAMAGED
+                && condition != TicketCondition.LOST
+                && condition != TicketCondition.VOIDED) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Loại sự cố vé không hợp lệ.");
+        }
+        if (faultedBy == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chỉ định nguồn gây lỗi (faultedBy).");
+        }
+
+        this.status = LotteryTicketSerialStatus.CANCELLED;
+        this.ticketCondition = condition;
+        this.faultedBy = faultedBy;
+        this.damagedReason = reason != null && !reason.isBlank() ? reason.trim() : null;
+        this.damagedEvidenceUrl = condition == TicketCondition.DAMAGED
+                && evidenceUrl != null && !evidenceUrl.isBlank() ? evidenceUrl.trim() : null;
+        this.reservedAt = null;
+        this.reservationExpiresAt = null;
+        this.reservedByOrderId = null;
     }
 
     private void applyConditionFault(
@@ -291,10 +341,10 @@ public class LotteryTicketSerialModel {
                             + " (chỉ đọc để tra cứu)."
             );
         }
-        // Condition fault: keep SOLD when reported from order inspection; otherwise return to stock.
-        if (this.status != LotteryTicketSerialStatus.SOLD) {
-            this.status = LotteryTicketSerialStatus.IN_STOCK;
-        }
+        // A physical incident is terminal for this serial. Keep the previous
+        // status in the service before this transition so order/refund handling
+        // can still distinguish inventory, reserved and sold incidents.
+        this.status = LotteryTicketSerialStatus.CANCELLED;
         this.ticketCondition = condition;
         this.faultedBy = faultedBy;
         this.damagedReason = reason != null && !reason.isBlank() ? reason.trim() : null;

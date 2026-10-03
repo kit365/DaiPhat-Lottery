@@ -31,6 +31,8 @@ public interface ImportBatchLineRepositoryPort {
 
     boolean existsNonDraftLineForStationAndDrawDate(Long stationId, LocalDate drawDate);
 
+    boolean existsImportedLineForStationAndDrawDate(Long stationId, LocalDate drawDate);
+
     Optional<Long> findDraftBatchIdForStationAndDrawDate(Long stationId, LocalDate drawDate);
 
     Optional<Long> findDraftBatchIdForStationAndDrawDateExcludingBatch(

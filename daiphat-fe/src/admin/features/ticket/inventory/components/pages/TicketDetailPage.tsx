@@ -55,6 +55,9 @@ const getSerialStatusBadgeProps = (status?: string | null) => {
     if (norm === "EXPIRED") {
         return { label: "Hết hạn", modifier: "admin-status-badge--inactive" };
     }
+    if (norm === "CANCELLED") {
+        return { label: "Đã hủy", modifier: "admin-status-badge--inactive" };
+    }
     if (norm.includes("FAULT") || norm === "ISSUER_FAULT" || norm === "INTERNAL_FAULT") {
         return {
             label: norm === "ISSUER_FAULT" ? "Lỗi nhà đài" : "Lỗi nội bộ",

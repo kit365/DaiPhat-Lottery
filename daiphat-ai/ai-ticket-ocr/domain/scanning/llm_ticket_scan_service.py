@@ -25,7 +25,7 @@ from domain.scanning.yolo_llm_guidance import (
 from domain.stations.default_aliases import DEFAULT_STATIONS
 from domain.stations.matcher import StationMatcher
 from domain.stations.models import StationRef
-from domain.validation.format_validator import FormatValidator, reconcile_serial_and_batch_code
+from domain.validation.format_validator import FormatValidator
 from dto.request.scan_metadata import ScanMetadata
 from dto.response.scan_response import (
     BoundingBox,
@@ -720,9 +720,9 @@ def _compact_stations_json(stations_payload: list, *, max_stations: int = 36) ->
 
 _JSON_TICKET_SCHEMA = (
     '{"tickets":[{"stationName":string|null,"stationCode":string|null,'
-    '"serialNumber":string|null,"numbers":string|null,"drawDate":string|null,'
+    '"serialNumber":null,"numbers":string|null,"drawDate":string|null,'
     '"ticketType":string|null,"batchCode":string|null,'
-    '"fieldConfidences":{"stationName":number,"serialNumber":number,'
+    '"fieldConfidences":{"stationName":number,'
     '"numbers":number,"drawDate":number,"ticketType":number,"batchCode":number}}],'
     '"warnings":[string]}'
 )
@@ -741,8 +741,7 @@ def _build_single_ticket_extraction_prompt(
 Extract exactly 1 ticket. Only visible values — never invent.
 Stations: {stations_json}
 - numbers: digits only; use station expectedNumberLength when known; never pad/truncate.
-- serialNumber: REQUIRED when printed. Shape = digits + exactly ONE letter at START or END
-  (A123456, 123456B, X424944). NEVER lot/ký hiệu (4E2, 08D, T05K4, 5D2).
+- serialNumber: always null; the server resolves it from the selected issuer's OCR template.
 - batchCode: issuer ký hiệu/lô (4E2, 08D, T05K4) or null — NOT the serial.
 - drawDate: YYYY-MM-DD or null.
 - ticketType: price digits when visible.
@@ -768,7 +767,7 @@ Image {collage_width}x{collage_height}px. Return tickets[] length {ticket_count}
 Read only inside each cell. Only visible values — never invent.
 Stations: {stations_json}
 - numbers: digits only; use expectedNumberLength when known; never pad/truncate.
-- serialNumber: digits + ONE letter at start OR end only (A123456 / 123456B). Never lot codes (4E2, 08D, T05K4).
+- serialNumber: always null; the server resolves it from the selected issuer's OCR template.
 - batchCode: issuer ký hiệu or null. ticketType: price digits. drawDate: YYYY-MM-DD or null.
 - Empty/background cell: null fields + warning.
 - fieldConfidences 0..1. Omit bbox/fieldBoxes.
@@ -1229,11 +1228,10 @@ class LlmTicketScanService:
             return image_pipeline.enhance_for_ocr(arr)
 
         def _field_extras(item: dict) -> list[tuple[str, bytes]]:
-            """Attach YOLO field zooms — prefer serialNumber then numbers."""
+            """Attach the ticket-number zoom; Serial has no OCR region."""
             extras: list[tuple[str, bytes]] = []
             boxes = item.get("field_boxes") or {}
-            # Serial first: collage/multi often miss the letter+digits glyph band.
-            for field_name in ("serialNumber", "numbers"):
+            for field_name in ("numbers",):
                 box = boxes.get(field_name)
                 if not box or len(box) != 4:
                     continue
@@ -1631,14 +1629,11 @@ class LlmTicketScanService:
                     match_result.score,
                 )
 
-        serial_number, batch_code = reconcile_serial_and_batch_code(
-            _normalize_serial(llm_ticket.serialNumber),
-            _normalize_batch_code(llm_ticket.batchCode),
-        )
+        batch_code = _normalize_batch_code(llm_ticket.batchCode)
         extracted = ExtractedTicketFields(
             stationName=station_name,
             stationCode=station_code,
-            serialNumber=serial_number,
+            serialNumber=None,
             numbers=_normalize_numbers(llm_ticket.numbers),
             drawDate=_normalize_draw_date(llm_ticket.drawDate),
             ticketType=format_price_vnd(llm_ticket.ticketType),
@@ -1646,19 +1641,7 @@ class LlmTicketScanService:
         )
 
         field_confidences = _field_confidences(llm_ticket, extracted)
-        # If we moved a misplaced batch code out of serialNumber, don't keep a
-        # high serial confidence for an empty/corrected field.
-        raw_serial = _normalize_serial(llm_ticket.serialNumber)
-        if raw_serial and serial_number != raw_serial:
-            if serial_number is None:
-                field_confidences["serialNumber"] = 0.0
-            if batch_code == raw_serial and (
-                not llm_ticket.batchCode or _normalize_batch_code(llm_ticket.batchCode) != batch_code
-            ):
-                field_confidences["batchCode"] = max(
-                    field_confidences.get("batchCode", 0.0),
-                    _clamp_confidence((llm_ticket.fieldConfidences or {}).get("serialNumber")),
-                )
+        field_confidences["serialNumber"] = 0.0
 
         if match_result and station_name and not match_result.station:
             field_confidences["stationName"] = min(
@@ -1719,6 +1702,7 @@ class LlmTicketScanService:
             image_width,
             image_height,
         )
+        field_boxes.pop("serialNumber", None)
 
         used_field_layouts: dict[str, int] = {}
         raw_used = dict(llm_ticket.usedFieldLayouts or {})

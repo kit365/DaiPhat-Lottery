@@ -154,6 +154,7 @@ class ImportBatchDraftExpiryServiceTest {
                 .isEqualTo(ImportBatchLineCancelReason.importDeadlinePassed("Sóc Trăng"));
         assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.CANCELLED);
         verify(lotteryTicketServicePort).purgeImportBatchLineTickets(1L);
+        verify(importBatchRepositoryPort).save(batch);
     }
 
     @Test

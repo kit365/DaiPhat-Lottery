@@ -14,6 +14,7 @@ import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
+import com.daiphat.coreapi.shared.util.ReturnBatchCutoffTiming;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -33,10 +34,8 @@ import java.util.stream.Collectors;
 import com.daiphat.coreapi.shared.util.ReturnBatchCodeGenerator;
 
 /**
- * Auto-creates one Return Batch per supplier per draw date when
- * {@code now >= returnCutOffTime - RETURN_BUFFER_TIME}, then calculates
- * line/header summary from eligible imported serials.
- * Idempotent: safe to run repeatedly without creating duplicates; refreshes summaries for PENDING batches.
+ * Recovers a missing supplier return batch for today's imports and calculates
+ * its summary once the return window opens. Idempotent across scheduler runs.
  */
 @Service
 @Slf4j
@@ -78,7 +77,8 @@ public class ReturnBatchAutoGenerationService {
     }
 
     /**
-     * Scans active suppliers: creates due return batches and refreshes PENDING summaries.
+     * Scans active suppliers: creates missing return batches and refreshes
+     * open summaries when the return window has opened.
      *
      * @return number of newly created return batches
      */
@@ -128,9 +128,8 @@ public class ReturnBatchAutoGenerationService {
         if (supplier == null || supplier.getId() == null || supplier.getReturnCutOffTime() == null) {
             return false;
         }
-        if (!isPastAutoCreateTrigger(supplier.getReturnCutOffTime(), drawDate, now, bufferMinutes)) {
-            return false;
-        }
+        boolean returnWindowOpen = isPastAutoCreateTrigger(
+                supplier.getReturnCutOffTime(), drawDate, now, bufferMinutes);
         if (!importBatchRepositoryPort.existsNonCancelledBySupplierAndDrawDate(supplier.getId(), drawDate)) {
             return false;
         }
@@ -151,9 +150,16 @@ public class ReturnBatchAutoGenerationService {
         if (existingOpt.isPresent()) {
             ReturnBatchModel existing = existingOpt.get();
             if (existing.getStatus() != null && existing.getStatus().allowsAutoEnrichment()) {
+                if (existing.getStatus() == ReturnBatchStatus.NOT_OPEN && returnWindowOpen
+                        && !ReturnBatchCutoffTiming.isPastCutoff(
+                                drawDate, supplier.getReturnCutOffTime(), now)) {
+                    existing.setStatus(ReturnBatchStatus.PENDING_INSPECTION);
+                    returnBatchRepositoryPort.save(existing);
+                }
                 enrichMissingStations(existing.getId(), stationIds);
-                // Keep summary in sync whenever import quantities change after the return window opens.
-                returnBatchSummaryCalculator.recalculate(existing.getId());
+                if (returnWindowOpen) {
+                    returnBatchSummaryCalculator.recalculate(existing.getId());
+                }
             }
             return false;
         }
@@ -170,7 +176,7 @@ public class ReturnBatchAutoGenerationService {
                 .drawDate(drawDate)
                 .supplierSettlementId(settlement.getId())
                 .note("Tự động tạo theo lịch trả vé NCC")
-                .status(ReturnBatchStatus.PENDING_INSPECTION)
+                .status(returnWindowOpen ? ReturnBatchStatus.PENDING_INSPECTION : ReturnBatchStatus.NOT_OPEN)
                 .totalQuantity(0)
                 .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                 .build();
@@ -180,8 +186,9 @@ public class ReturnBatchAutoGenerationService {
             savePendingLine(saved.getId(), stationId);
         }
 
-        // Summary is calculated when the return window opens (same moment as auto-create), not before.
-        returnBatchSummaryCalculator.recalculate(saved.getId());
+        if (returnWindowOpen) {
+            returnBatchSummaryCalculator.recalculate(saved.getId());
+        }
 
         log.info(
                 "Auto-created return batch id={} supplierId={} drawDate={} settlementId={} stations={}",

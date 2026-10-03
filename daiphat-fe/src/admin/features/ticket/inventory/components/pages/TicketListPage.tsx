@@ -21,11 +21,16 @@ import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelT
 import { useTodayImportIntakeSummary } from '../../../import-batch/hooks/useImportBatchIntakeGate';
 import { getDefaultInitialDrawDate } from '../../../import-batch/utils/importBatchDrawDate';
 import { OcrTicketImportDialog } from '../../../ocr-import/components/OcrTicketImportDialog';
+import { useHasPendingOcrImportDraft } from '../../../ocr-import/utils/ocrImportDraftStorage';
+
+const PENDING_OCR_FILE_IMPORT_TOOLTIP =
+    'Đang có bản quét OCR chưa nhập kho. Vui lòng tiếp tục hoặc hủy bản quét trước khi nhập vé bằng tệp.';
 
 export const TicketListPage = () => {
     const queryClient = useQueryClient();
     const [fileImportOpen, setFileImportOpen] = useState(false);
     const [ocrImportOpen, setOcrImportOpen] = useState(false);
+    const hasPendingOcrDraft = useHasPendingOcrImportDraft();
     const todayIso = dayjs().format('YYYY-MM-DD');
     const tomorrowIso = useMemo(() => dayjs().add(1, 'day').format('YYYY-MM-DD'), []);
 
@@ -105,8 +110,8 @@ export const TicketListPage = () => {
             : 'Vé đã chốt trả nhà cung cấp — không thể hủy vé kỳ quay cũ.';
     }, [ticketHook.tickets, allBlockedForToday, todayIso]);
 
-    const handleFileImportSuccess = () => {
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+    const handleFileImportSuccess = async () => {
+        await queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
     };
 
     const handleCancelPrimaryClick = () => {
@@ -133,56 +138,60 @@ export const TicketListPage = () => {
                 action={
                     <Stack direction="row" spacing={1.5} alignItems="center">
                         <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={<DocumentScannerOutlinedIcon />}
-                                onClick={() => setOcrImportOpen(true)}
-                                sx={{
-                                    minHeight: '2.4rem',
-                                    textTransform: 'none',
-                                    fontWeight: 700,
-                                    borderRadius: '10px',
-                                    borderColor: '#cbd5e1',
-                                    color: '#334155',
-                                    bgcolor: '#ffffff',
-                                    py: 0.8,
-                                    px: 2,
-                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                                    '&:hover': {
-                                        borderColor: '#94a3b8',
-                                        bgcolor: '#f8fafc',
-                                    },
-                                }}
-                            >
-                                Nhập vé bằng OCR
-                            </Button>
+                            <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={<DocumentScannerOutlinedIcon />}
+                                    onClick={() => setOcrImportOpen(true)}
+                                    sx={{
+                                        minHeight: '2.4rem',
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        borderRadius: '10px',
+                                        borderColor: '#cbd5e1',
+                                        color: '#334155',
+                                        bgcolor: '#ffffff',
+                                        py: 0.8,
+                                        px: 2,
+                                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                                        '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' },
+                                    }}
+                                >
+                                    Nhập vé bằng OCR
+                                </Button>
+                                {hasPendingOcrDraft && (
+                                    <Box
+                                        aria-label="Có bản quét OCR chưa nhập kho"
+                                        sx={{
+                                            position: 'absolute', top: -4, right: -4, width: 10, height: 10,
+                                            borderRadius: '50%', bgcolor: '#f97316', border: '2px solid #fff',
+                                        }}
+                                    />
+                                )}
+                            </Box>
                         </CanAccess>
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={<UploadFileOutlinedIcon />}
-                                onClick={() => setFileImportOpen(true)}
-                                sx={{
-                                    minHeight: '2.4rem',
-                                    textTransform: 'none',
-                                    fontWeight: 700,
-                                    borderRadius: '10px',
-                                    borderColor: '#cbd5e1',
-                                    color: '#334155',
-                                    bgcolor: '#ffffff',
-                                    py: 0.8,
-                                    px: 2,
-                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                                    '&:hover': {
-                                        borderColor: '#94a3b8',
-                                        bgcolor: '#f8fafc',
-                                    },
-                                }}
-                            >
-                                Nhập từ tệp
-                            </Button>
+                            <Tooltip title={hasPendingOcrDraft ? PENDING_OCR_FILE_IMPORT_TOOLTIP : ''}>
+                                <span>
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        disabled={hasPendingOcrDraft}
+                                        startIcon={<UploadFileOutlinedIcon />}
+                                        onClick={() => setFileImportOpen(true)}
+                                        sx={{
+                                            minHeight: '2.4rem', textTransform: 'none', fontWeight: 700,
+                                            borderRadius: '10px', borderColor: '#cbd5e1', color: '#334155',
+                                            bgcolor: '#ffffff', py: 0.8, px: 2,
+                                            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                                            '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' },
+                                        }}
+                                    >
+                                        Nhập từ tệp
+                                    </Button>
+                                </span>
+                            </Tooltip>
                         </CanAccess>
 
                         {hasSelectedSerials && (

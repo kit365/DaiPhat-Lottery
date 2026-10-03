@@ -101,6 +101,7 @@ const DenominationInput = ({
     status,
     onSelect,
     onUpdate,
+    disabled = false,
 }: {
     value?: string | null;
     stationPrice?: number | null;
@@ -108,10 +109,11 @@ const DenominationInput = ({
     status: { status: string; message?: string };
     onSelect: () => void;
     onUpdate: (val: string) => void;
+    disabled?: boolean;
 }) => {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
-    const isOpen = Boolean(anchorEl);
+    const isOpen = !disabled && Boolean(anchorEl);
 
     const quickOptions = useMemo(() => {
         const list: { value: number; label: string; isStationPrice?: boolean }[] = [];
@@ -144,12 +146,15 @@ const DenominationInput = ({
                     component="input"
                     type="text"
                     value={formattedDisplay}
+                    disabled={disabled}
                     placeholder="10.000…"
                     onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
+                        if (disabled) return;
                         onSelect();
                         setAnchorEl(e.currentTarget);
                     }}
                     onClick={(e: React.MouseEvent<HTMLInputElement>) => {
+                        if (disabled) return;
                         setAnchorEl(e.currentTarget);
                     }}
                     onKeyDown={(e: React.KeyboardEvent) => {
@@ -189,6 +194,11 @@ const DenominationInput = ({
                             borderColor: '#2563eb',
                             boxShadow: '0 0 0 2px rgba(37,99,235,0.12)',
                             bgcolor: '#ffffff',
+                        },
+                        '&:disabled': {
+                            color: '#64748b',
+                            bgcolor: '#f1f5f9',
+                            cursor: 'not-allowed',
                         },
                     }}
                 />
@@ -278,6 +288,8 @@ type Props = {
     showHeaderSelectAll?: boolean;
     /** When true, omit outer spacing wrapper (used inside per-image groups). */
     embedded?: boolean;
+    /** Adds the origin badge column used by the combined ticket list. */
+    showSourceColumn?: boolean;
 };
 
 const resolveCroppedImageUrl = (row: OcrReviewRow): string | null => {
@@ -309,6 +321,7 @@ export default function OcrReviewResultCards({
     onToggle,
     onUpdate,
     showHeaderSelectAll = true,
+    showSourceColumn = false,
 }: Props) {
     const [zoomImage, setZoomImage] = useState<{ url: string; title: string; row: OcrReviewRow } | null>(null);
     const [selectedRowForErrorDetail, setSelectedRowForErrorDetail] = useState<{
@@ -327,12 +340,14 @@ export default function OcrReviewResultCards({
     }, [selection?.rowKey]);
 
     const isAllSelected = useMemo(() => {
-        if (rows.length === 0) return false;
-        return rows.every((r) => r.selected);
+        const selectableRows = rows.filter((row) => !row.readOnly);
+        if (selectableRows.length === 0) return false;
+        return selectableRows.every((row) => row.selected);
     }, [rows]);
 
     const handleToggleAll = (checked: boolean) => {
         for (const r of rows) {
+            if (r.readOnly) continue;
             const ctx = validationContextForRow?.(r);
             const confirmable = canConfirmReviewRow(r, ctx);
             if (confirmable) {
@@ -373,6 +388,7 @@ export default function OcrReviewResultCards({
                     bgcolor: '#ffffff',
                     maxHeight: { xs: 450, md: 560 },
                     overflowX: 'auto',
+                    overflowY: 'auto',
                 }}
             >
                 <Table
@@ -387,6 +403,17 @@ export default function OcrReviewResultCards({
                             fontSize: '0.8125rem',
                             borderColor: '#f1f5f9',
                             verticalAlign: 'top',
+                        },
+                        '& .MuiTableCell-stickyHeader': {
+                            bgcolor: '#f1f5f9 !important',
+                            backgroundImage: 'none',
+                            zIndex: 4,
+                            boxShadow: '0 2px 0 #e2e8f0',
+                        },
+                        '& .MuiTableBody-root .MuiTableCell-root': {
+                            position: 'relative',
+                            zIndex: 1,
+                            bgcolor: 'inherit',
                         },
                     }}
                 >
@@ -422,6 +449,11 @@ export default function OcrReviewResultCards({
                                     <span>STT</span>
                                 </Stack>
                             </TableCell>
+                            {showSourceColumn && (
+                                <TableCell align="center" sx={{ minWidth: 110 }}>
+                                    Nguồn vé
+                                </TableCell>
+                            )}
                             <TableCell sx={{ minWidth: 105, width: 110 }}>
                                 Dãy số <span style={{ color: '#ef4444' }}>*</span>
                             </TableCell>
@@ -454,6 +486,7 @@ export default function OcrReviewResultCards({
                     <TableBody>
                         {rows.map((row, index) => {
                             const ctx = validationContextForRow?.(row);
+                            const readOnly = Boolean(row.readOnly);
                             const confirmable = canConfirmReviewRow(row, ctx);
                             const rowStations = stationsForRow?.(row) ?? stations;
                             const isSelectedRow = selection?.rowKey === row.key;
@@ -485,9 +518,12 @@ export default function OcrReviewResultCards({
                                     ref={(node: HTMLTableRowElement | null) => {
                                         rowRefs.current[row.key] = node;
                                     }}
-                                    onClick={() => onSelect({ rowKey: row.key, fieldName: null })}
+                                    onClick={() => {
+                                        if (!readOnly) onSelect({ rowKey: row.key, fieldName: null });
+                                    }}
                                     sx={{
-                                        cursor: 'pointer',
+                                        cursor: readOnly ? 'default' : 'pointer',
+                                        opacity: readOnly ? 0.68 : 1,
                                         transition: 'all 0.15s ease',
                                         bgcolor: isSelectedRow
                                             ? 'rgba(37, 99, 235, 0.05)'
@@ -515,7 +551,7 @@ export default function OcrReviewResultCards({
                                             <Checkbox
                                                 size="small"
                                                 checked={row.selected}
-                                                disabled={!confirmable}
+                                                disabled={readOnly || !confirmable}
                                                 onChange={(e) => {
                                                     e.stopPropagation();
                                                     onToggle(row.key, e.target.checked);
@@ -535,6 +571,17 @@ export default function OcrReviewResultCards({
                                             </Typography>
                                         </Box>
                                     </TableCell>
+                                    {showSourceColumn && (
+                                        <TableCell align="center" sx={{ verticalAlign: 'top', py: 1 }}>
+                                            <Chip
+                                                size="small"
+                                                label={row.source === 'EXISTING' ? 'Đã nhập trước' : 'Vừa scan OCR'}
+                                                color={row.source === 'EXISTING' ? 'default' : 'info'}
+                                                variant={row.source === 'EXISTING' ? 'outlined' : 'filled'}
+                                                sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+                                            />
+                                        </TableCell>
+                                    )}
                                     <TableCell sx={{ verticalAlign: 'top', py: 0.75, px: 0.75 }}>
                                         <Box
                                             onClick={(e) => e.stopPropagation()}
@@ -543,6 +590,7 @@ export default function OcrReviewResultCards({
                                             <Box
                                                 component="input"
                                                 type="text"
+                                                disabled={readOnly}
                                                 value={numberDrafts[row.key] ?? row.numbers}
                                                 placeholder="Nhập dãy số…"
                                                 onFocus={() => {
@@ -622,6 +670,7 @@ export default function OcrReviewResultCards({
                                             <Box
                                                 component="input"
                                                 type="text"
+                                                disabled={readOnly}
                                                 value={row.serialNumber}
                                                 placeholder="Nhập số sê-ri…"
                                                 onFocus={() => onSelect({ rowKey: row.key, fieldName: 'serialNumber' })}
@@ -675,6 +724,7 @@ export default function OcrReviewResultCards({
                                         >
                                             <Select
                                                 size="small"
+                                                disabled={readOnly}
                                                 fullWidth
                                                 displayEmpty
                                                 value={row.stationId != null && rowStations.some((station) => station.id === row.stationId) ? row.stationId : ''}
@@ -807,6 +857,7 @@ export default function OcrReviewResultCards({
                                             {batchDrawDate ? (
                                                 <Select
                                                     size="small"
+                                                    disabled={readOnly}
                                                     fullWidth
                                                     displayEmpty
                                                     value={row.drawDate ? dayjs(row.drawDate).format('YYYY-MM-DD') : ''}
@@ -888,6 +939,7 @@ export default function OcrReviewResultCards({
                                                 <Box
                                                     component="input"
                                                     type="date"
+                                                    disabled={readOnly}
                                                     value={row.drawDate ? dayjs(row.drawDate).format('YYYY-MM-DD') : ''}
                                                     onFocus={() => onSelect({ rowKey: row.key, fieldName: 'drawDate' })}
                                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -941,6 +993,7 @@ export default function OcrReviewResultCards({
                                             <Box
                                                 component="input"
                                                 type="text"
+                                                disabled={readOnly}
                                                 value={row.batchCode ?? ''}
                                                 placeholder="Ký hiệu / Lô"
                                                 onFocus={() => onSelect({ rowKey: row.key, fieldName: 'batchCode' })}
@@ -1006,6 +1059,7 @@ export default function OcrReviewResultCards({
                                                 }
                                                 isSelectedRow={isSelectedRow}
                                                 status={priceStatus}
+                                                disabled={readOnly}
                                                 onSelect={() => onSelect({ rowKey: row.key, fieldName: 'ticketType' })}
                                                 onUpdate={(val) => onUpdate(row.key, { ticketType: val })}
                                             />

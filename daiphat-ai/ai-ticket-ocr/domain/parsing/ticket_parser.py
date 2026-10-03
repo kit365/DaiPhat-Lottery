@@ -506,6 +506,11 @@ class TicketParser:
     ) -> str | None:
         """Validate/convert a single-field crop's text, or None to keep the
         whole-ticket result."""
+        if field_name == "serialSymbol":
+            # The optional template tag is a single separately printed letter.
+            # Do not guess from a larger word or a digit-like OCR result.
+            letters = [result.text.strip().upper() for result in results]
+            return next((letter for letter in letters if re.fullmatch(r"[A-Z]", letter)), None)
         if field_name == "drawDate":
             ranked = sorted(results, key=lambda r: -r.confidence)
             for result in ranked:
@@ -554,6 +559,17 @@ class TicketParser:
                 collapsed = re.sub(r"\s+", "", result.text.strip()).upper()
                 if _is_plausible_batch_token(collapsed):
                     return collapsed
+            # Tagged lot regions often return "47", "VL", "33" as separate
+            # OCR lines. Validate their combined value only within this field.
+            joined = _join_field_texts(results, keep="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+            if joined:
+                joined = _without_batch_label(joined.upper())
+                if _is_plausible_batch_token(joined):
+                    return joined
+                # The tagged crop can also include its printed "Loại" label.
+                for label in ("LOAI", "LOI", "LO", "KYHIEU"):
+                    if joined.startswith(label) and _is_plausible_batch_token(joined[len(label):]):
+                        return joined[len(label):]
             return None
 
         if field_name == "numbers":

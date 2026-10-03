@@ -39,6 +39,24 @@ class ImportBatchControllerTest {
     private ImportBatchController importBatchController;
 
     @Test
+    void cancelDraft_derivesAdminPermissionFromAuthentication() {
+        var principal = new AuthenticatedUserPrincipal(OPERATOR_ID, "operator");
+        var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                principal, null, List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
+        importBatchController.cancelDraft(10L, principal, authentication);
+        verify(importBatchServicePort).cancelDraft(10L, OPERATOR_ID, true);
+    }
+
+    @Test
+    void cancelDraft_createPermissionDoesNotGrantAdminOverride() {
+        var principal = new AuthenticatedUserPrincipal(OPERATOR_ID, "operator");
+        var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                principal, null, List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("importBatch:create")));
+        importBatchController.cancelDraft(10L, principal, authentication);
+        verify(importBatchServicePort).cancelDraft(10L, OPERATOR_ID, false);
+    }
+
+    @Test
     @DisplayName("GET /active-draft returns 200 with draft when present")
     void getActiveDraft_whenDraftExists_returnsOkWithData() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(OPERATOR_ID, "operator");

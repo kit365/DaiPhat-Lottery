@@ -11,6 +11,7 @@ import SearchOffOutlinedIcon from '@mui/icons-material/SearchOffOutlined';
 import SellOutlinedIcon from '@mui/icons-material/SellOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import {
+    Alert,
     Box,
     Button,
     Chip,
@@ -36,10 +37,10 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppToast } from '../../../../../../utils/toast.util';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
-import { useInspectableReturnSerials } from '../../hooks/useReturnBatch';
+import { useInspectableReturnTickets } from '../../hooks/useReturnBatch';
 import type { InspectableReturnSerial, ReturnBatchLine } from '../../types/returnBatch.type';
 import { getInspectableTicketConditionLabel } from '../../utils/returnInspectableSerial';
 
@@ -58,7 +59,6 @@ interface TicketGroup {
     lotteryStationName: string;
     ticketNumbers: string;
     ticketPrice: number;
-    importCost: number;
     serials: InspectableReturnSerial[];
 }
 
@@ -268,19 +268,11 @@ const CollapsibleReturnTicketRow = ({
                     </Typography>
                 </TableCell>
 
-                <TableCell align="right" sx={{ py: 1.5, pr: 2.5 }}>
-                    <Typography variant="body2" fontWeight={800} color="#0f172a" sx={{ fontSize: '0.875rem' }}>
-                        {formatImportCost(ticketGroup.importCost)}{' '}
-                        <Box component="span" sx={{ fontSize: '0.7rem', color: '#64748b' }}>
-                            đ
-                        </Box>
-                    </Typography>
-                </TableCell>
             </TableRow>
 
             {/* Nested Accordion for Physical Serials */}
             <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={9}>
+                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
                         <Box
                             sx={{
@@ -302,8 +294,7 @@ const CollapsibleReturnTicketRow = ({
                                     Danh sách {ticketGroup.serials.length} sê-ri vé vật lý thuộc dãy số #{ticketGroup.ticketNumbers}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
-                                    Đài: <strong>{ticketGroup.lotteryStationName}</strong> · Giá vốn:{' '}
-                                    <strong>{formatImportCost(ticketGroup.importCost)} đ/vé</strong>
+                                    Đài: <strong>{ticketGroup.lotteryStationName}</strong>
                                 </Typography>
                             </Stack>
 
@@ -315,7 +306,6 @@ const CollapsibleReturnTicketRow = ({
                                         <TableCell align="center">Trạng thái kho</TableCell>
                                         <TableCell align="center">Tình trạng vé</TableCell>
                                         <TableCell align="right">Giá bán niêm yết</TableCell>
-                                        <TableCell align="right">Giá vốn hoàn trả</TableCell>
                                         <TableCell width={50} align="center">Sao chép</TableCell>
                                     </TableRow>
                                 </TableHead>
@@ -401,10 +391,6 @@ const CollapsibleReturnTicketRow = ({
                                                     {formatImportCost(s.ticketPrice ?? ticketGroup.ticketPrice)} đ
                                                 </TableCell>
 
-                                                <TableCell align="right" sx={{ py: 1, fontSize: '0.8rem', fontWeight: 700, color: '#0f172a' }}>
-                                                    {formatImportCost(s.importCost ?? ticketGroup.importCost)} đ
-                                                </TableCell>
-
                                                 <TableCell align="center" sx={{ py: 1 }}>
                                                     <Tooltip title="Sao chép số sê-ri">
                                                         <IconButton
@@ -434,92 +420,94 @@ export const ReturnBatchTicketsModal = ({
     batchId,
     supplierName,
     drawDate,
-    lines = [],
     initialStationName,
     onClose,
 }: Props) => {
-    const { data: serials = [], isLoading } = useInspectableReturnSerials(batchId, open);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedStationTab, setSelectedStationTab] = useState<string>('ALL');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [selectedStationId, setSelectedStationId] = useState<number | ''>('');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
+    const initialStationAppliedRef = useRef(false);
 
-    // Sync initial station tab when modal opens
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setDebouncedSearch(searchQuery.trim());
+            setPage(0);
+        }, 350);
+        return () => window.clearTimeout(timer);
+    }, [searchQuery]);
+
+    const {
+        data: inspectableData,
+        isLoading,
+        isError,
+        error,
+        refetch,
+    } = useInspectableReturnTickets(
+        batchId,
+        {
+            page: page + 1,
+            size: rowsPerPage,
+            search: debouncedSearch || undefined,
+            lotteryStationId: selectedStationId || undefined,
+        },
+        open
+    );
+
+    const loadErrorMessage =
+        (error as any)?.response?.data?.message
+        || 'Không thể tải danh sách vé kiểm tra trả. Vui lòng thử lại.';
+
     useEffect(() => {
         if (open) {
-            setSelectedStationTab(initialStationName || 'ALL');
+            initialStationAppliedRef.current = false;
+            setSelectedStationId('');
             setSearchQuery('');
             setPage(0);
         }
-    }, [open, initialStationName]);
+    }, [open, batchId, initialStationName]);
 
-    // Unique station names from lines or serials
-    const stationNames = useMemo(() => {
-        const fromLines = lines
-            .map((l) => l.lotteryStationName)
-            .filter((name): name is string => Boolean(name));
-        if (fromLines.length > 0) return Array.from(new Set(fromLines));
-
-        const fromSerials = serials
-            .map((s) => s.lotteryStationName)
-            .filter((name): name is string => Boolean(name));
-        return Array.from(new Set(fromSerials));
-    }, [lines, serials]);
-
-    // Filter serials by station tab and search query
-    const filteredSerials = useMemo(() => {
-        let result = serials;
-
-        if (selectedStationTab !== 'ALL') {
-            result = result.filter(
-                (s) => (s.lotteryStationName || '').toLowerCase() === selectedStationTab.toLowerCase()
-            );
+    // Resolve the initial station from the batch-level options once per modal opening.
+    // Keeping this separate prevents every page response from resetting pagination to page 1.
+    useEffect(() => {
+        if (!open || initialStationAppliedRef.current || !inspectableData?.stationSummaries) {
+            return;
         }
+        const initialStation = inspectableData.stationSummaries.find(
+            (summary) => summary.lotteryStationName === initialStationName
+        );
+        setSelectedStationId(initialStation?.lotteryStationId || '');
+        initialStationAppliedRef.current = true;
+    }, [open, initialStationName, inspectableData?.stationSummaries]);
 
-        if (searchQuery.trim()) {
-            const q = searchQuery.trim().toLowerCase();
-            result = result.filter((s) => {
-                const serialNum = (s.serialNumber || '').toLowerCase();
-                const ticketNum = (s.ticketNumbers || '').toLowerCase();
-                const station = (s.lotteryStationName || '').toLowerCase();
-                return serialNum.includes(q) || ticketNum.includes(q) || station.includes(q);
-            });
-        }
-
-        return result;
-    }, [serials, selectedStationTab, searchQuery]);
+    const filteredSerials = useMemo(
+        () => (inspectableData?.recordList ?? []).flatMap((ticket) => ticket.serials || []),
+        [inspectableData?.recordList]
+    );
 
     // Group serials by ticket number & station name
     const groupedTickets = useMemo(() => {
         const groupMap = new Map<string, TicketGroup>();
 
-        filteredSerials.forEach((item) => {
-            const key = `${item.lotteryStationName || '—'}_${item.ticketNumbers || '—'}`;
-            if (!groupMap.has(key)) {
-                groupMap.set(key, {
-                    ticketKey: key,
-                    lotteryStationName: item.lotteryStationName || '—',
-                    ticketNumbers: item.ticketNumbers || '—',
-                    ticketPrice: Number(item.ticketPrice) || 10000,
-                    importCost: Number(item.importCost) || 10000,
-                    serials: [],
-                });
-            }
-            groupMap.get(key)!.serials.push(item);
+        (inspectableData?.recordList ?? []).forEach((ticket) => {
+            const key = String(ticket.ticketId);
+            groupMap.set(key, {
+                ticketKey: key,
+                lotteryStationName: ticket.lotteryStationName || '—',
+                ticketNumbers: ticket.ticketNumbers || '—',
+                ticketPrice: Number(ticket.ticketPrice) || 10000,
+                serials: ticket.serials || [],
+            });
         });
 
         return Array.from(groupMap.values());
-    }, [filteredSerials]);
+    }, [inspectableData?.recordList]);
 
     // Totals for filtered serials
-    const totalCount = filteredSerials.length;
+    const totalCount = Number(inspectableData?.eligibleSerialCount || 0);
 
-    const totalWholesalePrice = useMemo(() => {
-        return filteredSerials.reduce((acc, item) => {
-            const cost = Number(item.importCost) || 0;
-            return acc + cost;
-        }, 0);
-    }, [filteredSerials]);
+    const totalWholesalePrice = Number(inspectableData?.eligibleReturnValue || 0);
 
     const totalTicketPrice = useMemo(() => {
         return filteredSerials.reduce((acc, item) => {
@@ -529,10 +517,7 @@ export const ReturnBatchTicketsModal = ({
     }, [filteredSerials]);
 
     // Paginated ticket groups
-    const paginatedTickets = useMemo(() => {
-        const start = page * rowsPerPage;
-        return groupedTickets.slice(start, start + rowsPerPage);
-    }, [groupedTickets, page, rowsPerPage]);
+    const paginatedTickets = groupedTickets;
 
     const handleChangePage = (_: unknown, newPage: number) => {
         setPage(newPage);
@@ -694,7 +679,7 @@ export const ReturnBatchTicketsModal = ({
                                     </Box>
                                 </Typography>
                                 <Typography variant="caption" color="#94a3b8" sx={{ fontSize: '0.725rem' }}>
-                                    {groupedTickets.length} dãy số độc lập
+                                    {inspectableData?.pagination?.totalRecords || 0} dãy số độc lập
                                 </Typography>
                             </Box>
                         </Paper>
@@ -840,7 +825,7 @@ export const ReturnBatchTicketsModal = ({
                         />
 
                         {/* Station Filter Pills */}
-                        {stationNames.length > 0 && (
+                        {(inspectableData?.stationSummaries?.length ?? 0) > 0 && (
                             <Stack
                                 direction="row"
                                 spacing={1}
@@ -853,9 +838,9 @@ export const ReturnBatchTicketsModal = ({
                             >
                                 <Button
                                     size="small"
-                                    variant={selectedStationTab === 'ALL' ? 'contained' : 'outlined'}
+                                    variant={selectedStationId === '' ? 'contained' : 'outlined'}
                                     onClick={() => {
-                                        setSelectedStationTab('ALL');
+                                        setSelectedStationId('');
                                         setPage(0);
                                     }}
                                     sx={{
@@ -866,35 +851,30 @@ export const ReturnBatchTicketsModal = ({
                                         px: 2,
                                         py: 0.6,
                                         boxShadow: 'none',
-                                        bgcolor: selectedStationTab === 'ALL' ? '#0f172a' : '#ffffff',
-                                        color: selectedStationTab === 'ALL' ? '#ffffff' : '#475569',
-                                        borderColor: selectedStationTab === 'ALL' ? '#0f172a' : '#cbd5e1',
+                                        bgcolor: selectedStationId === '' ? '#0f172a' : '#ffffff',
+                                        color: selectedStationId === '' ? '#ffffff' : '#475569',
+                                        borderColor: selectedStationId === '' ? '#0f172a' : '#cbd5e1',
                                         '&:hover': {
-                                            bgcolor: selectedStationTab === 'ALL' ? '#1e293b' : '#f8fafc',
-                                            borderColor: selectedStationTab === 'ALL' ? '#1e293b' : '#94a3b8',
+                                            bgcolor: selectedStationId === '' ? '#1e293b' : '#f8fafc',
+                                            borderColor: selectedStationId === '' ? '#1e293b' : '#94a3b8',
                                             boxShadow: 'none',
                                         },
                                         flexShrink: 0,
                                     }}
                                 >
-                                    Tất cả ({serials.length})
+                                    Tất cả ({totalCount})
                                 </Button>
 
-                                {stationNames.map((stName) => {
-                                    const isSelected = selectedStationTab.toLowerCase() === stName.toLowerCase();
-                                    const stCount = serials.filter(
-                                        (s) =>
-                                            (s.lotteryStationName || '').toLowerCase() ===
-                                            stName.toLowerCase()
-                                    ).length;
+                                {(inspectableData?.stationSummaries ?? []).map((summary) => {
+                                    const isSelected = selectedStationId === summary.lotteryStationId;
 
                                     return (
                                         <Button
-                                            key={stName}
+                                            key={summary.lotteryStationId}
                                             size="small"
                                             variant={isSelected ? 'contained' : 'outlined'}
                                             onClick={() => {
-                                                setSelectedStationTab(stName);
+                                                setSelectedStationId(summary.lotteryStationId);
                                                 setPage(0);
                                             }}
                                             sx={{
@@ -916,7 +896,7 @@ export const ReturnBatchTicketsModal = ({
                                                 flexShrink: 0,
                                             }}
                                         >
-                                            {stName} ({stCount})
+                                            {summary.lotteryStationName || 'Không xác định'} ({summary.eligibleSerialCount})
                                         </Button>
                                     );
                                 })}
@@ -939,6 +919,23 @@ export const ReturnBatchTicketsModal = ({
                                 Đang tải danh sách vé kiểm tra trả...
                             </Typography>
                         </Box>
+                    ) : isError ? (
+                        <Alert
+                            severity="error"
+                            sx={{ borderRadius: '12px', alignItems: 'center' }}
+                            action={
+                                <Button
+                                    color="inherit"
+                                    size="small"
+                                    onClick={() => refetch()}
+                                    sx={{ textTransform: 'none', fontWeight: 700 }}
+                                >
+                                    Thử lại
+                                </Button>
+                            }
+                        >
+                            {loadErrorMessage}
+                        </Alert>
                     ) : (
                         <TableContainer
                             component={Paper}
@@ -971,7 +968,6 @@ export const ReturnBatchTicketsModal = ({
                                         <TableCell align="center" sx={headCellStyles}>Trạng thái kho</TableCell>
                                         <TableCell align="center" sx={headCellStyles}>Tình trạng vé</TableCell>
                                         <TableCell align="right" sx={headCellStyles}>Giá bán niêm yết</TableCell>
-                                        <TableCell align="right" sx={{ ...headCellStyles, pr: 2.5 }}>Giá vốn hoàn trả</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -987,7 +983,7 @@ export const ReturnBatchTicketsModal = ({
 
                                     {groupedTickets.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                                            <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                                                 <Box
                                                     display="flex"
                                                     flexDirection="column"
@@ -1035,11 +1031,11 @@ export const ReturnBatchTicketsModal = ({
                     )}
 
                     {/* Pagination */}
-                    {groupedTickets.length > 0 && (
+                    {(inspectableData?.pagination?.totalRecords || 0) > 0 && (
                         <TablePagination
-                            rowsPerPageOptions={[10, 25, 50, 100]}
+                            rowsPerPageOptions={[5, 10, 20, 50]}
                             component="div"
-                            count={groupedTickets.length}
+                            count={inspectableData?.pagination?.totalRecords || 0}
                             rowsPerPage={rowsPerPage}
                             page={page}
                             onPageChange={handleChangePage}
@@ -1074,7 +1070,7 @@ export const ReturnBatchTicketsModal = ({
                 }}
             >
                 <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                    Hiển thị <strong>{filteredSerials.length}</strong> vé sê-ri ({groupedTickets.length} dãy số)
+                    Trang hiện tại có <strong>{filteredSerials.length}</strong> vé sê-ri ({groupedTickets.length} dãy số)
                 </Typography>
 
                 <Button

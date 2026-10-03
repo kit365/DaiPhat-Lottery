@@ -8,6 +8,8 @@ import java.time.LocalDate;
 
 @Builder
 public record OcrConfirmImportTicketRequest(
+        // Production lot (Ký hiệu/Lô) is intentionally absent: neither the
+        // ticket nor ticket-serial persistence model stores it.
         @NotBlank String numbers,
         @NotBlank String serialNumber,
         @NotNull Long stationId,

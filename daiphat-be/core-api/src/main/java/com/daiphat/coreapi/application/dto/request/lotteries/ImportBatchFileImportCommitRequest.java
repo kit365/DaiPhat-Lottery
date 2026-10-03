@@ -11,9 +11,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Import tickets into existing batches for the draw dates selected in the preview.
+ * Import tickets for the draw dates selected in the preview. AUTO creates a batch
+ * from the file; MANUAL retains the existing-batch compatibility path.
  *
- * @param manualBatchBindings one existing importBatchId per drawDate
+ * @param manualBatchBindings one existing importBatchId per drawDate in MANUAL mode
  */
 @Builder
 public record ImportBatchFileImportCommitRequest(
@@ -32,9 +33,10 @@ public record ImportBatchFileImportCommitRequest(
 
         ImportBatchFileCommitMode commitMode,
 
-        @NotEmpty(message = "Chưa có phiếu nhập cho ngày quay đã chọn")
         @Valid
-        List<ImportBatchFileManualBatchBinding> manualBatchBindings
+        List<ImportBatchFileManualBatchBinding> manualBatchBindings,
+
+        String invoiceEvidenceUrl
 ) {
 
     public ImportBatchFileCommitMode resolvedCommitMode() {
@@ -48,6 +50,17 @@ public record ImportBatchFileImportCommitRequest(
         return manualBatchBindings.stream()
                 .filter(b -> drawDate.equals(b.drawDate()))
                 .map(ImportBatchFileManualBatchBinding::importBatchId)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public ImportBatchSelectionSnapshotRequest selectionSnapshotFor(LocalDate drawDate) {
+        if (manualBatchBindings == null || drawDate == null) {
+            return null;
+        }
+        return manualBatchBindings.stream()
+                .filter(b -> drawDate.equals(b.drawDate()))
+                .map(ImportBatchFileManualBatchBinding::selectionSnapshot)
                 .findFirst()
                 .orElse(null);
     }

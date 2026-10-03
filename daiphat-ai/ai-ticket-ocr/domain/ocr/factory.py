@@ -147,7 +147,7 @@ class OcrStrategyFactory:
         fields_raw = getattr(
             settings,
             "TICKET_VISION_FIELD_OCR_FIELDS",
-            "serialNumber,numbers,drawDate,ticketType,batchCode",
+            "serialNumber,serialSymbol,numbers,drawDate,ticketType,batchCode",
         )
         specialized_fields = frozenset(
             part.strip() for part in str(fields_raw).split(",") if part.strip()

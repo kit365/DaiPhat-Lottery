@@ -13,6 +13,8 @@ export type ImportBatchLineStatus = 'OPEN' | 'IMPORTING' | 'PAUSED' | 'IMPORTED'
 export interface ImportBatchLine {
     id: number;
     lotteryStationId: number;
+    lotteryStationName?: string;
+    stationName?: string;
     batchType: ImportBatchType;
     batchCode?: string;
     declareQuantity: number;
@@ -95,11 +97,6 @@ export interface CreateImportBatchPayload {
     invoiceEvidenceUrl?: string;
     ticketListImageUrls?: string[];
     note?: string;
-    /**
-     * When true, bypass the soft duplicate check for an unfinished batch.
-     * The backend will still enforce per-station hard conflicts.
-     */
-    forceCreate?: boolean;
     lines: CreateImportBatchLinePayload[];
 }
 
@@ -125,6 +122,8 @@ export interface ImportBatchBlockedStation {
 export interface ImportBatchEligibleStationsResult {
     eligible: ImportBatchEligibleStation[];
     blocked: ImportBatchBlockedStation[];
+    /** Existing unfinished batch for this draw date, if one owns the workflow. */
+    unfinishedBatch?: ImportBatch | null;
 }
 
 export interface ImportBatchClassificationPreview {
@@ -187,6 +186,7 @@ export interface ImportBatchLineEntrySerial {
 export interface ImportBatchLineEntryTicket {
     id: number;
     numbers: string;
+    priceSnapshot?: number | string | null;
     status?: string;
     serials: ImportBatchLineEntrySerial[];
 }
@@ -242,6 +242,7 @@ export type ImportBatchFileIssueCode =
     | 'STATION_PRICING_MISMATCH'
     | 'STATION_SCHEDULE_MISMATCH'
     | 'PARTIAL_IMPORT_DISABLED'
+    | 'DECLARED_QUANTITY_MISMATCH'
     | 'SUPPLIER_IDENTITY_MISMATCH'
     | 'SUPPLIER_IDENTITY_NOT_DECLARED'
     | 'STATION_INACTIVE';
@@ -491,12 +492,13 @@ export interface ImportBatchFileImportResult {
  * The file is uploaded again instead of the resolved rows being sent back, so the
  * backend re-reads and re-validates everything rather than trusting this copy.
  */
-export type ImportBatchFileCommitMode = 'MANUAL';
+export type ImportBatchFileCommitMode = 'MANUAL' | 'AUTO';
 
 /** Maps one preview draw-date group onto an existing editable import-batch (Manual). */
 export interface ImportBatchFileManualBatchBinding {
     drawDate: string;
     importBatchId: number;
+    selectionSnapshot: import('../utils/importBatchSelectionSnapshot').ImportBatchSelectionSnapshot;
 }
 
 export interface ImportBatchFileCommitPayload {
@@ -504,8 +506,8 @@ export interface ImportBatchFileCommitPayload {
     fileHash: string;
     mapping: ImportBatchFileMapping;
     drawDates: string[];
-    /** File import only attaches tickets to an existing batch. */
     commitMode?: ImportBatchFileCommitMode;
+    invoiceEvidenceUrl?: string;
     /** One existing importBatchId per selected drawDate. */
     manualBatchBindings?: ImportBatchFileManualBatchBinding[];
 }

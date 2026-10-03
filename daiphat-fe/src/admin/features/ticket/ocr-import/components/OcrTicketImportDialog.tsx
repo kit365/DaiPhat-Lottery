@@ -62,6 +62,7 @@ import {
     TableContainer,
     TableFooter,
     TableHead,
+    TablePagination,
     TableRow,
     Tabs,
     TextField,
@@ -80,7 +81,11 @@ import { useActiveSuppliers } from '../../../supplier';
 import { useStations } from '../../../station/hooks/useStation';
 import type { ImportBatch, ImportBatchFileStationSummary, ImportBatchLine } from '../../import-batch/types/importBatch.type';
 import { ImportBatchQuickAllocationModal } from '../../import-batch/components/sections/ImportBatchQuickAllocationModal';
+import { ImportBatchReceptionLineSummary } from '../../import-batch/components/sections/ImportBatchReceptionLineSummary';
+import { ImportBatchStateChangedDialog } from '../../import-batch/components/sections/ImportBatchStateChangedDialog';
 import {
+    getImportBatchById,
+    getImportBatchLineEntryTickets,
     uploadImportBatchInvoiceEvidence,
     uploadImportBatchTicketListImage,
 } from '../../import-batch/services/importBatchService';
@@ -91,6 +96,11 @@ import {
 } from '../../import-batch/utils/importBatchDrawDate';
 import { formatImportBatchHeaderCode } from '../../import-batch/utils/importBatchCode';
 import { formatVnd } from '../../import-batch/utils/importCostCalculator';
+import {
+    canDeleteImportBatch,
+    canShowImportBatchDelete,
+    getImportBatchDeleteDisabledReason,
+} from '../../import-batch/utils/importBatchDeletion';
 import {
     getBatchTypeLabel,
     getImportModeLabel,
@@ -105,6 +115,7 @@ import {
     filterEligibleOcrBatches,
     formatDenomination,
     getImportOutcomeLabel,
+    getOcrImportResultPresentation,
     hasHighConfidenceOcrFields,
     getScanLogEventLabel,
     getScanLogMethodLabel,
@@ -119,6 +130,7 @@ import {
 import OcrReviewImagePane, { type OcrFieldSelection } from './OcrReviewImagePane';
 import OcrReviewResultCards from './OcrReviewResultCards';
 import OcrImageEditDialog from './OcrImageEditDialog';
+import { OcrTicketListToolbar } from './OcrTicketListToolbar';
 import { OcrImagePreviewLightbox } from './OcrImagePreviewLightbox';
 import { getOcrTemplateDefaultReady } from '../../../station/services/ocrTemplateService';
 import { getOcrServiceReady, type OcrServiceReady } from '../services/ticketOcrService';
@@ -138,7 +150,7 @@ const OCR_EVIDENCE_ACCEPT: Accept = {
 type OcrTicketImportDialogProps = {
     open: boolean;
     onClose: () => void;
-    onImported?: () => void;
+    onImported?: () => void | Promise<unknown>;
     prefillBatch?: ImportBatch | null;
     prefillLine?: ImportBatchLine | null;
     resolveStationName?: (stationId?: number | string) => string;
@@ -506,13 +518,19 @@ const ImportBatchReviewSummaryCard = ({
                         {lines.map((line, idx) => {
                             const stationName = stationLabel(line.lotteryStationId);
                             const declared = line.declareQuantity || 0;
-                            const scannedValid = wizard.rows.filter(
-                                (r) => r.stationId === line.lotteryStationId && wizard.isRowConfirmable(r)
+                            const alreadyImported = line.totalQuantity || 0;
+                            const selectedOcr = wizard.rows.filter(
+                                (r) => r.stationId === line.lotteryStationId && r.selected && wizard.isRowConfirmable(r)
                             ).length;
+                            const processed = alreadyImported + selectedOcr;
                             const isSelected = selectedStationId === line.lotteryStationId;
-                            const percent = declared > 0 ? Math.round((scannedValid / declared) * 100) : 0;
-                            const isComplete = scannedValid === declared && declared > 0;
-                            const isOver = scannedValid > declared;
+                            const importedPercent = declared > 0 ? Math.min(100, (alreadyImported / declared) * 100) : 0;
+                            const ocrPercent = declared > 0
+                                ? Math.min(Math.max(0, 100 - importedPercent), (selectedOcr / declared) * 100)
+                                : 0;
+                            const percent = declared > 0 ? Math.round((processed / declared) * 100) : 0;
+                            const isComplete = processed === declared && declared > 0;
+                            const isOver = processed > declared;
 
                             return (
                                 <Grid
@@ -564,7 +582,7 @@ const ImportBatchReviewSummaryCard = ({
                                                 ) : (
                                                     <Chip
                                                         size="small"
-                                                        label={isComplete ? 'Đã đủ' : isOver ? `Vượt +${scannedValid - declared}` : `Thiếu ${declared - scannedValid}`}
+                                                        label={isComplete ? 'Đã đủ' : isOver ? `Vượt +${processed - declared}` : `Thiếu ${declared - processed}`}
                                                         sx={{
                                                             height: 18,
                                                             fontSize: '0.625rem',
@@ -576,7 +594,7 @@ const ImportBatchReviewSummaryCard = ({
                                                 )}
                                             </Stack>
 
-                                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                            <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={0.5}>
                                                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.725rem' }}>
                                                     Khai báo: <strong>{declared} vé</strong>
                                                 </Typography>
@@ -588,29 +606,53 @@ const ImportBatchReviewSummaryCard = ({
                                                         color: isComplete ? '#15803d' : isOver ? '#b45309' : isSelected ? '#1d4ed8' : '#475569',
                                                     }}
                                                 >
-                                                    Đã quét: {scannedValid} / {declared} ({percent}%)
+                                                    Đã nhập: {alreadyImported} · OCR chọn: {selectedOcr} / {declared} ({percent}%)
                                                 </Typography>
                                             </Stack>
 
-                                            {/* Thanh tiến độ */}
                                             <Box
                                                 sx={{
                                                     width: '100%',
-                                                    height: 5,
+                                                    height: 24,
                                                     bgcolor: isSelected ? '#dbeafe' : '#e2e8f0',
-                                                    borderRadius: 3,
+                                                    borderRadius: 1.5,
                                                     overflow: 'hidden',
+                                                    display: 'flex',
+                                                    position: 'relative',
                                                 }}
                                             >
                                                 <Box
                                                     sx={{
                                                         height: '100%',
-                                                        width: `${Math.min(100, percent)}%`,
-                                                        bgcolor: isComplete ? '#16a34a' : isOver ? '#d97706' : '#2563eb',
-                                                        borderRadius: 3,
+                                                        width: `${importedPercent}%`,
+                                                        bgcolor: '#64748b',
                                                         transition: 'width 0.3s ease',
                                                     }}
                                                 />
+                                                <Box
+                                                    sx={{
+                                                        height: '100%',
+                                                        width: `${ocrPercent}%`,
+                                                        bgcolor: isComplete ? '#16a34a' : isOver ? '#d97706' : '#06b6d4',
+                                                        transition: 'width 0.3s ease',
+                                                    }}
+                                                />
+                                                <Typography
+                                                    variant="caption"
+                                                    sx={{
+                                                        position: 'absolute',
+                                                        inset: 0,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '0.68rem',
+                                                        fontWeight: 800,
+                                                        color: percent >= 45 ? '#ffffff' : '#334155',
+                                                        textShadow: percent >= 45 ? '0 1px 2px rgba(0,0,0,0.35)' : 'none',
+                                                    }}
+                                                >
+                                                    Đã nhập {Math.round(importedPercent)}% · OCR {Math.round(ocrPercent)}%
+                                                </Typography>
                                             </Box>
                                         </Stack>
                                     </Paper>
@@ -851,6 +893,141 @@ export const OcrTicketImportDialog = ({
         return matched?.name || (stationId != null ? `Đài #${stationId}` : '—');
     };
 
+    const selectedBatchSupportsCombinedList =
+        wizard.selectedImportBatch?.status === 'RECEIVING' ||
+        wizard.selectedImportBatch?.status === 'PARTIALLY_IMPORTED';
+    const [reviewMainTab, setReviewMainTab] = useState<'ocr' | 'combined'>('ocr');
+    const [existingTicketRows, setExistingTicketRows] = useState<OcrReviewRow[]>([]);
+    const [loadingExistingTickets, setLoadingExistingTickets] = useState(false);
+    const [refreshedSelectedBatch, setRefreshedSelectedBatch] = useState<ImportBatch | null>(null);
+    const effectiveSelectedBatch =
+        refreshedSelectedBatch?.id === wizard.selectedImportBatch?.id
+            ? refreshedSelectedBatch
+            : wizard.selectedImportBatch;
+    const batchLineStations = useMemo(() => {
+        const seen = new Set<number>();
+        return (effectiveSelectedBatch?.lines ?? [])
+            .filter((line) => line.status !== 'CANCELLED' && !seen.has(line.lotteryStationId))
+            .map((line) => {
+                seen.add(line.lotteryStationId);
+                const station = stations.find((item) => item.id === line.lotteryStationId);
+                return {
+                    id: line.lotteryStationId,
+                    name:
+                        line.lotteryStationName ||
+                        line.stationName ||
+                        station?.name ||
+                        `Đài #${line.lotteryStationId}`,
+                    code: station?.code,
+                };
+            });
+    }, [effectiveSelectedBatch?.lines, stations]);
+
+    const loadExistingBatchTickets = useCallback(async (batchOverride?: ImportBatch) => {
+        const batch = batchOverride ?? wizard.selectedImportBatch;
+        if (
+            !batch ||
+            (batch.status !== 'RECEIVING' && batch.status !== 'PARTIALLY_IMPORTED')
+        ) {
+            setExistingTicketRows([]);
+            return;
+        }
+
+        setLoadingExistingTickets(true);
+        try {
+            const refreshedBatch = (await getImportBatchById(batch.id)).data ?? batch;
+            setRefreshedSelectedBatch(refreshedBatch);
+            const lineResults = await Promise.all(
+                (refreshedBatch.lines ?? [])
+                    .filter((line) => line.status !== 'CANCELLED')
+                    .map(async (line) => ({
+                        line,
+                        result: (await getImportBatchLineEntryTickets(batch.id, line.id)).data,
+                    }))
+            );
+            const seenSerials = new Set<string>();
+            const nextRows: OcrReviewRow[] = [];
+
+            lineResults.forEach(({ line, result }) => {
+                (result?.tickets ?? []).forEach((ticket) => {
+                    (ticket.serials ?? []).forEach((serial, serialIndex) => {
+                        const identity = serial.id != null
+                            ? `serial-id:${serial.id}`
+                            : [line.id, ticket.id, serial.serialNumber].join(':').toUpperCase();
+                        if (seenSerials.has(identity)) return;
+                        seenSerials.add(identity);
+
+                        nextRows.push({
+                            key: `existing-${refreshedBatch.id}-${line.id}-${serial.id ?? `${ticket.id}-${serialIndex}`}`,
+                            source: 'EXISTING',
+                            readOnly: true,
+                            sourceImageId: `existing-${serial.id ?? `${ticket.id}-${serialIndex}`}`,
+                            sourceFileName: 'Vé đã nhập trước',
+                            sourcePreviewUrl: serial.ticketImg ?? null,
+                            ticketIndex: nextRows.length,
+                            status: 'COMPLETE',
+                            confidence: 1,
+                            numbers: ticket.numbers ?? '',
+                            serialNumber: serial.serialNumber ?? '',
+                            stationId: line.lotteryStationId,
+                            stationName:
+                                line.lotteryStationName ||
+                                line.stationName ||
+                                resolveStationName?.(line.lotteryStationId) ||
+                                stations.find((station) => station.id === line.lotteryStationId)?.name ||
+                                `Đài #${line.lotteryStationId}`,
+                            drawDate: refreshedBatch.drawDate,
+                            ticketType:
+                                ticket.priceSnapshot != null
+                                    ? String(ticket.priceSnapshot)
+                                    : null,
+                            batchCode: line.batchCode || refreshedBatch.batchCode || null,
+                            fieldConfidences: {
+                                numbers: 1,
+                                serialNumber: 1,
+                                stationName: 1,
+                                drawDate: 1,
+                                ticketType: 1,
+                                batchCode: 1,
+                            },
+                            fieldBoxes: {},
+                            fieldValidations: {},
+                            fields: {},
+                            missingFields: [],
+                            validationErrors: [],
+                            businessValidationErrors: [],
+                            duplicate: false,
+                            croppedImageUrl: serial.ticketImg ?? null,
+                            selected: false,
+                            edited: false,
+                        });
+                    });
+                });
+            });
+
+            setExistingTicketRows(nextRows);
+        } catch {
+            toast.error('Không thể tải danh sách vé đã nhập trước. Vui lòng thử tải lại.');
+        } finally {
+            setLoadingExistingTickets(false);
+        }
+    }, [resolveStationName, stations, wizard.selectedImportBatch]);
+
+    useEffect(() => {
+        if (!open || !selectedBatchSupportsCombinedList) {
+            setExistingTicketRows([]);
+            setRefreshedSelectedBatch(null);
+            setReviewMainTab('ocr');
+            return;
+        }
+        void loadExistingBatchTickets();
+    }, [
+        loadExistingBatchTickets,
+        open,
+        selectedBatchSupportsCombinedList,
+        wizard.selectedImportBatch?.id,
+    ]);
+
     useEffect(() => {
         if (wizard.step !== 'review') {
             setFieldSelection(null);
@@ -873,19 +1050,38 @@ export const OcrTicketImportDialog = ({
         () => buildReviewStationGroups(wizard.rows),
         [wizard.rows]
     );
+    const combinedReviewRows = useMemo(
+        () => [
+            ...existingTicketRows,
+            ...wizard.rows.map((row) => ({
+                ...row,
+                source: 'OCR' as const,
+                readOnly: false,
+            })),
+        ],
+        [existingTicketRows, wizard.rows]
+    );
     const selectedBatchDrawDate = wizard.selectedImportBatch?.drawDate || wizard.selectedBatch?.drawDate || null;
     const [reviewListTab, setReviewListTab] = useState<'images' | 'stations'>('images');
     const [reviewSearchQuery, setReviewSearchQuery] = useState('');
+    const [reviewStatusFilter, setReviewStatusFilter] = useState<'ALL' | 'VALID' | 'INVALID'>('ALL');
+    const [combinedSourceFilter, setCombinedSourceFilter] = useState<'ALL' | 'EXISTING' | 'OCR'>('ALL');
+    const [combinedPage, setCombinedPage] = useState(0);
+    const [combinedRowsPerPage, setCombinedRowsPerPage] = useState(10);
+    const [expandedCombinedTicketKeys, setExpandedCombinedTicketKeys] = useState<Set<string>>(() => new Set());
     const [collapsedTicketKeys, setCollapsedTicketKeys] = useState<Set<string>>(() => new Set());
     const [imageBeingEdited, setImageBeingEdited] = useState<{ id: string; file: File } | null>(null);
 
     const filteredReviewRows = useMemo(() => {
-        if (!reviewSearchQuery.trim()) return wizard.rows;
         return wizard.rows.filter((row) => {
+            const valid = wizard.isRowConfirmable(row);
+            if (reviewStatusFilter === 'VALID' && !valid) return false;
+            if (reviewStatusFilter === 'INVALID' && valid) return false;
+            if (!reviewSearchQuery.trim()) return true;
             const stationCode = stations.find((station) => station.id === row.stationId)?.code;
             return matchesReviewSearch(row, reviewSearchQuery, stationCode);
         });
-    }, [reviewSearchQuery, stations, wizard.rows]);
+    }, [reviewSearchQuery, reviewStatusFilter, stations, wizard.rows, wizard.isRowConfirmable]);
 
     const filteredReviewRowKeys = useMemo(
         () => new Set(filteredReviewRows.map((row) => row.key)),
@@ -893,24 +1089,75 @@ export const OcrTicketImportDialog = ({
     );
 
     const filteredReviewImageGroups = useMemo(() => {
-        if (!reviewSearchQuery.trim()) return reviewImageGroups;
         return reviewImageGroups
             .map((group) => ({
                 ...group,
                 rows: group.rows.filter((row) => filteredReviewRowKeys.has(row.key)),
             }))
-            .filter((group) => group.rows.length > 0);
-    }, [filteredReviewRowKeys, reviewImageGroups, reviewSearchQuery]);
+            .filter((group) =>
+                group.rows.length > 0 ||
+                (!reviewSearchQuery.trim() && reviewStatusFilter === 'ALL' && group.imageStatus === 'pending')
+            );
+    }, [filteredReviewRowKeys, reviewImageGroups, reviewSearchQuery, reviewStatusFilter]);
 
     const filteredReviewStationGroups = useMemo(
         () => buildReviewStationGroups(filteredReviewRows),
         [filteredReviewRows]
     );
+    const filteredCombinedRows = useMemo(() => {
+        return combinedReviewRows.filter((row) => {
+            if (combinedSourceFilter !== 'ALL' && row.source !== combinedSourceFilter) return false;
+            const valid = row.readOnly || wizard.isRowConfirmable(row);
+            if (reviewStatusFilter === 'VALID' && !valid) return false;
+            if (reviewStatusFilter === 'INVALID' && valid) return false;
+            if (!reviewSearchQuery.trim()) return true;
+            const stationCode = stations.find((station) => station.id === row.stationId)?.code;
+            return matchesReviewSearch(row, reviewSearchQuery, stationCode);
+        });
+    }, [combinedReviewRows, combinedSourceFilter, reviewSearchQuery, reviewStatusFilter, stations, wizard.isRowConfirmable]);
+    const filteredCombinedStationGroups = useMemo(
+        () => buildReviewStationGroups(filteredCombinedRows),
+        [filteredCombinedRows]
+    );
+    const combinedTicketEntries = useMemo(
+        () => filteredCombinedStationGroups.flatMap((station) =>
+            station.tickets.map((ticket) => ({ station, ticket }))
+        ),
+        [filteredCombinedStationGroups]
+    );
+    const paginatedCombinedStationGroups = useMemo(() => {
+        const pageEntries = combinedTicketEntries.slice(
+            combinedPage * combinedRowsPerPage,
+            combinedPage * combinedRowsPerPage + combinedRowsPerPage
+        );
+        const grouped = new Map<string, (typeof filteredCombinedStationGroups)[number]>();
+        pageEntries.forEach(({ station, ticket }) => {
+            const current = grouped.get(station.key);
+            if (current) current.tickets.push(ticket);
+            else grouped.set(station.key, { ...station, tickets: [ticket] });
+        });
+        return Array.from(grouped.values());
+    }, [combinedPage, combinedRowsPerPage, combinedTicketEntries, filteredCombinedStationGroups]);
+
+    useEffect(() => {
+        setCombinedPage(0);
+    }, [combinedSourceFilter, reviewSearchQuery]);
+
+    useEffect(() => {
+        const maxPage = Math.max(0, Math.ceil(combinedTicketEntries.length / combinedRowsPerPage) - 1);
+        if (combinedPage > maxPage) setCombinedPage(maxPage);
+    }, [combinedPage, combinedRowsPerPage, combinedTicketEntries.length]);
 
     useEffect(() => {
         if (!open) {
             setReviewSearchQuery('');
             setCollapsedTicketKeys(new Set());
+            setReviewMainTab('ocr');
+            setExistingTicketRows([]);
+            setRefreshedSelectedBatch(null);
+            setCombinedSourceFilter('ALL');
+            setCombinedPage(0);
+            setExpandedCombinedTicketKeys(new Set());
         }
     }, [open]);
 
@@ -952,6 +1199,8 @@ export const OcrTicketImportDialog = ({
     const [selectedHistoryImageId, setSelectedHistoryImageId] = useState<string | null>(null);
     const [logFilterStatus, setLogFilterStatus] = useState<'ALL' | 'VALID' | 'INVALID'>('ALL');
     const [logSearchQuery, setLogSearchQuery] = useState('');
+    const [confirmSearchQuery, setConfirmSearchQuery] = useState('');
+    const [confirmStationFilter, setConfirmStationFilter] = useState('ALL');
 
     const filteredScanLogs = useMemo(() => {
         return wizard.scanLogs.filter((log) => {
@@ -1016,10 +1265,39 @@ export const OcrTicketImportDialog = ({
             }))
         );
     }, [wizard.importResult]);
+    const importResultPresentation = useMemo(
+        () => wizard.importResult ? getOcrImportResultPresentation(wizard.importResult) : null,
+        [wizard.importResult]
+    );
 
     const confirmableRows = useMemo(
         () => wizard.rows.filter(wizard.isRowConfirmable),
         [wizard.rows, wizard.isRowConfirmable]
+    );
+    const selectedConfirmableRows = useMemo(
+        () => wizard.rows.filter((row) => row.selected && wizard.isRowConfirmable(row)),
+        [wizard.rows, wizard.isRowConfirmable]
+    );
+    const confirmStationOptions = useMemo(() => {
+        const byId = new Map<string, string>();
+        selectedConfirmableRows.forEach((row) => {
+            if (row.stationId != null) byId.set(String(row.stationId), stationLabel(row.stationId));
+        });
+        return [
+            { value: 'ALL', label: 'Tất cả nhà đài' },
+            ...Array.from(byId.entries())
+                .sort((left, right) => left[1].localeCompare(right[1], 'vi'))
+                .map(([value, label]) => ({ value, label })),
+        ];
+    }, [selectedConfirmableRows, stationLabel]);
+    const filteredConfirmableRows = useMemo(
+        () => selectedConfirmableRows.filter((row) => {
+            if (confirmStationFilter !== 'ALL' && String(row.stationId) !== confirmStationFilter) return false;
+            if (!confirmSearchQuery.trim()) return true;
+            const stationCode = stations.find((station) => station.id === row.stationId)?.code;
+            return matchesReviewSearch(row, confirmSearchQuery, stationCode);
+        }),
+        [confirmSearchQuery, confirmStationFilter, selectedConfirmableRows, stations]
     );
     const allConfirmableRowsSelected =
         confirmableRows.length > 0 && wizard.confirmableCount === confirmableRows.length;
@@ -1064,7 +1342,7 @@ export const OcrTicketImportDialog = ({
             }
         >();
 
-        for (const row of confirmableRows) {
+        for (const row of selectedConfirmableRows) {
             const stationName = stationLabel(row.stationId ?? undefined);
             const denomination = parseTicketPriceNumber(row.ticketType) ?? 10000;
             const key = `${row.stationId ?? 'unknown'}_${denomination}`;
@@ -1084,11 +1362,12 @@ export const OcrTicketImportDialog = ({
             }
         }
         return Array.from(map.values()).sort((a, b) => b.count - a.count);
-    }, [confirmableRows, stationLabel]);
+    }, [selectedConfirmableRows, stationLabel]);
 
     const confirmTotalValue = useMemo(() => {
         return confirmAllocationSummary.reduce((sum, item) => sum + item.totalValue, 0);
     }, [confirmAllocationSummary]);
+    const importQuantityCheck = wizard.getImportQuantityCheck();
 
     const formatReviewFileName = (fileName: string, index: number) => {
         if (!fileName) return `Ảnh #${index + 1}`;
@@ -1185,8 +1464,17 @@ export const OcrTicketImportDialog = ({
 
     const handleFinish = () => {
         wizard.clearDraft();
-        onImported?.();
-        handleClose();
+        wizard.reset();
+        mobileScanSession.stopSession();
+        onClose();
+    };
+
+    const handleImported = async () => {
+        try {
+            await onImported?.();
+        } finally {
+            handleFinish();
+        }
     };
 
     const handleCreateBatchNavigate = () => {
@@ -1261,6 +1549,17 @@ export const OcrTicketImportDialog = ({
                         const currentStepIdx = isResultStep ? STEPS.length : STEPS.findIndex((st) => st.key === wizard.step);
                         const isCurrent = wizard.step === s.key;
                         const isCompleted = isResultStep || currentStepIdx > index;
+                        const isResultOutcomeStep = isResultStep && index === STEPS.length - 1;
+                        const completedColor = isResultOutcomeStep && importResultPresentation?.tone === 'error'
+                            ? '#dc2626'
+                            : isResultOutcomeStep && importResultPresentation?.tone === 'warning'
+                              ? '#d97706'
+                              : '#10b981';
+                        const completedTextColor = isResultOutcomeStep && importResultPresentation?.tone === 'error'
+                            ? '#dc2626'
+                            : isResultOutcomeStep && importResultPresentation?.tone === 'warning'
+                              ? '#d97706'
+                              : '#059669';
 
                         return (
                             <Stack key={s.key} direction="row" alignItems="center" spacing={1}>
@@ -1277,13 +1576,15 @@ export const OcrTicketImportDialog = ({
                                         bgcolor: isCurrent
                                             ? 'primary.main'
                                             : isCompleted
-                                              ? '#10b981'
+                                              ? completedColor
                                               : 'var(--palette-text-disabled, #94a3b8)',
                                         color: '#fff',
                                         transition: 'all 0.2s',
                                     }}
                                 >
-                                    {isCompleted ? '✓' : index + 1}
+                                    {isCompleted
+                                        ? isResultOutcomeStep && importResultPresentation?.tone !== 'success' ? '!' : '✓'
+                                        : index + 1}
                                 </Box>
                                 <Typography
                                     variant="caption"
@@ -1292,7 +1593,7 @@ export const OcrTicketImportDialog = ({
                                         color: isCurrent
                                             ? 'text.primary'
                                             : isCompleted
-                                              ? '#059669'
+                                              ? completedTextColor
                                               : 'text.secondary',
                                         display: { xs: isCurrent ? 'inline' : 'none', sm: 'inline' },
                                     }}
@@ -1765,6 +2066,16 @@ export const OcrTicketImportDialog = ({
                                                 }}
                                             />
                                         </Stack>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            startIcon={<RefreshOutlinedIcon />}
+                                            disabled={wizard.loadingBatches}
+                                            onClick={() => void wizard.reloadBatches()}
+                                            sx={{ textTransform: 'none', fontWeight: 700 }}
+                                        >
+                                            Tải lại
+                                        </Button>
                                     </Stack>
 
                                     {wizard.loadingBatches ? (
@@ -1972,11 +2283,16 @@ export const OcrTicketImportDialog = ({
                                                                         <EditOutlinedIcon sx={{ fontSize: '1.15rem' }} />
                                                                     </IconButton>
                                                                 </Tooltip>
-                                                                <Tooltip title="Hủy bỏ phiếu nhập này">
+                                                                {canShowImportBatchDelete(option) && (
+                                                                <Tooltip title={getImportBatchDeleteDisabledReason(option) || 'Xóa phiếu nhập này'}>
+                                                                    <span>
                                                                     <IconButton
                                                                         size="small"
                                                                         color="error"
-                                                                        disabled={wizard.discardingBatchId === option.id}
+                                                                        disabled={
+                                                                            wizard.discardingBatchId === option.id ||
+                                                                            !canDeleteImportBatch(option)
+                                                                        }
                                                                         onClick={(event) => {
                                                                             event.stopPropagation();
                                                                             setBatchToDiscard(option);
@@ -1993,9 +2309,15 @@ export const OcrTicketImportDialog = ({
                                                                             <DeleteOutlineIcon sx={{ fontSize: '1.15rem' }} />
                                                                         )}
                                                                     </IconButton>
+                                                                    </span>
                                                                 </Tooltip>
+                                                                )}
                                                             </Stack>
                                                         </Stack>
+                                                        <ImportBatchReceptionLineSummary
+                                                            batch={option}
+                                                            onChanged={wizard.reloadBatches}
+                                                        />
                                                     </Paper>
                                                 );
                                             })}
@@ -3002,7 +3324,7 @@ export const OcrTicketImportDialog = ({
 
                         {wizard.selectedImportBatch ? (
                             <ImportBatchReviewSummaryCard
-                                batch={wizard.selectedImportBatch}
+                                batch={effectiveSelectedBatch}
                                 selectedSupplier={selectedSupplier}
                                 wizard={wizard}
                                 stationLabel={stationLabel}
@@ -3126,7 +3448,7 @@ export const OcrTicketImportDialog = ({
                             </Stack>
                         )}
 
-                        {reviewImageGroups.length === 0 ? (
+                        {reviewImageGroups.length === 0 && !selectedBatchSupportsCombinedList ? (
                             <Paper
                                 elevation={0}
                                 sx={{
@@ -3146,7 +3468,7 @@ export const OcrTicketImportDialog = ({
                             </Paper>
                         ) : (
                             <>
-                                {wizard.rows.every(
+                                {wizard.rows.length > 0 && wizard.rows.every(
                                     (row) => row.status === 'FAILED' || row.status === 'INCOMPLETE'
                                 ) &&
                                     wizard.confirmableCount === 0 &&
@@ -3175,10 +3497,71 @@ export const OcrTicketImportDialog = ({
                                             </Box>
                                         </Paper>
                                     )}
-                                <Typography variant="body2" color="text.secondary">
-                                    Kiểm tra thông tin từng vé bên dưới. Bấm vào trường thông tin để chỉnh sửa nếu OCR nhận diện chưa chuẩn.
-                                </Typography>
+                                {selectedBatchSupportsCombinedList && (
+                                    <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                                        <Tabs
+                                            value={reviewMainTab}
+                                            onChange={(_, value: 'ocr' | 'combined') => {
+                                                setReviewMainTab(value);
+                                                setReviewStatusFilter('ALL');
+                                                if (value === 'combined') {
+                                                    setExpandedCombinedTicketKeys(new Set());
+                                                    setCombinedPage(0);
+                                                }
+                                            }}
+                                            aria-label="Danh sách vé của phiếu nhập lô"
+                                            sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 800 } }}
+                                        >
+                                            <Tab value="ocr" label="Danh sách vé được scan từ OCR" />
+                                            <Tab
+                                                value="combined"
+                                                label={`Danh sách vé tổng (${combinedReviewRows.length})`}
+                                            />
+                                        </Tabs>
+                                    </Box>
+                                )}
 
+                                {(!selectedBatchSupportsCombinedList || reviewMainTab === 'ocr') && (
+                                    <Typography variant="body2" color="text.secondary">
+                                        Kiểm tra thông tin từng vé bên dưới. Bấm vào trường thông tin để chỉnh sửa nếu OCR nhận diện chưa chuẩn.
+                                    </Typography>
+                                )}
+
+                                {selectedBatchSupportsCombinedList && reviewMainTab === 'combined' && (
+                                    <Stack
+                                        direction={{ xs: 'column', sm: 'row' }}
+                                        alignItems={{ xs: 'stretch', sm: 'center' }}
+                                        justifyContent="space-between"
+                                        gap={1}
+                                    >
+                                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                            <Chip
+                                                size="small"
+                                                label={`${existingTicketRows.length} vé đã nhập trước`}
+                                                variant="outlined"
+                                            />
+                                            <Chip
+                                                size="small"
+                                                label={`${wizard.rows.length} vé vừa scan OCR`}
+                                                color="info"
+                                            />
+                                        </Stack>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            startIcon={loadingExistingTickets
+                                                ? <CircularProgress size={15} />
+                                                : <RefreshOutlinedIcon />}
+                                            disabled={loadingExistingTickets}
+                                            onClick={() => void loadExistingBatchTickets()}
+                                            sx={{ textTransform: 'none', fontWeight: 700, alignSelf: { xs: 'flex-start', sm: 'auto' } }}
+                                        >
+                                            Tải lại
+                                        </Button>
+                                    </Stack>
+                                )}
+
+                                {(!selectedBatchSupportsCombinedList || reviewMainTab === 'ocr') && (
                                 <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                                     <Tabs
                                         value={reviewListTab}
@@ -3190,41 +3573,33 @@ export const OcrTicketImportDialog = ({
                                         <Tab value="stations" label={`Theo nhà đài (${reviewStationGroups.length})`} />
                                     </Tabs>
                                 </Box>
+                                )}
 
-                                <TextField
-                                    size="small"
-                                    fullWidth
-                                    value={reviewSearchQuery}
-                                    onChange={(event) => setReviewSearchQuery(event.target.value)}
+                                <OcrTicketListToolbar
+                                    query={reviewSearchQuery}
+                                    onQueryChange={setReviewSearchQuery}
                                     placeholder="Tìm theo dãy số, số sê-ri, nhà đài, lịch quay, ký hiệu / lô hoặc mệnh giá…"
-                                    inputProps={{ 'aria-label': 'Tìm kiếm vé OCR' }}
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <SearchIcon sx={{ color: '#64748b', fontSize: 20 }} />
-                                            </InputAdornment>
-                                        ),
-                                        endAdornment: reviewSearchQuery ? (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => setReviewSearchQuery('')}
-                                                    aria-label="Xóa nội dung tìm kiếm"
-                                                >
-                                                    <CloseIcon sx={{ fontSize: 18 }} />
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ) : undefined,
-                                    }}
-                                    sx={{
-                                        maxWidth: 720,
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: '10px',
-                                            bgcolor: '#ffffff',
-                                            '&.Mui-focused': {
-                                                boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.08)',
-                                            },
-                                        },
+                                    filteredCount={reviewMainTab === 'combined' ? filteredCombinedRows.length : filteredReviewRows.length}
+                                    totalCount={reviewMainTab === 'combined' ? combinedReviewRows.length : wizard.rows.length}
+                                    filterLabel={reviewMainTab === 'combined' ? 'Nguồn vé' : 'Trạng thái nhận diện'}
+                                    filterValue={reviewMainTab === 'combined' ? combinedSourceFilter : reviewStatusFilter}
+                                    filterOptions={reviewMainTab === 'combined'
+                                        ? [
+                                            { value: 'ALL', label: 'Tất cả nguồn' },
+                                            { value: 'EXISTING', label: 'Đã nhập trước' },
+                                            { value: 'OCR', label: 'Vừa quét OCR' },
+                                        ]
+                                        : [
+                                            { value: 'ALL', label: 'Tất cả trạng thái' },
+                                            { value: 'VALID', label: 'Hợp lệ' },
+                                            { value: 'INVALID', label: 'Cần kiểm tra' },
+                                        ]}
+                                    onFilterChange={(value) => {
+                                        if (reviewMainTab === 'combined') {
+                                            setCombinedSourceFilter(value as 'ALL' | 'EXISTING' | 'OCR');
+                                        } else {
+                                            setReviewStatusFilter(value as 'ALL' | 'VALID' | 'INVALID');
+                                        }
                                     }}
                                 />
 
@@ -3235,7 +3610,118 @@ export const OcrTicketImportDialog = ({
                                         gap: 2,
                                     }}
                                 >
-                                    {reviewListTab === 'images' ? filteredReviewImageGroups.length === 0 ? (
+                                    {selectedBatchSupportsCombinedList && reviewMainTab === 'combined' ? (
+                                        paginatedCombinedStationGroups.length === 0 ? (
+                                            <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', color: 'text.secondary', borderRadius: 2 }}>
+                                                {loadingExistingTickets
+                                                    ? 'Đang tải danh sách vé đã nhập…'
+                                                    : reviewSearchQuery.trim()
+                                                      ? `Không tìm thấy vé phù hợp với “${reviewSearchQuery.trim()}”.`
+                                                      : 'Phiếu nhập lô chưa có vé đã nhập và chưa có kết quả OCR mới.'}
+                                            </Paper>
+                                        ) : paginatedCombinedStationGroups.map((station) => (
+                                            <Paper key={`combined-${station.key}`} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                                                <Stack
+                                                    direction="row"
+                                                    alignItems="center"
+                                                    justifyContent="space-between"
+                                                    flexWrap="wrap"
+                                                    gap={1}
+                                                    sx={{ px: 2, py: 1.5, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
+                                                >
+                                                    <Typography variant="subtitle1" fontWeight={800}>
+                                                        {station.stationName}
+                                                    </Typography>
+                                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                                        <Chip size="small" label={`${station.tickets.length} dãy số`} variant="outlined" />
+                                                        <Chip
+                                                            size="small"
+                                                            label={`${station.tickets.reduce((sum, ticket) => sum + ticket.rows.length, 0)} sê-ri`}
+                                                            variant="outlined"
+                                                        />
+                                                        <Chip
+                                                            size="small"
+                                                            label={`${station.tickets.reduce((sum, ticket) => sum + ticket.rows.filter((row) => row.source === 'EXISTING').length, 0)} đã nhập trước`}
+                                                            variant="outlined"
+                                                        />
+                                                    </Stack>
+                                                </Stack>
+                                                <Stack sx={{ p: 1.5 }} spacing={1}>
+                                                    {station.tickets.map((ticket) => {
+                                                        const ticketKey = `combined:${station.key}:${ticket.rows
+                                                            .map((row) => row.key)
+                                                            .sort()
+                                                            .join('|')}`;
+                                                        const newRows = ticket.rows.filter((row) => !row.readOnly);
+                                                        const validCount = newRows.filter(wizard.isRowConfirmable).length;
+                                                        const allSerialsValid = ticket.rows.every(
+                                                            (row) => row.readOnly || wizard.isRowConfirmable(row)
+                                                        );
+                                                        const isExpanded = expandedCombinedTicketKeys.has(ticketKey);
+                                                        return (
+                                                            <Accordion
+                                                                key={ticketKey}
+                                                                expanded={isExpanded}
+                                                                onChange={(_, expanded) => setExpandedCombinedTicketKeys((previous) => {
+                                                                    const next = new Set(previous);
+                                                                    if (expanded) next.add(ticketKey);
+                                                                    else next.delete(ticketKey);
+                                                                    return next;
+                                                                })}
+                                                                disableGutters
+                                                                elevation={0}
+                                                                sx={{ border: '1px solid #e2e8f0', borderRadius: '8px !important', '&:before': { display: 'none' } }}
+                                                            >
+                                                                <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-label={`Xem sê-ri dãy số ${ticket.numbers || 'chưa xác định'}`}>
+                                                                    <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.5} flexWrap="wrap">
+                                                                        <Typography variant="body2" fontWeight={800}>
+                                                                            Dãy số: {ticket.numbers || 'Chưa xác định'}
+                                                                        </Typography>
+                                                                        <Typography variant="caption" color="text.secondary">
+                                                                            Ngày quay: {ticket.drawDate && dayjs(ticket.drawDate).isValid() ? dayjs(ticket.drawDate).format('DD/MM/YYYY') : 'Chưa xác định'}
+                                                                        </Typography>
+                                                                        <Chip size="small" label={`${ticket.rows.length} sê-ri`} variant="outlined" />
+                                                                        <Chip
+                                                                            size="small"
+                                                                            label={`Chi tiết: ${allSerialsValid ? 'Hợp lệ' : 'Lỗi'}`}
+                                                                            color={allSerialsValid ? 'success' : 'error'}
+                                                                            variant="outlined"
+                                                                            sx={{ fontWeight: 700 }}
+                                                                        />
+                                                                        {newRows.length > 0 && (
+                                                                            <Chip
+                                                                                size="small"
+                                                                                label={`${validCount}/${newRows.length} vé OCR hợp lệ`}
+                                                                                color={validCount === newRows.length ? 'success' : 'warning'}
+                                                                                variant="outlined"
+                                                                            />
+                                                                        )}
+                                                                    </Stack>
+                                                                </AccordionSummary>
+                                                                {isExpanded && <AccordionDetails sx={{ px: 1, pb: 1.5 }}>
+                                                                    <OcrReviewResultCards
+                                                                        rows={ticket.rows}
+                                                                        selection={fieldSelection}
+                                                                        stations={stations}
+                                                                        stationsForRow={() => batchLineStations}
+                                                                        validationContextForRow={(row) => row.readOnly
+                                                                            ? undefined
+                                                                            : wizard.getRowValidationContext(row)}
+                                                                        batchDrawDate={selectedBatchDrawDate}
+                                                                        onSelect={setFieldSelection}
+                                                                        onToggle={wizard.toggleRow}
+                                                                        onUpdate={wizard.updateRow}
+                                                                        showSourceColumn
+                                                                        embedded
+                                                                    />
+                                                                </AccordionDetails>}
+                                                            </Accordion>
+                                                        );
+                                                    })}
+                                                </Stack>
+                                            </Paper>
+                                        ))
+                                    ) : reviewListTab === 'images' ? filteredReviewImageGroups.length === 0 ? (
                                         <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', color: 'text.secondary', borderRadius: 2 }}>
                                             Không tìm thấy vé phù hợp với “{reviewSearchQuery.trim()}”.
                                         </Paper>
@@ -3399,9 +3885,7 @@ export const OcrTicketImportDialog = ({
                                                         rows={group.rows}
                                                         selection={fieldSelection}
                                                         stations={stations}
-                                                        stationsForRow={() => selectedBatchDrawDate
-                                                            ? wizard.getStationsForDrawDate(selectedBatchDrawDate)
-                                                            : []}
+                                                        stationsForRow={() => batchLineStations}
                                                         validationContextForRow={
                                                             wizard.getRowValidationContext
                                                         }
@@ -3475,9 +3959,7 @@ export const OcrTicketImportDialog = ({
                                                                     rows={ticket.rows}
                                                                     selection={fieldSelection}
                                                                     stations={stations}
-                                                                    stationsForRow={() => selectedBatchDrawDate
-                                                                        ? wizard.getStationsForDrawDate(selectedBatchDrawDate)
-                                                                        : []}
+                                                                    stationsForRow={() => batchLineStations}
                                                                     validationContextForRow={wizard.getRowValidationContext}
                                                                     batchDrawDate={wizard.selectedImportBatch?.drawDate || wizard.selectedBatch?.drawDate || null}
                                                                     onSelect={setFieldSelection}
@@ -3492,6 +3974,34 @@ export const OcrTicketImportDialog = ({
                                             </Stack>
                                         </Paper>
                                     ))}
+                                    {selectedBatchSupportsCombinedList &&
+                                        reviewMainTab === 'combined' &&
+                                        combinedTicketEntries.length > 0 && (
+                                            <TablePagination
+                                                component="div"
+                                                count={combinedTicketEntries.length}
+                                                page={combinedPage}
+                                                rowsPerPage={combinedRowsPerPage}
+                                                rowsPerPageOptions={[5, 10, 20, 50]}
+                                                labelRowsPerPage="Số dãy mỗi trang:"
+                                                labelDisplayedRows={({ from, to, count }) => `${from}–${to} của ${count}`}
+                                                onPageChange={(_, page) => {
+                                                    setCombinedPage(page);
+                                                    setExpandedCombinedTicketKeys(new Set());
+                                                }}
+                                                onRowsPerPageChange={(event) => {
+                                                    setCombinedRowsPerPage(Number(event.target.value));
+                                                    setCombinedPage(0);
+                                                    setExpandedCombinedTicketKeys(new Set());
+                                                }}
+                                                sx={{
+                                                    borderTop: '1px solid #e2e8f0',
+                                                    bgcolor: '#ffffff',
+                                                    borderRadius: 2,
+                                                    '& .MuiTablePagination-toolbar': { minHeight: 52 },
+                                                }}
+                                            />
+                                        )}
                                 </Box>
                             </>
                         )}
@@ -3536,7 +4046,7 @@ export const OcrTicketImportDialog = ({
                                 </Box>
                                 <Box>
                                     <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                                        Xác nhận nhập {confirmableRows.length} vé vào kho
+                                        Xác nhận nhập {selectedConfirmableRows.length} vé vào kho
                                     </Typography>
                                     <Typography variant="body2" color="#475569" sx={{ fontSize: '0.85rem', mt: 0.25 }}>
                                         Kiểm tra đối chiếu thông tin phiếu nhập lô tiếp nhận và danh sách phân bổ các vé trước khi lưu vào kho.
@@ -3560,7 +4070,7 @@ export const OcrTicketImportDialog = ({
                                         Tổng số lượng nhập
                                     </Typography>
                                     <Typography variant="subtitle2" fontWeight={800} color="#2563eb">
-                                        {confirmableRows.length} vé
+                                        {selectedConfirmableRows.length} vé
                                     </Typography>
                                 </Paper>
                                 <Paper
@@ -3688,7 +4198,7 @@ export const OcrTicketImportDialog = ({
                                                     Đã có: <strong>{wizard.selectedImportBatch?.totalImportedQuantity ?? 0} vé</strong>
                                                 </Typography>
                                                 <Typography variant="caption" color="#16a34a" fontWeight={700}>
-                                                    Thêm lần này: +{confirmableRows.length} vé
+                                                    Thêm lần này: +{selectedConfirmableRows.length} vé
                                                 </Typography>
                                             </Stack>
 
@@ -3699,7 +4209,7 @@ export const OcrTicketImportDialog = ({
                                                         width: `${Math.min(
                                                             100,
                                                             wizard.selectedImportBatch?.totalDeclareQuantity
-                                                                ? (((wizard.selectedImportBatch.totalImportedQuantity || 0) + confirmableRows.length) /
+                                                                ? (((wizard.selectedImportBatch.totalImportedQuantity || 0) + selectedConfirmableRows.length) /
                                                                       wizard.selectedImportBatch.totalDeclareQuantity) *
                                                                       100
                                                                 : 100
@@ -3748,7 +4258,7 @@ export const OcrTicketImportDialog = ({
                                 </Typography>
                                 <Chip
                                     size="small"
-                                    label={`Tổng: ${confirmableRows.length} vé`}
+                                    label={`Tổng: ${selectedConfirmableRows.length} vé`}
                                     color="primary"
                                     variant="outlined"
                                     sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
@@ -3779,7 +4289,7 @@ export const OcrTicketImportDialog = ({
                                                     {item.count} vé
                                                 </TableCell>
                                                 <TableCell align="right" sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                                                    {confirmableRows.length > 0 ? `${((item.count / confirmableRows.length) * 100).toFixed(1)}%` : '0%'}
+                                                    {selectedConfirmableRows.length > 0 ? `${((item.count / selectedConfirmableRows.length) * 100).toFixed(1)}%` : '0%'}
                                                 </TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.8125rem', color: '#15803d' }}>
                                                     {formatVnd(item.totalValue)}
@@ -3802,11 +4312,25 @@ export const OcrTicketImportDialog = ({
                         >
                             <Box sx={{ px: 2, py: 1.5, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                                    Danh sách chi tiết {confirmableRows.length} vé hợp lệ
+                                    Danh sách chi tiết {selectedConfirmableRows.length} vé hợp lệ
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
                                     Tất cả các vé đã được kiểm tra tính toàn vẹn và hợp lệ
                                 </Typography>
+                            </Box>
+
+                            <Box sx={{ p: 1.5, borderBottom: '1px solid #e2e8f0' }}>
+                                <OcrTicketListToolbar
+                                    query={confirmSearchQuery}
+                                    onQueryChange={setConfirmSearchQuery}
+                                    placeholder="Tìm kiếm dãy số, số serial, nhà đài…"
+                                    filteredCount={filteredConfirmableRows.length}
+                                    totalCount={selectedConfirmableRows.length}
+                                    filterLabel="Nhà đài"
+                                    filterValue={confirmStationFilter}
+                                    filterOptions={confirmStationOptions}
+                                    onFilterChange={setConfirmStationFilter}
+                                />
                             </Box>
 
                             <TableContainer sx={{ maxHeight: 260 }}>
@@ -3824,7 +4348,7 @@ export const OcrTicketImportDialog = ({
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {confirmableRows.map((row, idx) => (
+                                        {filteredConfirmableRows.map((row, idx) => (
                                             <TableRow key={row.key} hover>
                                                 <TableCell align="center" sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700 }}>
                                                     {idx + 1}
@@ -3868,6 +4392,13 @@ export const OcrTicketImportDialog = ({
                                                 </TableCell>
                                             </TableRow>
                                         ))}
+                                        {filteredConfirmableRows.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                                    Không tìm thấy vé phù hợp với bộ lọc hiện tại.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
                                     </TableBody>
                                 </Table>
                             </TableContainer>
@@ -3888,7 +4419,7 @@ export const OcrTicketImportDialog = ({
                         >
                             <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 20, color: '#2563eb' }} />
                             <Typography variant="body2" color="#475569" sx={{ fontSize: '0.8125rem' }}>
-                                Khi bạn bấm <strong>Xác nhận nhập</strong>, toàn bộ {confirmableRows.length} vé hợp lệ trên sẽ được lưu trực tiếp vào phiếu nhập lô <strong>{wizard.selectedBatch ? formatImportBatchHeaderCode(wizard.selectedBatch.batchCode, wizard.selectedBatch.id) : ''}</strong> và đồng bộ với kho hàng.
+                                Khi bạn bấm <strong>Xác nhận nhập</strong>, toàn bộ {selectedConfirmableRows.length} vé hợp lệ đã chọn sẽ được lưu trực tiếp vào phiếu nhập lô <strong>{wizard.selectedBatch ? formatImportBatchHeaderCode(wizard.selectedBatch.batchCode, wizard.selectedBatch.id) : ''}</strong> và đồng bộ với kho hàng.
                             </Typography>
                         </Paper>
                     </Stack>
@@ -3901,10 +4432,21 @@ export const OcrTicketImportDialog = ({
                             sx={{
                                 p: 2,
                                 borderRadius: '14px',
-                                bgcolor: '#f0fdf4',
-                                background: 'linear-gradient(135deg, #f0fdf4 0%, #f0fdfa 100%)',
-                                border: '1px solid #bbf7d0',
-                                boxShadow: '0 2px 8px rgba(22, 163, 74, 0.05)',
+                                bgcolor: importResultPresentation?.tone === 'success'
+                                    ? '#f0fdf4'
+                                    : importResultPresentation?.tone === 'warning'
+                                      ? '#fffbeb'
+                                      : '#fef2f2',
+                                background: importResultPresentation?.tone === 'success'
+                                    ? 'linear-gradient(135deg, #f0fdf4 0%, #f0fdfa 100%)'
+                                    : importResultPresentation?.tone === 'warning'
+                                      ? 'linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%)'
+                                      : 'linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%)',
+                                border: `1px solid ${importResultPresentation?.tone === 'success'
+                                    ? '#bbf7d0'
+                                    : importResultPresentation?.tone === 'warning'
+                                      ? '#fde68a'
+                                      : '#fecaca'}`,
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 2,
@@ -3915,8 +4457,16 @@ export const OcrTicketImportDialog = ({
                                     width: 44,
                                     height: 44,
                                     borderRadius: '12px',
-                                    bgcolor: '#dcfce7',
-                                    color: '#16a34a',
+                                    bgcolor: importResultPresentation?.tone === 'success'
+                                        ? '#dcfce7'
+                                        : importResultPresentation?.tone === 'warning'
+                                          ? '#fef3c7'
+                                          : '#fee2e2',
+                                    color: importResultPresentation?.tone === 'success'
+                                        ? '#16a34a'
+                                        : importResultPresentation?.tone === 'warning'
+                                          ? '#d97706'
+                                          : '#dc2626',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -3924,13 +4474,33 @@ export const OcrTicketImportDialog = ({
                                     boxShadow: '0 1px 3px rgba(22, 163, 74, 0.12)',
                                 }}
                             >
-                                <CheckCircleOutlineOutlinedIcon sx={{ fontSize: '1.5rem' }} />
+                                {importResultPresentation?.tone === 'success'
+                                    ? <CheckCircleOutlineOutlinedIcon sx={{ fontSize: '1.5rem' }} />
+                                    : importResultPresentation?.tone === 'warning'
+                                      ? <WarningAmberOutlinedIcon sx={{ fontSize: '1.5rem' }} />
+                                      : <ErrorOutlineIcon sx={{ fontSize: '1.5rem' }} />}
                             </Box>
                             <Box sx={{ flex: 1 }}>
-                                <Typography variant="subtitle1" fontWeight={800} color="#14532d">
-                                    Hoàn tất nhập vé vào kho thành công!
+                                <Typography
+                                    variant="subtitle1"
+                                    fontWeight={800}
+                                    color={importResultPresentation?.tone === 'success'
+                                        ? '#14532d'
+                                        : importResultPresentation?.tone === 'warning'
+                                          ? '#92400e'
+                                          : '#991b1b'}
+                                >
+                                    {importResultPresentation?.title}
                                 </Typography>
-                                <Typography variant="body2" color="#166534" sx={{ fontSize: '0.85rem', mt: 0.25 }}>
+                                <Typography
+                                    variant="body2"
+                                    color={importResultPresentation?.tone === 'success'
+                                        ? '#166534'
+                                        : importResultPresentation?.tone === 'warning'
+                                          ? '#92400e'
+                                          : '#991b1b'}
+                                    sx={{ fontSize: '0.85rem', mt: 0.25 }}
+                                >
                                     Đã xử lý <strong>{wizard.importResult.totalRequested}</strong> vé — Thành công:{' '}
                                     <strong style={{ color: '#15803d' }}>{wizard.importResult.successCount}</strong>, Trùng lặp:{' '}
                                     <strong>{wizard.importResult.duplicateCount}</strong>, Lỗi:{' '}
@@ -4321,12 +4891,12 @@ export const OcrTicketImportDialog = ({
                         <DeleteOutlineIcon sx={{ fontSize: 20 }} />
                     </Box>
                     <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.05rem' }}>
-                        Hủy phiếu nhập nháp
+                        Xóa phiếu nhập lô
                     </Typography>
                 </DialogTitle>
                 <DialogContent sx={{ px: 2.5, py: 1.5 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                        Bạn có chắc chắn muốn hủy phiếu nhập nháp{' '}
+                        Bạn có chắc chắn muốn xóa phiếu nhập lô{' '}
                         <Box component="span" fontWeight={700} color="text.primary">
                             {batchToDiscard ? formatImportBatchHeaderCode(batchToDiscard.batchCode, batchToDiscard.id) : ''}
                             {batchToDiscard?.drawDate ? ` - ${dayjs(batchToDiscard.drawDate).format('DD/MM/YYYY')}` : ''}
@@ -4362,7 +4932,7 @@ export const OcrTicketImportDialog = ({
                         }}
                         sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5 }}
                     >
-                        {wizard.discardingBatchId ? 'Đang hủy…' : 'Xác nhận hủy'}
+                        {wizard.discardingBatchId ? 'Đang xóa…' : 'Xác nhận xóa'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -4509,7 +5079,7 @@ export const OcrTicketImportDialog = ({
                                         Tổng số lượng vé
                                     </Typography>
                                     <Typography variant="h6" fontWeight={800} color="#1e40af" sx={{ mt: 0.25 }}>
-                                        {confirmableRows.length.toLocaleString('vi-VN')} vé
+                                        {selectedConfirmableRows.length.toLocaleString('vi-VN')} vé
                                     </Typography>
                                 </Paper>
                             </Grid>
@@ -4589,7 +5159,7 @@ export const OcrTicketImportDialog = ({
                                     Phân bổ theo đài ({confirmAllocationSummary.length} nhóm)
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                                    {confirmableRows.length} vé hợp lệ
+                                    {selectedConfirmableRows.length} vé hợp lệ
                                 </Typography>
                             </Box>
                             <TableContainer sx={{ maxHeight: 180 }}>
@@ -4638,7 +5208,22 @@ export const OcrTicketImportDialog = ({
                         >
                             <InfoOutlinedIcon sx={{ fontSize: 18, color: '#b45309', flexShrink: 0 }} />
                             <Typography variant="caption" color="#92400e" sx={{ lineHeight: 1.45 }}>
-                                Toàn bộ <strong>{confirmableRows.length} vé hợp lệ</strong> sẽ được lưu trực tiếp vào phiếu nhập lô và cập nhật vào kho hàng.
+                                {importQuantityCheck.isOverCapacity ? (
+                                    <>
+                                        Số vé đã chọn vượt quá số lượng còn có thể nhận của phiếu nhập lô. Vui lòng quay lại và bỏ bớt{' '}
+                                        <strong>{importQuantityCheck.excessCount} vé</strong> trước khi xác nhận.
+                                    </>
+                                ) : importQuantityCheck.isShortfall ? (
+                                    <>
+                                        Bạn đang nhập <strong>{selectedConfirmableRows.length} vé</strong> trong tổng số{' '}
+                                        <strong>{importQuantityCheck.remainingCapacity} vé còn có thể nhận</strong>. Đây là lần nhập một phần;
+                                        phiếu nhập lô vẫn tiếp tục nhận các vé còn lại sau lần xác nhận này.
+                                    </>
+                                ) : (
+                                    <>
+                                        Toàn bộ <strong>{selectedConfirmableRows.length} vé hợp lệ đã chọn</strong> sẽ được lưu trực tiếp vào phiếu nhập lô và cập nhật vào kho hàng.
+                                    </>
+                                )}
                             </Typography>
                         </Box>
                     </Stack>
@@ -4662,7 +5247,18 @@ export const OcrTicketImportDialog = ({
                     </Button>
                     <Button
                         variant="contained"
-                        disabled={wizard.confirming}
+                        disabled={
+                            wizard.confirming ||
+                            !wizard.canConfirmImport ||
+                            importQuantityCheck.isOverCapacity
+                        }
+                        title={
+                            importQuantityCheck.isOverCapacity
+                                ? 'Số vé đã chọn vượt quá số lượng phiếu nhập lô còn có thể nhận.'
+                                : !wizard.canConfirmImport
+                                  ? 'Cần có ít nhất một vé hợp lệ đã chọn và một phiếu nhập lô hợp lệ.'
+                                  : undefined
+                        }
                         startIcon={
                             wizard.confirming ? (
                                 <CircularProgress size={16} color="inherit" />
@@ -4671,8 +5267,14 @@ export const OcrTicketImportDialog = ({
                             )
                         }
                         onClick={async () => {
-                            await wizard.confirmImport();
-                            setOpenFinalConfirmModal(false);
+                            // This is the explicit final confirmation screen. Reaching and
+                            // accepting it acknowledges a legitimate partial batch receipt;
+                            // over-capacity and stale-batch checks remain enforced separately.
+                            const result = await wizard.confirmImport({ acknowledgeShortfall: true });
+                            if (result === 'OK') {
+                                setOpenFinalConfirmModal(false);
+                                await handleImported();
+                            }
                         }}
                         sx={{
                             textTransform: 'none',
@@ -5801,10 +6403,21 @@ export const OcrTicketImportDialog = ({
             <ImportBatchQuickAllocationModal
                 open={allocationOpen}
                 onClose={() => setAllocationOpen(false)}
-                batch={wizard.selectedImportBatch}
+                batch={effectiveSelectedBatch}
                 fileStations={ocrAllocationStations}
                 sourceLabel="Ảnh OCR"
-                onBatchUpdated={wizard.reloadBatches}
+                onBatchUpdated={async (updatedBatch) => {
+                    if (updatedBatch) {
+                        setRefreshedSelectedBatch(updatedBatch);
+                    }
+                    await wizard.reloadBatches();
+                    await loadExistingBatchTickets(updatedBatch);
+                }}
+            />
+            <ImportBatchStateChangedDialog
+                open={wizard.staleImportBatchId != null}
+                importBatchId={wizard.staleImportBatchId}
+                onAcknowledge={wizard.acknowledgeStaleImportBatch}
             />
         </Dialog>
     );

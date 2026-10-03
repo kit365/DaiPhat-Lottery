@@ -38,8 +38,16 @@ const getFileLabel = (url?: string | null, file?: File | null): string => {
     if (file?.name) return file.name;
     if (!url) return 'Tệp';
     try {
-        const path = decodeURIComponent(url.split('?')[0]);
-        return path.split('/').pop() || 'Tệp';
+        const path = decodeURIComponent(url.split('?')[0].split('#')[0]);
+        const segment = path.split('/').pop() || '';
+        if (
+            segment &&
+            !/^(png|jpg|jpeg|webp|gif|svg|bmp|pdf|xlsx|xls|csv|docx|doc|txt)$/i.test(segment) &&
+            !/^\d+x\d+$/i.test(segment)
+        ) {
+            return segment;
+        }
+        return 'Tệp đính kèm';
     } catch {
         return 'Tệp';
     }

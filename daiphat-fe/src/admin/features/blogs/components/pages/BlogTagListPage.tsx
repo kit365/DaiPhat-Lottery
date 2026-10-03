@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
 import {
@@ -58,8 +58,16 @@ export const BlogTagListPage = () => {
         search: search || undefined
     };
     const { data: res, isLoading } = useBlogTagsPaged(params);
-    const tags = res?.recordList || [];
-    const pagination = res?.pagination || { totalRecords: 0 };
+    const tags = useMemo(() => {
+        const anyRes = res as any;
+        if (!anyRes) return [];
+        if (Array.isArray(anyRes.recordList)) return anyRes.recordList;
+        if (Array.isArray(anyRes.data?.recordList)) return anyRes.data.recordList;
+        if (Array.isArray(anyRes.data)) return anyRes.data;
+        if (Array.isArray(anyRes)) return anyRes;
+        return [];
+    }, [res]);
+    const pagination = (res as any)?.pagination || (res as any)?.data?.pagination || { totalRecords: tags.length };
 
     const { mutate: createTag, isPending: isCreating } = useCreateBlogTag();
     const { mutate: updateTag, isPending: isUpdating } = useUpdateBlogTag();
@@ -141,7 +149,7 @@ export const BlogTagListPage = () => {
         }
     };
 
-    const columns: GridColDef[] = [
+    const columns: GridColDef[] = useMemo(() => [
         {
             field: "name",
             headerName: "Tên thẻ",
@@ -189,7 +197,7 @@ export const BlogTagListPage = () => {
                 />
             )
         }] : []),
-    ];
+    ], [showRowActions, canEdit, canDelete]);
 
     return (
         <>

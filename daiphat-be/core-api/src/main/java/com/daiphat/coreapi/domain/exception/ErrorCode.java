@@ -300,6 +300,21 @@ public enum ErrorCode {
             "Bạn đã có phiếu nhập lô chưa hoàn tất cho cùng nhà cung cấp, ngày quay và hình thức nhập. Bạn có thể tiếp tục phiếu hiện tại hoặc tạo phiếu mới cho đợt giao khác.",
             HttpStatus.CONFLICT
     ),
+    IMPORT_BATCH_UNFINISHED_EXISTS(
+            "LT_145",
+            "Đã có phiếu nhập lô chưa hoàn tất cho ngày quay này. Vui lòng hoàn tất hoặc hủy phiếu hiện tại trước khi tạo phiếu mới.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_HAS_IMPORTED_LINE(
+            "LT_146",
+            "Không thể xóa phiếu nhập lô vì đã có dòng được nhập hoàn tất.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_HAS_IMPORTING_LINE(
+            "LT_147",
+            "Vui lòng tạm dừng tất cả dòng đang nhập trước khi xóa phiếu nhập lô.",
+            HttpStatus.CONFLICT
+    ),
     IMPORT_BATCH_DUPLICATE_STATION("LT_076", "Mỗi nhà đài chỉ được khai báo một lần trong cùng phiếu nhập lô.", HttpStatus.BAD_REQUEST),
     LOTTERY_SUPPLIER_NOT_FOUND("LT_077", "Nhà cung cấp không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_SUPPLIER_CODE_DUPLICATE("LT_078", "Mã nhà cung cấp đã tồn tại.", HttpStatus.BAD_REQUEST),
@@ -591,6 +606,11 @@ public enum ErrorCode {
             "LT_135",
             "Nhập vé cần cả cột dãy số và cột sê-ri.",
             HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_SELECTION_STALE(
+            "LT_148",
+            "Phiếu nhập hoặc phân bổ nhà đài đã thay đổi. Vui lòng xem lại trước khi nhập vé.",
+            HttpStatus.CONFLICT
     ),
 
     // Street Agent Profile Errors

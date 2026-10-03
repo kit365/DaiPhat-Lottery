@@ -182,6 +182,20 @@ export const returnBatchColumnsConfig: GridColDef[] = [
             </CellTextCenter>
         ),
     },
+    {
+        field: 'returnedByDisplayName',
+        headerName: 'Người thực hiện',
+        flex: 1.15,
+        minWidth: 160,
+        sortable: true,
+        renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
+            <Box sx={{ display: 'flex', alignItems: 'center', height: '100%', minWidth: 0 }}>
+                <Typography variant="body2" noWrap sx={{ fontWeight: 600, color: '#334155' }}>
+                    {params.row.returnedByDisplayName || params.row.returnedBy || 'Chưa phân công'}
+                </Typography>
+            </Box>
+        ),
+    },
 
     {
         field: 'totalQuantity',

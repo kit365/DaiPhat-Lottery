@@ -691,6 +691,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             tickets.add(ImportBatchLineEntryTicketResponse.builder()
                     .id(ticket.getId())
                     .numbers(ticket.getNumbers())
+                    .priceSnapshot(ticket.getPriceSnapshot())
                     .status(ticket.getStatus() != null ? ticket.getStatus().name() : null)
                     .serials(serialResponses)
                     .build());
@@ -1055,7 +1056,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             );
             returnBatchImportSyncService.refreshOpenPrimarySupplierReturn(
                     refreshedBatch.getSupplierId(),
-                    refreshedBatch.getDrawDate()
+                    refreshedBatch.getDrawDate(),
+                    refreshedBatch.getSupplierSettlementId()
             );
             ticket = getTicketOrThrow(ticket.getId());
             syncStationInventory(ticket.getStationId());

@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useMemo } from 'react';
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import Link from "@/admin/components/navigation/AdminLink";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
@@ -190,14 +191,14 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
         }
     };
 
-    const columns: GridColDef[] = [
+    const columns: GridColDef[] = useMemo(() => [
         {
             field: "title",
             headerName: "Bài viết",
             flex: 1,
             minWidth: 320,
             renderCell: (params) => {
-                const { title, featuredImage, id, _id } = params.row;
+                const { title, featuredImage, id, _id } = params?.row || {};
                 const blogId = _id || id;
                 return (
                     <Box
@@ -209,7 +210,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                             width: "100%",
                         }}>
                         <Avatar
-                            alt={title}
+                            alt={title || ''}
                             src={featuredImage || "https://api-prod-minimal-v700.pages.dev/assets/images/cover/cover-1.webp"}
                             variant="rounded"
                             sx={{
@@ -232,7 +233,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                                     className="hover:underline"
                                     onClick={(e) => {
                                         e.preventDefault();
-                                        router.push(`/${prefixAdmin}/blog/detail/${blogId}`);
+                                        if (blogId) router.push(`/${prefixAdmin}/blog/detail/${blogId}`);
                                     }}
                                 >
                                     {title}
@@ -250,8 +251,8 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
             width: 180,
             valueGetter: (value) => value ? new Date(value) : null,
             renderCell: (params) => {
-                const status = (params.row.status || "").toLowerCase();
-                const scheduleTime = params.row.scheduledAt;
+                const status = (params?.row?.status || "").toLowerCase();
+                const scheduleTime = params?.row?.scheduledAt;
                 const displayValue = status === BLOG_STATUS.SCHEDULED && scheduleTime ? scheduleTime : params.value;
                 if (!displayValue) return null;
                 const dateObj = dayjs(displayValue);
@@ -275,7 +276,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
             headerName: "Trạng thái",
             width: 140,
             renderCell: (params) => {
-                const statusInfo = getStatusColor(params.row.status);
+                const statusInfo = getStatusColor(params?.row?.status);
                 return (
                     <span className="inline-flex items-center justify-center leading-1.5 min-w-[1.5rem] h-[1.5rem] text-[0.75rem] px-[6px] font-[700] rounded-[6px] cursor-default"
                         style={{
@@ -305,7 +306,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                 <AdminRowActionsMenu items={buildBlogMenuItems(params.row)} />
             )
         }] : []),
-    ];
+    ], [showRowActions, canEdit, canDelete, router]);
 
     if (viewMode === 'grid' && (isLoading || blogs.length === 0)) {
         return (

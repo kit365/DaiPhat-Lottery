@@ -7,8 +7,6 @@ import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
-import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
-import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.service.streetagent.LuckySerialTagger;
@@ -18,7 +16,6 @@ import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
-import com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,7 +27,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -60,15 +56,6 @@ class LotteryTicketSerialServiceTest {
     private LuckySerialTagger luckySerialTagger;
 
     @Mock
-    private ImportBatchRepositoryPort importBatchRepositoryPort;
-
-    @Mock
-    private LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
-
-    @Mock
-    private SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
-
-    @Mock
     private TicketSalesCutoffPolicy ticketSalesCutoffPolicy;
 
     private LotteryTicketSerialServicePort lotteryTicketSerialService;
@@ -87,11 +74,7 @@ class LotteryTicketSerialServiceTest {
                 orderRepositoryPort,
                 lotteryTicketSerialIncidentService,
                 luckySerialTagger,
-                importBatchRepositoryPort,
-                lotterySupplierRepositoryPort,
-                intakeWindowPolicy,
-                ticketSalesCutoffPolicy,
-                Clock.systemDefaultZone());
+                ticketSalesCutoffPolicy);
 
         ticketModel = LotteryTicketModel.builder().id(TICKET_ID).numbers("001234").build();
         
@@ -475,7 +458,7 @@ class LotteryTicketSerialServiceTest {
         assertThat(result.getTicketImg()).isEqualTo("url");
     }
 
-    // === reportFault: the shelf must still be open ===
+    // === reportFault: cutoff alone no longer blocks issue reporting ===
 
     /**
      * Cancelling a ticket after its draw date's return sweep has begun would
@@ -483,8 +466,8 @@ class LotteryTicketSerialServiceTest {
      * request is refused before anything is written.
      */
     @Test
-    @DisplayName("[DP-37] reportFault_afterReturnSweep_refused")
-    void reportFault_afterReturnSweep_refused() {
+    @DisplayName("reportFault: past draw date does not block an unlinked inventory serial")
+    void reportFault_afterReturnSweep_allowed() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
                 .id(SERIAL_ID)
                 .ticketId(TICKET_ID)
@@ -493,21 +476,14 @@ class LotteryTicketSerialServiceTest {
                 .status(LotteryTicketSerialStatus.IN_STOCK)
                 .build();
         when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
-        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(true);
-        when(intakeWindowPolicy.ticketChangeLockedMessage(any(), any(), any()))
-                .thenReturn("Đã đến giờ kiểm vé để chuẩn bị trả.");
+        when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         ReportSerialFaultRequest request = new ReportSerialFaultRequest(
                 TicketCondition.VOIDED, LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT,
                 "Hủy vé", null, null, null);
 
-        assertThatThrownBy(() ->
-                lotteryTicketSerialService.reportFault(SERIAL_ID, request, USER_ID))
-                .isInstanceOf(DomainException.class)
-                .hasMessageContaining("giờ kiểm vé");
-
-        // Nothing was written: the refusal happens before any status change.
-        verify(lotteryTicketSerialRepositoryPort, never()).save(any());
+        lotteryTicketSerialService.reportFault(SERIAL_ID, request, USER_ID);
+        verify(lotteryTicketSerialRepositoryPort).save(any());
     }
 
     @Test
@@ -521,7 +497,6 @@ class LotteryTicketSerialServiceTest {
                 .status(LotteryTicketSerialStatus.IN_STOCK)
                 .build();
         when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
-        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
         when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         ReportSerialFaultRequest request = new ReportSerialFaultRequest(
@@ -551,7 +526,6 @@ class LotteryTicketSerialServiceTest {
     void reportFault_goodInStockBeforeCutOff_cancelled() {
         LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD);
         when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
-        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
         when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
@@ -563,19 +537,15 @@ class LotteryTicketSerialServiceTest {
     }
 
     @Test
-    @DisplayName("reportFault: after cut-off (or past draw date) → rejected, nothing written")
-    void reportFault_afterCutOff_rejected() {
+    @DisplayName("reportFault: old draw date does not override serial eligibility")
+    void reportFault_afterCutOff_allowed() {
         LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD);
         when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
-        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(true);
-        when(intakeWindowPolicy.ticketChangeLockedMessage(any(), any(), any())).thenReturn("Đã khóa");
-
-        assertThatThrownBy(() -> lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
+        when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
+        lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
                 TicketCondition.DAMAGED, LotteryTicketSerialFaultedBy.INTERNAL_FAULT,
-                "Rách góc", null, null, null), USER_ID))
-                .isInstanceOf(DomainException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_CANCEL_WINDOW_CLOSED);
-        verify(lotteryTicketSerialRepositoryPort, never()).save(any());
+                "Rách góc", null, null, null), USER_ID);
+        verify(lotteryTicketSerialRepositoryPort).save(any());
     }
 
     @Test
@@ -583,7 +553,6 @@ class LotteryTicketSerialServiceTest {
     void reportFault_soldSerial_rejected() {
         LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.SOLD, TicketCondition.GOOD);
         when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
-        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
 
         assertThatThrownBy(() -> lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
                 TicketCondition.DAMAGED, LotteryTicketSerialFaultedBy.INTERNAL_FAULT,
@@ -599,7 +568,6 @@ class LotteryTicketSerialServiceTest {
         for (TicketCondition condition : List.of(TicketCondition.DAMAGED, TicketCondition.LOST, TicketCondition.VOIDED)) {
             LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, condition);
             when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
-            when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
 
             assertThatThrownBy(() -> lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
                     TicketCondition.VOIDED, LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT,
@@ -613,9 +581,7 @@ class LotteryTicketSerialServiceTest {
     }
 
     /**
-     * Serials are only attached to a return batch line inside the inspection window,
-     * which is exactly when {@link SupplierTicketIntakeWindowPolicy#isTicketChangeLocked}
-     * closes the shelf, so a return-linked serial is refused by the cut-off guard.
+     * A serial already assigned to a return line remains ineligible independent of time.
      */
     @Test
     @DisplayName("reportFault: serial already in a return batch (sweep started) → rejected")
@@ -623,14 +589,97 @@ class LotteryTicketSerialServiceTest {
         LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD);
         serial.setReturnBatchLineId(55L);
         when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
-        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(true);
-        when(intakeWindowPolicy.ticketChangeLockedMessage(any(), any(), any())).thenReturn("Đã khóa");
 
         assertThatThrownBy(() -> lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
                 TicketCondition.VOIDED, LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT,
                 "Hủy vé", null, null, null), USER_ID))
                 .isInstanceOf(DomainException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_CANCEL_WINDOW_CLOSED);
+                .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        verify(lotteryTicketSerialRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("return discrepancy: linked GOOD serial is cancelled and keeps its return audit link")
+    void reportReturnDiscrepancyFault_linkedGoodSerial_cancelled() {
+        LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD);
+        serial.setReturnBatchLineId(55L);
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+        when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        lotteryTicketSerialService.reportReturnDiscrepancyFault(
+                SERIAL_ID,
+                new ReportSerialFaultRequest(
+                        TicketCondition.LOST,
+                        LotteryTicketSerialFaultedBy.LOST_DURING_RETURN,
+                        "Mất trong quá trình trả",
+                        null,
+                        null,
+                        null
+                ),
+                USER_ID
+        );
+
+        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.CANCELLED);
+        assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.LOST);
+        assertThat(serial.getReturnBatchLineId()).isEqualTo(55L);
+        verify(lotteryTicketSerialRepositoryPort).save(serial);
+        verify(lotteryTicketSerialIncidentService).handleAfterFaultReported(
+                eq(serial),
+                eq(LotteryTicketSerialStatus.IN_STOCK),
+                isNull(),
+                isNull(),
+                any(ReportSerialFaultRequest.class),
+                eq(USER_ID)
+        );
+    }
+
+    @Test
+    @DisplayName("return discrepancy: linked expired GOOD serial can be recorded as damaged")
+    void reportReturnDiscrepancyFault_linkedExpiredSerial_cancelled() {
+        LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.EXPIRED, TicketCondition.GOOD);
+        serial.setReturnBatchLineId(55L);
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+        when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        lotteryTicketSerialService.reportReturnDiscrepancyFault(
+                SERIAL_ID,
+                new ReportSerialFaultRequest(
+                        TicketCondition.DAMAGED,
+                        LotteryTicketSerialFaultedBy.LOST_DURING_RETURN,
+                        "Rách khi bàn giao",
+                        "evidence.jpg",
+                        null,
+                        null
+                ),
+                USER_ID
+        );
+
+        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.CANCELLED);
+        assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.DAMAGED);
+        assertThat(serial.getDamagedEvidenceUrl()).isEqualTo("evidence.jpg");
+        assertThat(serial.getReturnBatchLineId()).isEqualTo(55L);
+    }
+
+    @Test
+    @DisplayName("return discrepancy: unlinked serial is rejected")
+    void reportReturnDiscrepancyFault_unlinkedSerial_rejected() {
+        LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD);
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+
+        assertThatThrownBy(() -> lotteryTicketSerialService.reportReturnDiscrepancyFault(
+                SERIAL_ID,
+                new ReportSerialFaultRequest(
+                        TicketCondition.LOST,
+                        LotteryTicketSerialFaultedBy.LOST_DURING_RETURN,
+                        "Mất trong quá trình trả",
+                        null,
+                        null,
+                        null
+                ),
+                USER_ID
+        ))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         verify(lotteryTicketSerialRepositoryPort, never()).save(any());
     }
 

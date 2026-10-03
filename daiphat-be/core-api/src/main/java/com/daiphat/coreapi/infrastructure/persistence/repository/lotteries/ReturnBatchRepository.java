@@ -5,10 +5,12 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -53,6 +55,30 @@ public interface ReturnBatchRepository
             WHERE rb.status IN :statuses AND rb.deletedAt IS NULL
             """)
     List<ReturnBatchEntity> findByStatusInAndDeletedAtIsNull(@Param("statuses") Collection<ReturnBatchStatus> statuses);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE return_batches rb SET status = 'NOT_OPEN', updated_at = :now
+            FROM lottery_suppliers s
+            WHERE rb.lottery_supplier_id = s.id AND rb.deleted_at IS NULL
+              AND rb.return_batch_type = 'SUPPLIER_RETURN' AND rb.status = 'PENDING_INSPECTION'
+              AND :now < CASE WHEN :bufferMinutes <= 0 THEN rb.draw_date + time '00:00'
+                  ELSE rb.draw_date + s.return_cut_off_time - (:bufferMinutes * interval '1 minute') END
+            """, nativeQuery = true)
+    int markNotOpenBeforeInspectionWindow(@Param("now") LocalDateTime now,
+                                          @Param("bufferMinutes") int bufferMinutes);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE return_batches rb SET status = 'PENDING_INSPECTION', updated_at = :now
+            FROM lottery_suppliers s
+            WHERE rb.lottery_supplier_id = s.id AND rb.deleted_at IS NULL
+              AND rb.return_batch_type = 'SUPPLIER_RETURN' AND rb.status = 'NOT_OPEN'
+              AND :now >= CASE WHEN :bufferMinutes <= 0 THEN rb.draw_date + time '00:00'
+                  ELSE rb.draw_date + s.return_cut_off_time - (:bufferMinutes * interval '1 minute') END
+            """, nativeQuery = true)
+    int markPendingWhenInspectionWindowOpens(@Param("now") LocalDateTime now,
+                                             @Param("bufferMinutes") int bufferMinutes);
 
     @Query("""
             SELECT DISTINCT rb FROM ReturnBatchEntity rb

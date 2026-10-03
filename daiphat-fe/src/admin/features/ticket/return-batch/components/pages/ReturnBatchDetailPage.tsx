@@ -73,6 +73,7 @@ import {
 } from '../../utils/returnBatchLabels';
 import { RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE } from '../../types/returnBatch.type';
 import { ReturnBatchTicketsModal } from '../sections/ReturnBatchTicketsModal';
+import { useSupplierSettlementOverview } from '../../../supplier-settlement/hooks/useSupplierSettlement';
 
 const InfoItem = ({
     label,
@@ -127,6 +128,7 @@ export const ReturnBatchDetailPage = () => {
     const router = useAdminRouter();
     const { id } = useRouteParams();
     const { data: batch, isLoading, isError, refetch } = useReturnBatchDetail(id);
+    const { data: settlementOverview } = useSupplierSettlementOverview(batch?.supplierSettlementId);
     const confirmHandover = useConfirmReturnHandover();
     const startInspection = useStartReturnInspection();
     const [ticketsModalOpen, setTicketsModalOpen] = useState(false);
@@ -191,7 +193,8 @@ export const ReturnBatchDetailPage = () => {
     const showInspectButton =
         !batch.inspectionExpired &&
         batch.status !== 'CANCELLED' &&
-        (batch.status === 'PENDING_INSPECTION' ||
+        (batch.status === 'NOT_OPEN' ||
+            batch.status === 'PENDING_INSPECTION' ||
             batch.status === 'INSPECTING' ||
             (batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0));
     const canInspectTickets = showInspectButton && Boolean(batch.inInspectionWindow);
@@ -318,7 +321,7 @@ export const ReturnBatchDetailPage = () => {
                             <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                                 <Button
                                     label={
-                                        batch.status === 'INSPECTING' || remainingInspectable > 0
+                                        batch.status === 'INSPECTING'
                                             ? 'Tiến hành kiểm tra (Tiếp tục)'
                                             : 'Tiến hành kiểm tra'
                                     }
@@ -486,12 +489,6 @@ export const ReturnBatchDetailPage = () => {
                                     />
                                 )}
                             </Stack>
-
-                            <Typography variant="body2" color="#475569" sx={{ fontSize: '0.825rem', lineHeight: 1.5 }}>
-                                {batch.returnBufferMinutes === 0
-                                    ? 'Thời gian đệm trả vé = 0 nên cửa sổ kiểm tra mở từ đầu ngày quay đến trước hạn trả NCC. Hệ thống sẽ kích hoạt nút kiểm tra khi đến khung giờ cho phép.'
-                                    : 'Hệ thống đang chờ đến mốc thời gian đệm trả vé. Nút "Tiến hành kiểm tra" tạm khóa và sẽ được mở khi đến giờ chuẩn bị / kiểm tra vé trả.'}
-                            </Typography>
                         </Box>
                     </Stack>
 
@@ -696,12 +693,8 @@ export const ReturnBatchDetailPage = () => {
                                         }
                                     />
                                     <InfoItem
-                                        label="Phiếu phân bổ nguồn"
-                                        value={
-                                            batch.sourceAllocationBatchId != null
-                                                ? `#${batch.sourceAllocationBatchId}`
-                                                : '—'
-                                        }
+                                        label="Người thực hiện"
+                                        value={batch.returnedByDisplayName || batch.returnedBy || 'Chưa phân công'}
                                     />
                                     <InfoItem
                                         label="Nhà cung cấp"
@@ -794,6 +787,14 @@ export const ReturnBatchDetailPage = () => {
                                             batch.confirmedAt
                                                 ? dayjs(batch.confirmedAt).format('DD/MM/YYYY HH:mm')
                                                 : 'Chưa xác nhận'
+                                        }
+                                    />
+                                    <InfoItem
+                                        label="Người thanh toán"
+                                        value={
+                                            settlementOverview?.settlement?.completedByDisplayName ||
+                                            settlementOverview?.settlement?.completedBy ||
+                                            'Chưa thanh toán'
                                         }
                                     />
                                     <InfoItem
@@ -1270,11 +1271,6 @@ export const ReturnBatchDetailPage = () => {
                             {!returnEvidenceFile && !isEvidenceUploading && !evidenceUploadError && (
                                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
                                     Bắt buộc chọn ảnh bằng chứng trước khi xác nhận bàn giao.
-                                </Typography>
-                            )}
-                            {evidenceUploadError && (
-                                <Typography variant="caption" color="error" sx={{ mt: 0.75, display: 'block' }}>
-                                    {evidenceUploadError}
                                 </Typography>
                             )}
                         </Box>

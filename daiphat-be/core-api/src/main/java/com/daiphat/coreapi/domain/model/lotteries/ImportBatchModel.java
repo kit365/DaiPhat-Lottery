@@ -189,6 +189,10 @@ public class ImportBatchModel {
         if (!isEditable()) {
             return;
         }
+        if (areAllActiveLinesCancelled()) {
+            markCancelled(now, ImportBatchCancelReason.ALL_LINES_CANCELLED);
+            return;
+        }
         if (areAllLinesImported()) {
             markImported(now);
             return;
@@ -199,10 +203,11 @@ public class ImportBatchModel {
             return;
         }
 
-        boolean hasAnyImport = getActiveLines().stream()
+        boolean hasAnyImport = getNonCancelledActiveLines().stream()
                 .anyMatch(line -> line.getTotalQuantity() != null && line.getTotalQuantity() > 0);
         if (hasAnyImport) {
-            markReceiving(now);
+            this.status = ImportBatchStatus.RECEIVING;
+            this.updatedAt = now;
         } else if (status == ImportBatchStatus.RECEIVING || status == ImportBatchStatus.PARTIALLY_IMPORTED) {
             this.status = ImportBatchStatus.DRAFT;
             this.updatedAt = now;

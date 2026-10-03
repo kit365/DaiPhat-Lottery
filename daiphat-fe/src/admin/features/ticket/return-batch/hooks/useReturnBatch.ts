@@ -8,6 +8,7 @@ import {
     confirmReturnInspection,
     detachReturnSerial,
     getInspectableReturnSerials,
+    getInspectableReturnTickets,
     getReturnBatchById,
     getReturnBatches,
     startReturnInspection,
@@ -17,6 +18,7 @@ import type {
     AttachReturnSerialsPayload,
     ConfirmReturnHandoverPayload,
     ConfirmReturnInspectionPayload,
+    InspectableReturnTicketParams,
     ReturnBatchLineStatus,
     ReturnBatchListParams,
     ReturnBatchStatus,
@@ -60,6 +62,27 @@ export const useInspectableReturnSerials = (batchId?: string | number, enabled =
         enabled: !!normalizedId && enabled,
         select: (res) => res.data ?? [],
         staleTime: 0,
+    });
+};
+
+export const useInspectableReturnTickets = (
+    batchId?: string | number,
+    params?: InspectableReturnTicketParams,
+    enabled = false
+) => {
+    const normalizedId =
+        batchId !== undefined && batchId !== null && String(batchId).trim() !== ''
+            ? String(batchId)
+            : undefined;
+
+    return useQuery({
+        queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, normalizedId, 'inspectable-tickets', params],
+        queryFn: () => getInspectableReturnTickets(normalizedId!, params),
+        enabled: !!normalizedId && enabled,
+        select: (res) => res.data,
+        placeholderData: keepPreviousData,
+        staleTime: 0,
+        retry: false,
     });
 };
 
@@ -198,8 +221,9 @@ export const useReturnBatchList = () => {
 
     const { data, isLoading, error } = useReturnBatches(queryParams, {
         placeholderData: keepPreviousData,
-        // List polling every 30s was amplifying a heavy BE path; refresh on focus/mount is enough.
-        staleTime: 15_000,
+        // Opening the list must re-query so time-driven NOT_OPEN/PENDING_INSPECTION is current.
+        staleTime: 0,
+        refetchOnMount: 'always',
         refetchOnWindowFocus: true,
     });
 
