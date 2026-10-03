@@ -37,12 +37,26 @@ const AdminBadgeCountsContext = createContext<AdminBadgeCountsContextValue>({
     refresh: () => undefined,
 });
 
+const isStaffUser = (user: unknown): boolean => {
+    if (!user || typeof user !== "object") return false;
+    const u = user as { role?: unknown; rolesName?: string[] };
+    const rawRole = typeof u.role === "string" ? u.role : (u.role as { code?: string } | undefined)?.code || "";
+    const normalized = rawRole.startsWith("ROLE_") ? rawRole : `ROLE_${rawRole}`;
+    return (
+        normalized === "ROLE_ADMIN" ||
+        normalized === "ROLE_SUPER_ADMIN" ||
+        normalized === "ROLE_STAFF_OPERATOR" ||
+        u.rolesName?.includes("ROLE_ADMIN") === true ||
+        u.rolesName?.includes("ROLE_STAFF_OPERATOR") === true
+    );
+};
+
 export const useAdminBadgeCounts = () => useContext(AdminBadgeCountsContext);
 
 function useAdminBadgeCountsQuery() {
     const { user, token } = useAuthStore();
     const deferred = useAdminDeferredQueries();
-    const enabled = Boolean(token) && Boolean(user) && deferred;
+    const enabled = Boolean(token) && Boolean(user) && isStaffUser(user) && deferred;
 
     return useQuery({
         queryKey: [QUERY_KEYS.ADMIN_BADGES],
@@ -70,7 +84,7 @@ function useAdminBadgeSocketRefresh(refresh: () => void) {
     const { connect, socketService } = useWebSocket();
 
     useEffect(() => {
-        if (!token || !user || !deferred) {
+        if (!token || !user || !isStaffUser(user) || !deferred) {
             return;
         }
 

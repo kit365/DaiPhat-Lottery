@@ -216,7 +216,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                                 .existsByStation_IdAndDrawDateAndDeletedAtIsNull(station.getId(), plan.drawDate()))
                         .toList();
             }
-            if (!rebuildDemo && plan.pastWindow()) {
+            if ((!rebuildDemo || dailyOnly) && plan.pastWindow()) {
                 stations = stations.stream().limit(plan.ticketBudget()).toList();
             }
             if (stations.isEmpty()) {
@@ -250,7 +250,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             int importedQty = 0;
             int batchTickets = 0;
             BigDecimal importedCost = BigDecimal.ZERO;
-            int[] ticketsByStation = !rebuildDemo && plan.pastWindow()
+            int[] ticketsByStation = (!rebuildDemo || dailyOnly) && plan.pastWindow()
                     ? distributeWinningTickets(stations.size(), plan.ticketBudget())
                     : distributeTickets(stations.size(), plan.ticketBudget());
             for (int stationIndex = 0; stationIndex < batch.getLines().size(); stationIndex++) {
@@ -314,6 +314,16 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             for (LocalDate date : List.of(today, today.plusDays(1))) {
                 plans.add(new BatchPlan(date, ImportBatchType.NEW, ImportBatchImportMode.IN_DAY,
                         "SEED-NEW-" + date, resolveImportedAt(date, today, now), 50, false));
+            }
+            if (winningSeedEnabled && (rebuildOrders || rebuildDemo)
+                    && !winningSeedSupport.missingOrderPlans(officialDemoEnabled).isEmpty()) {
+                int[] budgets = officialDemoEnabled ? new int[]{18, 18, 14}
+                        : new int[]{Win50PayoutSeedCatalog.TARGET_WINNERS};
+                for (int index = 0; index < budgets.length; index++) {
+                    LocalDate date = today.minusDays(index + 1L);
+                    plans.add(new BatchPlan(date, ImportBatchType.NEW, ImportBatchImportMode.IN_DAY,
+                            "SEED-WINNERS-" + date, date.atTime(8, 0), budgets[index], true));
+                }
             }
             return plans;
         }
@@ -608,7 +618,8 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                 .totalImportedCostValue(BigDecimal.ZERO)
                 .submittedAt(importedAt)
                 .completedAt(officialDemoEnabled ? eventTime(importedAt, now, 30) : importedAt.plusMinutes(30))
-                .note(SeedDocumentCodes.importNote("MAIN-" + plan.batchType().name(), plan.drawDate()))
+                .note(SeedDocumentCodes.importNote(dailyOnly && plan.pastWindow()
+                        ? "MAIN-WINNERS" : "MAIN-" + plan.batchType().name(), plan.drawDate()))
                 .createdAt(importedAt)
                 .updatedAt(now)
                 .createdBy(SYSTEM_ACTOR)
@@ -660,7 +671,8 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             int ticketCount,
             Map<String, Integer> numberCursorByStationDate
     ) {
-        int serialCount = officialDemoEnabled && rebuildDemo && !dailyOnly ? 10 : Math.max(serialsPerTicket, 1);
+        int serialCount = dailyOnly && plan.pastWindow() ? 1
+                : officialDemoEnabled && rebuildDemo && !dailyOnly ? 10 : Math.max(serialsPerTicket, 1);
         boolean pastDraw = isPastDraw(station, plan.drawDate(), now);
         boolean futureDraw = plan.drawDate().isAfter(now.toLocalDate());
         List<SeedTicketScenario> scenarioCycle = !rebuildDemo || dailyOnly || officialDemoEnabled
@@ -684,7 +696,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                     (key, current) -> current == null ? NUMBER_CURSOR_START : current + 1
             );
             String numbers = String.format("%06d", Math.floorMod(numberValue, 1_000_000));
-            while (!rebuildDemo && lotteryTicketRepository.existsByStation_IdAndNumbersAndDrawDate(
+            while ((!rebuildDemo || dailyOnly) && lotteryTicketRepository.existsByStation_IdAndNumbersAndDrawDate(
                     station.getId(), numbers, plan.drawDate())) {
                 numbers = String.format("%06d", Math.floorMod(++numberValue, 1_000_000));
             }

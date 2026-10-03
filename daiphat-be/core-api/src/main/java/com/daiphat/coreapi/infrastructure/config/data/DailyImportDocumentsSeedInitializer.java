@@ -34,7 +34,9 @@ public class DailyImportDocumentsSeedInitializer implements ApplicationRunner {
         LocalDate today = LocalDate.now(clock);
         for (var batch : importBatchRepository.findByNoteStartingWithAndDeletedAtIsNull(
                 SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN")) {
-            if ((!today.equals(batch.getDrawDate()) && !today.plusDays(1).equals(batch.getDrawDate()))
+            if ((!today.equals(batch.getDrawDate()) && !today.plusDays(1).equals(batch.getDrawDate())
+                    && (batch.getNote() == null || !batch.getNote().startsWith(
+                            SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN-WINNERS")))
                     || batch.getSupplier() == null
                     || batch.getStatus() == com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.CANCELLED) {
                 continue;

@@ -1,7 +1,8 @@
 "use client";
 
 import { ThemeProvider } from "@mui/material/styles";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import { SideBar } from "../components/layouts/sidebar/SideBar";
 import { Header } from "../components/layouts/Header";
@@ -18,12 +19,45 @@ import { SpinnerLoading } from "../components/ui/SpinnerLoading";
 import { useAdminLoginSuccessToast } from "../features/auth/hooks/useAdminLoginSuccessToast";
 import { usePrefetchAdminPagesWhenIdle } from "../hooks/usePrefetchAdminPagesWhenIdle";
 import { useAuthStore } from "../../stores/useAuthStore";
+import { resolveRoleCode } from "../utils/permission.util";
+import { USER_ROLES } from "../../constants/role.constants";
+
+const isStaffUser = (user: unknown): boolean => {
+    if (!user || typeof user !== "object") return false;
+    const u = user as { role?: unknown; rolesName?: string[] };
+    const rawRole = typeof u.role === "string" ? u.role : (u.role as { code?: string } | undefined)?.code || "";
+    const normalized = rawRole.startsWith("ROLE_") ? rawRole : `ROLE_${rawRole}`;
+    return (
+        normalized === USER_ROLES.ADMIN ||
+        normalized === "ROLE_SUPER_ADMIN" ||
+        normalized === USER_ROLES.STAFF_OPERATOR ||
+        u.rolesName?.includes("ROLE_ADMIN") === true ||
+        u.rolesName?.includes("ROLE_STAFF_OPERATOR") === true
+    );
+};
 
 const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
-    const { user, token } = useAuthStore();
+    const router = useRouter();
+    const { user, token, isHydrated } = useAuthStore();
     const { isOpen } = useSidebar();
+    const isStaff = isStaffUser(user);
+
+    useEffect(() => {
+        if (isHydrated && user && !isStaff) {
+            router.replace('/');
+        }
+    }, [isHydrated, user, isStaff, router]);
+
     useAdminLoginSuccessToast();
-    usePrefetchAdminPagesWhenIdle(!!user && !!token);
+    usePrefetchAdminPagesWhenIdle(!!user && !!token && isStaff);
+
+    if (user && !isStaff) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-slate-50">
+                <SpinnerLoading message="Bạn không có quyền truy cập trang quản trị. Đang chuyển hướng..." minHeight={360} />
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen bg-white overflow-x-hidden w-full max-w-full">
@@ -60,3 +94,4 @@ export const LayoutAdmin = ({ children }: { children?: React.ReactNode }) => {
         </PageNavigationProvider>
     );
 };
+
