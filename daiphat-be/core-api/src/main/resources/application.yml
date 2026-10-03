@@ -173,6 +173,8 @@ daiphat:
         # Local profile enables create (+ overwrite when configured).
         enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:false}
         overwrite-existing: ${LOTTERY_SEED_SOUTHERN_STATIONS_OVERWRITE:false}
+      # Daily UAT inventory: one import per date, with matching return and settlement.
+      daily-only: ${LOTTERY_SEED_DAILY_ONLY:true}
       past-days: ${LOTTERY_SEED_PAST_DAYS:30}
       tickets-per-batch-past: ${LOTTERY_SEED_TICKETS_PER_BATCH_PAST:36}
       win50-payout:

@@ -66,9 +66,13 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
     private final SupplierSettlementRepository supplierSettlementRepository;
     private final SupplierSettlementAdjustmentRepository supplierSettlementAdjustmentRepository;
 
+    @Value("${daiphat.lottery.seed.daily-only:true}")
+    private boolean dailyOnly;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (dailyOnly) return;
         if (!rebuildDemo) return;
         Set<Long> settlementIds = new LinkedHashSet<>();
         int removedReturns = removeLegacyReturns(settlementIds);

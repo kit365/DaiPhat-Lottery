@@ -77,9 +77,13 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
     @Value("${daiphat.official-demo.seed.enabled:false}")
     private boolean officialDemoEnabled;
 
+    @Value("${daiphat.lottery.seed.daily-only:true}")
+    private boolean dailyOnly;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (dailyOnly) return;
         if (!rebuildDemo) return;
         LocalDateTime now = LocalDateTime.now(clock);
 

@@ -22,9 +22,13 @@ public class OfficialDemoPreCleanupSeedInitializer implements ApplicationRunner 
     private final OfficialDemoAfterSalesSeedInitializer afterSales;
     private final OfficialDemoOrderSeedInitializer orders;
 
+    @Value("${daiphat.lottery.seed.daily-only:true}")
+    private boolean dailyOnly;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (dailyOnly) return;
         if (!rebuildDemo) return;
         afterSales.clearPreviousAfterSales();
         orders.clearPreviousOrders();

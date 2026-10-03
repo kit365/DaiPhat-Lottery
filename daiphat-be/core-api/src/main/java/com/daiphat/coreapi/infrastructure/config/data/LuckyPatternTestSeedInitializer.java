@@ -109,8 +109,12 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
         this.seedSupplierSupport = seedSupplierSupport;
     }
 
+    @Value("${daiphat.lottery.seed.daily-only:true}")
+    private boolean dailyOnly;
+
     @Override
     public void run(ApplicationArguments args) {
+        if (dailyOnly) return;
         if (!rebuildDemo) return;
         if (officialDemoEnabled) {
             log.info("Skipping legacy lucky-pattern test inventory in official demo mode.");
