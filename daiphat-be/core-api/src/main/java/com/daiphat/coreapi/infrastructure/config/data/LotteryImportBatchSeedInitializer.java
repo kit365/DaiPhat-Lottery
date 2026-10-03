@@ -131,6 +131,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     private final LotterySerialSeedCleanup lotterySerialSeedCleanup;
     private final SeedAccountResolver seedAccountResolver;
     private final SeedSupplierSupport seedSupplierSupport;
+    private final Win50PayoutSeedSupport winningSeedSupport;
     private final Clock clock;
 
     @Value("${daiphat.lottery.seed.tickets-per-batch:150}")
@@ -152,6 +153,12 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
     @Value("${daiphat.lottery.seed.rebuild-demo:false}")
     private boolean rebuildDemo;
+
+    @Value("${daiphat.order.seed.rebuild-demo:false}")
+    private boolean rebuildOrders;
+
+    @Value("${daiphat.lottery.seed.win50-payout.enabled:false}")
+    private boolean winningSeedEnabled;
 
     @Override
     @Transactional
@@ -193,11 +200,14 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                 throw new IllegalStateException("Missing official-demo staff for " + plan.drawDate());
             }
             List<LotteryStationEntity> stations = findIssuersForDrawDate(plan.drawDate());
-            if (!rebuildDemo) {
+            if (!rebuildDemo && !plan.pastWindow()) {
                 stations = stations.stream()
                         .filter(station -> !lotteryTicketRepository
                                 .existsByStation_IdAndDrawDateAndDeletedAtIsNull(station.getId(), plan.drawDate()))
                         .toList();
+            }
+            if (!rebuildDemo && plan.pastWindow()) {
+                stations = stations.stream().limit(plan.ticketBudget()).toList();
             }
             if (stations.isEmpty()) {
                 log.info(
@@ -230,7 +240,9 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             int importedQty = 0;
             int batchTickets = 0;
             BigDecimal importedCost = BigDecimal.ZERO;
-            int[] ticketsByStation = distributeTickets(stations.size(), plan.ticketBudget());
+            int[] ticketsByStation = !rebuildDemo && plan.pastWindow()
+                    ? distributeWinningTickets(stations.size(), plan.ticketBudget())
+                    : distributeTickets(stations.size(), plan.ticketBudget());
             for (int stationIndex = 0; stationIndex < batch.getLines().size(); stationIndex++) {
                 ImportBatchLineEntity line = batch.getLines().get(stationIndex);
                 LotteryStationEntity station = line.getLotteryStation();
@@ -289,6 +301,19 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     private List<BatchPlan> buildBatchPlans(LocalDate today, LocalDateTime now) {
         List<BatchPlan> plans = new ArrayList<>();
         if (!rebuildDemo) {
+            if (rebuildOrders && winningSeedEnabled) {
+                int required = winningSeedSupport.missingOrderPlans(officialDemoEnabled).stream()
+                        .mapToInt(Win50PayoutSeedCatalog.OrderPlan::slots).sum();
+                LocalDate yesterday = today.minusDays(1);
+                int available = required == 0 ? 0 : winningSeedSupport.loadClaimableInventory(
+                        officialDemoEnabled, officialDemoEnabled ? yesterday : today.minusDays(30), yesterday).size();
+                if (available < required) {
+                    int missing = required - available;
+                    plans.add(new BatchPlan(yesterday, ImportBatchType.NEW, ImportBatchImportMode.IN_DAY,
+                            "SEED-WINNERS-" + yesterday, yesterday.atTime(8, 0), missing, true));
+                    log.info("Adding {} missing historical ticket numbers for winning-order demo; existing inventory is preserved.", missing);
+                }
+            }
             for (LocalDate date : List.of(today, today.plusDays(1))) {
                 plans.add(new BatchPlan(date, ImportBatchType.NEW, ImportBatchImportMode.IN_DAY,
                         "SEED-NEW-" + date, resolveImportedAt(date, today, now), 50, false));
@@ -373,6 +398,14 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             return candidate;
         }
         return now.minusMinutes(20);
+    }
+
+    private int[] distributeWinningTickets(int stationCount, int ticketBudget) {
+        int[] counts = new int[stationCount];
+        for (int i = 0; i < stationCount; i++) {
+            counts[i] = ticketBudget / stationCount + (i < ticketBudget % stationCount ? 1 : 0);
+        }
+        return counts;
     }
 
     private int[] distributeTickets(int stationCount, int ticketBudget) {
