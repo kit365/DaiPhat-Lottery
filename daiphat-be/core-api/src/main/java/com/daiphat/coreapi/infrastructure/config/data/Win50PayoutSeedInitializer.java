@@ -7,7 +7,6 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
-import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
@@ -29,7 +28,6 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryResultDetailRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryResultRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
-import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.PrizeStructureRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepository;
@@ -81,23 +79,16 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
     @Value("${daiphat.lottery.seed.rebuild-demo:false}")
     private boolean rebuildDemo;
 
+    @Value("${daiphat.order.seed.rebuild-demo:false}")
+    private boolean rebuildOrders;
+
     private static final BigDecimal TICKET_PRICE = BigDecimal.valueOf(10_000);
     private static final int MAX_LOOKBACK_DAYS = 30;
     private static final int MAX_RESULT_DRAWS = 6;
     private static final int MAX_RESULT_SYNC_ATTEMPTS = 12;
-    private static final List<Win50PayoutSeedCatalog.OrderPlan> OFFICIAL_ORDER_PLANS = List.of(
-            new Win50PayoutSeedCatalog.OrderPlan(1, 9, 0, 9),
-            new Win50PayoutSeedCatalog.OrderPlan(2, 9, 9, 18),
-            new Win50PayoutSeedCatalog.OrderPlan(3, 9, 18, 27),
-            new Win50PayoutSeedCatalog.OrderPlan(4, 9, 27, 36),
-            new Win50PayoutSeedCatalog.OrderPlan(5, 7, 36, 43),
-            new Win50PayoutSeedCatalog.OrderPlan(6, 7, 43, 50)
-    );
-
     private final SeedAccountResolver seedAccountResolver;
     private final LotteryTicketRepository lotteryTicketRepository;
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
-    private final ImportBatchRepository importBatchRepository;
     private final LotteryResultRepository lotteryResultRepository;
     private final LotteryResultDetailRepository lotteryResultDetailRepository;
     private final PrizeStructureRepository prizeStructureRepository;
@@ -106,6 +97,7 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
     private final LotteryResultServicePort lotteryResultServicePort;
     private final TransactionTemplate transaction;
     private final VietnamClock vietnamClock;
+    private final Win50PayoutSeedSupport seedSupport;
 
     @Value("${daiphat.official-demo.seed.enabled:false}")
     private boolean officialDemoEnabled;
@@ -114,7 +106,6 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
             SeedAccountResolver seedAccountResolver,
             LotteryTicketRepository lotteryTicketRepository,
             LotteryTicketSerialRepository lotteryTicketSerialRepository,
-            ImportBatchRepository importBatchRepository,
             LotteryResultRepository lotteryResultRepository,
             LotteryResultDetailRepository lotteryResultDetailRepository,
             PrizeStructureRepository prizeStructureRepository,
@@ -122,12 +113,12 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
             LotterySerialSeedCleanup lotterySerialSeedCleanup,
             LotteryResultServicePort lotteryResultServicePort,
             PlatformTransactionManager transactionManager,
-            VietnamClock vietnamClock
+            VietnamClock vietnamClock,
+            Win50PayoutSeedSupport seedSupport
     ) {
         this.seedAccountResolver = seedAccountResolver;
         this.lotteryTicketRepository = lotteryTicketRepository;
         this.lotteryTicketSerialRepository = lotteryTicketSerialRepository;
-        this.importBatchRepository = importBatchRepository;
         this.lotteryResultRepository = lotteryResultRepository;
         this.lotteryResultDetailRepository = lotteryResultDetailRepository;
         this.prizeStructureRepository = prizeStructureRepository;
@@ -136,11 +127,12 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
         this.lotteryResultServicePort = lotteryResultServicePort;
         this.transaction = new TransactionTemplate(transactionManager);
         this.vietnamClock = vietnamClock;
+        this.seedSupport = seedSupport;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!rebuildDemo) return;
+        if (!rebuildDemo && !rebuildOrders) return;
         List<Win50PayoutSeedCatalog.DrawResultKey> candidateDraws = transaction.execute(status -> prepareOverlay());
         if (candidateDraws == null || candidateDraws.isEmpty()) {
             return;
@@ -175,15 +167,22 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
             return List.of();
         }
 
-        LocalDateTime now = vietnamClock.now();
-        resetPreviousOverlay(now);
-        releaseFakeResults(now);
-
+        if (rebuildDemo) {
+            LocalDateTime now = vietnamClock.now();
+            resetPreviousOverlay(now);
+            releaseFakeResults(now);
+        }
+        List<Win50PayoutSeedCatalog.OrderPlan> missingPlans = seedSupport.missingOrderPlans(officialDemoEnabled);
+        if (missingPlans.isEmpty()) {
+            log.info("Win50 payout seed: all winning orders already exist; preserving orders and payout progress.");
+            return List.of();
+        }
+        int requiredWinners = missingPlans.stream().mapToInt(Win50PayoutSeedCatalog.OrderPlan::slots).sum();
         List<LotteryTicketSerialEntity> pool = loadClaimableInventory();
-        if (pool.size() < targetWinners()) {
+        if (pool.size() < requiredWinners) {
             log.warn(
-                    "Skip win50-payout seed: need ≥{} claimable (EXPIRED/IN_STOCK) IBSEED serials in past ≤{} days, found {}.",
-                    targetWinners(),
+                    "Skip win50-payout seed: need {} unclaimed demo ticket numbers in past ≤{} days, found {}.",
+                    requiredWinners,
                     MAX_LOOKBACK_DAYS,
                     pool.size()
             );
@@ -256,22 +255,31 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
             }
         }
 
+        // Recheck inside the write transaction after official-result synchronization.
+        List<Win50PayoutSeedCatalog.OrderPlan> missingPlans = seedSupport.missingOrderPlans(officialDemoEnabled);
+        if (missingPlans.isEmpty()) return;
+        for (Win50PayoutSeedCatalog.OrderPlan plan : missingPlans) {
+            if (officialDemoEnabled && seedAccountResolver.findOfficialDemoMember((plan.orderN() - 1) / 2) == null) {
+                throw new IllegalStateException("Missing official demo member for winning order " + plan.orderN());
+            }
+        }
+        int requiredWinners = missingPlans.stream().mapToInt(Win50PayoutSeedCatalog.OrderPlan::slots).sum();
         List<LotteryTicketSerialEntity> pool = loadClaimableInventory().stream()
                 .filter(serial -> drawResults.containsKey(drawKeyOf(serial)))
                 .toList();
-        List<ClaimedWinner> winners = claimWinnersFromPool(pool, drawResults);
-        if (winners.size() != targetWinners()) {
+        List<ClaimedWinner> winners = claimWinnersFromPool(pool, drawResults, requiredWinners);
+        if (winners.size() != requiredWinners) {
             throw new IllegalStateException(
-                    "claimed " + winners.size() + " winners, expected " + targetWinners()
+                    "claimed " + winners.size() + " winners, expected " + requiredWinners
             );
         }
 
-        persistOrders(winners, member, operator, vietnamClock.now());
+        persistOrders(winners, missingPlans, member, operator, vietnamClock.now());
         log.info(
                 "Win50 payout seed complete: {} winners from IBSEED inventory on {} official draw(s) across {} order(s) for member={}.",
                 winners.size(),
                 drawResults.size(),
-                orderPlans().size(),
+                missingPlans.size(),
                 member.getUsername()
         );
     }
@@ -364,42 +372,13 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
     }
 
     private List<LotteryTicketSerialEntity> loadClaimableInventory(LocalDate fromInclusive, LocalDate toInclusive) {
-        List<LotteryTicketSerialEntity> source = officialDemoEnabled
-                ? importBatchRepository.findByNoteStartingWithAndDeletedAtIsNull(
-                        SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN").stream()
-                        .filter(batch -> batch.getDrawDate() != null
-                                && !batch.getDrawDate().isBefore(fromInclusive)
-                                && !batch.getDrawDate().isAfter(toInclusive))
-                        .flatMap(batch -> lotteryTicketSerialRepository.findByImportBatch_Id(batch.getId()).stream())
-                        .toList()
-                : lotteryTicketSerialRepository.findBySerialNumberStartingWithAndDeletedAtIsNull(
-                        SharedSeedConstants.INVENTORY_SERIAL_PREFIX);
-        return source.stream()
-                // Past inventory is seeded as EXPIRED (after draw cutoff). Claim those
-                // unsold serials and convert them into member-owned winners.
-                .filter(serial -> serial.getStatus() == LotteryTicketSerialStatus.EXPIRED
-                        || serial.getStatus() == LotteryTicketSerialStatus.IN_STOCK)
-                .filter(serial -> serial.getTicketCondition() == null
-                        || serial.getTicketCondition() == TicketCondition.GOOD)
-                .filter(serial -> serial.getTicket() != null
-                        && serial.getTicket().getDeletedAt() == null
-                        && serial.getTicket().getDrawDate() != null
-                        && !serial.getTicket().getDrawDate().isBefore(fromInclusive)
-                        && !serial.getTicket().getDrawDate().isAfter(toInclusive)
-                        && serial.getTicket().getStation() != null
-                        && SouthernStationSeedSupport.isCanonicalSouthern(serial.getTicket().getStation()))
-                .filter(serial -> serial.getTicket().getStatus() == LotteryTicketStatus.EXPIRED
-                        || serial.getTicket().getStatus() == LotteryTicketStatus.IN_STOCK)
-                .sorted(Comparator
-                        .comparing((LotteryTicketSerialEntity s) -> s.getTicket().getDrawDate())
-                        .thenComparing(s -> s.getTicket().getStation().getId())
-                        .thenComparing(LotteryTicketSerialEntity::getSerialNumber))
-                .toList();
+        return seedSupport.loadClaimableInventory(officialDemoEnabled, fromInclusive, toInclusive);
     }
 
     private List<ClaimedWinner> claimWinnersFromPool(
             List<LotteryTicketSerialEntity> pool,
-            Map<Win50PayoutSeedCatalog.DrawResultKey, Map<String, List<String>>> drawResults
+            Map<Win50PayoutSeedCatalog.DrawResultKey, Map<String, List<String>>> drawResults,
+            int requiredWinners
     ) {
         // One serial per ticket id so we do not double-claim.
         Map<Long, LotteryTicketSerialEntity> byTicketId = new LinkedHashMap<>();
@@ -430,7 +409,7 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
         for (int prizeOrd = 0; prizeOrd < Win50PayoutSeedCatalog.PRIZES.size(); prizeOrd++) {
             String prize = Win50PayoutSeedCatalog.PRIZES.get(prizeOrd);
             int count = officialDemoEnabled
-                    ? ("G8".equals(prize) ? 50 : 0)
+                    ? ("G8".equals(prize) ? requiredWinners : 0)
                     : Win50PayoutSeedCatalog.PRIZE_COUNTS[prizeOrd];
             for (int variant = 0; variant < count; variant++) {
                 boolean placed = false;
@@ -535,9 +514,9 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
         long online = winners.stream()
                 .filter(w -> Win50PayoutSeedCatalog.ONLINE_CLAIMABLE.contains(w.prize()))
                 .count();
-        if (online != targetWinners()) {
+        if (online != requiredWinners) {
             throw new IllegalStateException(
-                    "WIN50_PAYOUT: expected " + targetWinners()
+                    "WIN50_PAYOUT: expected " + requiredWinners
                             + " online-claimable, got "
                             + online
             );
@@ -545,28 +524,17 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
         return winners;
     }
 
-    private int targetWinners() {
-        return officialDemoEnabled ? 50 : Win50PayoutSeedCatalog.TARGET_WINNERS;
-    }
-
-    private List<Win50PayoutSeedCatalog.OrderPlan> orderPlans() {
-        return officialDemoEnabled ? OFFICIAL_ORDER_PLANS : Win50PayoutSeedCatalog.ORDER_PLANS;
-    }
-
     private void persistOrders(
             List<ClaimedWinner> winners,
+            List<Win50PayoutSeedCatalog.OrderPlan> plans,
             UserEntity member,
             UserEntity operator,
             LocalDateTime now
     ) {
-        for (Win50PayoutSeedCatalog.OrderPlan plan : orderPlans()) {
-            List<ClaimedWinner> orderWinners = winners.stream()
-                    .filter(winner -> winner.idx() > plan.cumStart() && winner.idx() <= plan.cumEnd())
-                    .sorted(Comparator.comparingInt(ClaimedWinner::idx))
-                    .toList();
-            if (orderWinners.isEmpty()) {
-                continue;
-            }
+        int cursor = 0;
+        for (Win50PayoutSeedCatalog.OrderPlan plan : plans) {
+            List<ClaimedWinner> orderWinners = winners.subList(cursor, cursor + plan.slots());
+            cursor += plan.slots();
 
             LocalDate minDraw = orderWinners.stream()
                     .map(ClaimedWinner::drawDate)
