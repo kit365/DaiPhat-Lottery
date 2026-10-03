@@ -1,5 +1,27 @@
 # Startup demo inventory
 
+## Daily UAT documents (default)
+
+`LOTTERY_SEED_DAILY_ONLY=true` is the default when inventory seeding is enabled.
+The main seeder plans only today and tomorrow, one seed import header per supplier/date.
+With the current defaults each date has 50 ticket numbers × 15 serials = 750 tickets.
+An existing main seed import for the date is reused without adding another header.
+The daily document runner also repairs missing supplier returns and settlements for
+these existing imports, using the same services as normal imports. Return availability
+and settlement deadlines continue to follow the supplier and draw-date rules.
+
+Historical inventory backfill and additional import/return/settlement scenario fixtures
+are skipped in daily mode, including the legacy order fixture that creates its own imports.
+Existing winning-order fixtures can still use historical stock already in the database;
+on an empty database the winning-order matrix may defer until that stock exists.
+`past-days` does not control daily mode. Set `LOTTERY_SEED_DAILY_ONLY=false` to opt back
+into the extended fixture behavior described below.
+
+This setting does not delete historical or duplicate documents already in UAT, nor
+limit manually created imports. Existing data must be reviewed before any cleanup.
+
+## Extended fixture mode
+
 When `LOTTERY_SEED_ENABLED=true`, normal startup fills missing inventory for today
 and tomorrow using the Vietnam clock and each active southern station's draw schedule.
 

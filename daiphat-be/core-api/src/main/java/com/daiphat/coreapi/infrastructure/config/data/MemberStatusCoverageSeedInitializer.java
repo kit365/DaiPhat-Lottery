@@ -154,9 +154,13 @@ public class MemberStatusCoverageSeedInitializer implements ApplicationRunner {
     @Value("${daiphat.member-status.seed.username:phu123}")
     private String memberUsername;
 
+    @Value("${daiphat.lottery.seed.daily-only:true}")
+    private boolean dailyOnly;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (dailyOnly) return;
         if (!rebuildDemo) return;
         UserEntity member = userRepository.findByUsername(memberUsername).orElse(null);
         if (member == null) {

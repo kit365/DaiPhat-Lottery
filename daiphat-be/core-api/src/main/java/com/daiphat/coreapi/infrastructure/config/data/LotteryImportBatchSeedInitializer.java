@@ -160,6 +160,9 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     @Value("${daiphat.lottery.seed.win50-payout.enabled:false}")
     private boolean winningSeedEnabled;
 
+    @Value("${daiphat.lottery.seed.daily-only:true}")
+    private boolean dailyOnly;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
@@ -174,7 +177,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
         log.info("Import seed starting: mode={}, today={}, tomorrow={}.",
                 rebuildDemo ? "full-rebuild" : "missing-inventory-only", today, today.plusDays(1));
 
-        if (rebuildDemo) {
+        if (rebuildDemo && !dailyOnly) {
             resetPreviousSeedData();
             seedSupplierSupport.retireDemoSuppliers(now);
         }
@@ -193,14 +196,21 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
         for (int planIndex = 0; planIndex < plans.size(); planIndex++) {
             BatchPlan plan = plans.get(planIndex);
-            UserEntity planOperator = officialDemoEnabled && rebuildDemo
+            if (dailyOnly && importBatchRepository
+                    .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN")
+                    .stream().anyMatch(existing -> plan.drawDate().equals(existing.getDrawDate())
+                            && existing.getSupplier() != null
+                            && supplier.getId().equals(existing.getSupplier().getId()))) {
+                continue;
+            }
+            UserEntity planOperator = officialDemoEnabled && rebuildDemo && !dailyOnly
                     ? seedAccountResolver.findOfficialDemoStaff(planIndex)
                     : operator;
             if (planOperator == null) {
                 throw new IllegalStateException("Missing official-demo staff for " + plan.drawDate());
             }
             List<LotteryStationEntity> stations = findIssuersForDrawDate(plan.drawDate());
-            if (!rebuildDemo && !plan.pastWindow()) {
+            if ((!rebuildDemo || dailyOnly) && !plan.pastWindow()) {
                 stations = stations.stream()
                         .filter(station -> !lotteryTicketRepository
                                 .existsByStation_IdAndDrawDateAndDeletedAtIsNull(station.getId(), plan.drawDate()))
@@ -300,6 +310,13 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
     private List<BatchPlan> buildBatchPlans(LocalDate today, LocalDateTime now) {
         List<BatchPlan> plans = new ArrayList<>();
+        if (dailyOnly) {
+            for (LocalDate date : List.of(today, today.plusDays(1))) {
+                plans.add(new BatchPlan(date, ImportBatchType.NEW, ImportBatchImportMode.IN_DAY,
+                        "SEED-NEW-" + date, resolveImportedAt(date, today, now), 50, false));
+            }
+            return plans;
+        }
         if (!rebuildDemo) {
             if (rebuildOrders && winningSeedEnabled) {
                 int required = winningSeedSupport.missingOrderPlans(officialDemoEnabled).stream()
@@ -383,7 +400,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
      * when importing tomorrow's tickets. Never in the future.
      */
     private LocalDateTime resolveImportedAt(LocalDate drawDate, LocalDate today, LocalDateTime now) {
-        if (!rebuildDemo) {
+        if (!rebuildDemo || dailyOnly) {
             LocalDateTime morning = today.atTime(8, 0);
             return morning.isAfter(now) ? now : morning;
         }
@@ -643,10 +660,10 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             int ticketCount,
             Map<String, Integer> numberCursorByStationDate
     ) {
-        int serialCount = officialDemoEnabled && rebuildDemo ? 10 : Math.max(serialsPerTicket, 1);
+        int serialCount = officialDemoEnabled && rebuildDemo && !dailyOnly ? 10 : Math.max(serialsPerTicket, 1);
         boolean pastDraw = isPastDraw(station, plan.drawDate(), now);
         boolean futureDraw = plan.drawDate().isAfter(now.toLocalDate());
-        List<SeedTicketScenario> scenarioCycle = !rebuildDemo || officialDemoEnabled
+        List<SeedTicketScenario> scenarioCycle = !rebuildDemo || dailyOnly || officialDemoEnabled
                 ? List.of(SeedTicketScenario.IN_STOCK_GOOD)
                 : (plan.pastWindow()
                         ? PAST_SELLABLE_SCENARIOS
