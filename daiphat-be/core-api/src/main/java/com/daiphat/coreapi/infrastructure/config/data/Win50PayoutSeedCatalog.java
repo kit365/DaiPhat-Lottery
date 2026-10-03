@@ -45,6 +45,15 @@ public final class Win50PayoutSeedCatalog {
             new OrderPlan(1, 8, 0, 8)
     );
 
+    public static final List<OrderPlan> OFFICIAL_ORDER_PLANS = List.of(
+            new OrderPlan(1, 9, 0, 9),
+            new OrderPlan(2, 9, 9, 18),
+            new OrderPlan(3, 9, 18, 27),
+            new OrderPlan(4, 9, 27, 36),
+            new OrderPlan(5, 7, 36, 43),
+            new OrderPlan(6, 7, 43, 50)
+    );
+
     private Win50PayoutSeedCatalog() {
     }
 

@@ -15,6 +15,8 @@ import java.util.UUID;
 
 public interface OrderDetailRepository extends JpaRepository<OrderDetailEntity, Long>, JpaSpecificationExecutor<OrderDetailEntity> {
 
+    boolean existsByLotteryTicket_Id(Long ticketId);
+
     boolean existsByOrder_IdAndRefundRequestIsNotNull(UUID orderId);
 
     List<OrderDetailEntity> findByOrder_Id(UUID orderId);
