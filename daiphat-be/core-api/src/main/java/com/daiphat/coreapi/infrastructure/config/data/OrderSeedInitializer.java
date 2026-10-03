@@ -152,7 +152,33 @@ public class OrderSeedInitializer implements ApplicationRunner {
         seedRefundManualResolutionOrder(member, operator, station, time);
         seedReplacedTicketOrder(member, operator, station, time);
 
+        finalizeSeedImportDocuments(time.base());
+
         log.info("Order seed complete: refreshed {} scenarios with timestamps at {}.", 15, time.base());
+    }
+
+    private void finalizeSeedImportDocuments(LocalDateTime now) {
+        for (ImportLink link : importLinksByStationDate.values()) {
+            ImportBatchLineEntity line = link.line();
+            long imported = lotteryTicketSerialRepository.countByImportBatchLineId(line.getId());
+            int quantity = Math.toIntExact(imported);
+            BigDecimal importedCost = line.getImportCost().multiply(BigDecimal.valueOf(quantity));
+
+            line.setDeclareQuantity(quantity);
+            line.setDeclaredCostValue(importedCost);
+            line.setTotalQuantity(quantity);
+            line.setTotalCostValue(importedCost);
+            ImportBatchSeedStatusHelper.applyLineStatus(line, now);
+
+            ImportBatchEntity batch = link.batch();
+            batch.setLineCount(1);
+            batch.setTotalDeclareQuantity(quantity);
+            batch.setTotalDeclaredCostValue(importedCost);
+            batch.setTotalImportedQuantity(quantity);
+            batch.setTotalImportedCostValue(importedCost);
+            ImportBatchSeedStatusHelper.applyHeaderStatus(batch, List.of(line), now);
+            importBatchRepository.save(batch);
+        }
     }
 
     private void resetPreviousSeedData() {
@@ -896,8 +922,8 @@ public class OrderSeedInitializer implements ApplicationRunner {
                             .importMode(ImportBatchImportMode.IN_DAY)
                             .importedBy(operator)
                             .importedAt(importedAt)
-                            .completedAt(importedAt)
-                            .status(ImportBatchStatus.IMPORTED)
+                            .completedAt(null)
+                            .status(ImportBatchStatus.DRAFT)
                             .note(SeedDocumentCodes.importNote("ORDER", drawDate))
                             .createdBy(SYSTEM_ACTOR)
                             .lastModifiedBy(SYSTEM_ACTOR)
@@ -926,8 +952,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                             .totalQuantity(0)
                             .importCost(importCost)
                             .totalCostValue(BigDecimal.ZERO)
-                            .status(ImportBatchLineStatus.IMPORTED)
-                            .importedAt(importedAt)
+                            .status(ImportBatchLineStatus.OPEN)
                             .createdBy(SYSTEM_ACTOR)
                             .lastModifiedBy(SYSTEM_ACTOR)
                             .createdAt(importedAt)
