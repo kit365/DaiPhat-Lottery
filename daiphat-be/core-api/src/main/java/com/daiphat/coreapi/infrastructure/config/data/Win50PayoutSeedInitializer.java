@@ -660,15 +660,16 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
             List<OrderDetailEntity> details = new ArrayList<>();
             for (ClaimedWinner winner : orderWinners) {
                 boolean online = Win50PayoutSeedCatalog.ONLINE_CLAIMABLE.contains(winner.prize());
+                boolean heldForOfficialDemo = officialDemoEnabled && online;
                 details.add(OrderDetailEntity.builder()
                         .lotteryTicket(winner.serial().getTicket())
                         .lotteryTicketSerial(winner.serial())
                         .quantity(1)
                         .price(TICKET_PRICE)
-                        .status(officialDemoEnabled || !online
+                        .status(!heldForOfficialDemo && !online
                                 ? OrderDetailStatus.HANDED_OVER : OrderDetailStatus.PROXY_HOLDING)
-                        .handedOverAt(officialDemoEnabled || !online ? pickupAt : null)
-                        .handedOverBy(officialDemoEnabled || !online ? operator.getId() : null)
+                        .handedOverAt(!heldForOfficialDemo && !online ? pickupAt : null)
+                        .handedOverBy(!heldForOfficialDemo && !online ? operator.getId() : null)
                         .createdAt(paidAt)
                         .updatedAt(now)
                         .createdBy(Win50PayoutSeedCatalog.SEED_MARKER)
@@ -687,8 +688,8 @@ public class Win50PayoutSeedInitializer implements ApplicationRunner {
                     .totalAmount(total)
                     .status(OrderStatus.COMPLETED)
                     .expectedPickupAt(paidAt.plusHours(7))
-                    .actualPickedUpAt(pickupAt)
-                    .pickedUpBy(operator)
+                    .actualPickedUpAt(officialDemoEnabled ? null : pickupAt)
+                    .pickedUpBy(officialDemoEnabled ? null : operator)
                     .createdAt(paidAt)
                     .updatedAt(now)
                     .createdBy(Win50PayoutSeedCatalog.SEED_MARKER)
