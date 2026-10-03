@@ -466,7 +466,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
                 const SizedBox(width: 7),
                 Expanded(
                   child: Text(
-                    'Đại Phát Lottery  •  DP${order.orderCode}',
+                    'Đại Phát Lottery  •  ${order.orderCode}',
                     style: AppTypography.subtitle2(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
