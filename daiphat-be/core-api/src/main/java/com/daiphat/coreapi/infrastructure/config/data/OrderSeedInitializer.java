@@ -77,8 +77,8 @@ import java.util.UUID;
 @Order(110)
 public class OrderSeedInitializer implements ApplicationRunner {
 
-    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
-    private boolean rebuildDemo;
+    @Value("${daiphat.order.seed.rebuild-demo:false}")
+    private boolean rebuildOrders;
 
     private static final String ORDER_CODE_PREFIX = "ORD-SEED-";
     private static final String TICKET_SERIAL_PREFIX = "SEED-";
@@ -112,7 +112,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (!rebuildDemo) return;
+        if (!rebuildOrders) return;
         UserEntity member = seedAccountResolver.findMember();
         UserEntity operator = seedAccountResolver.findOperator();
         if (member == null || operator == null) {

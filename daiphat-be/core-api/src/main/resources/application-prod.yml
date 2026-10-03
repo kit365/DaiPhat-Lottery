@@ -64,6 +64,7 @@ daiphat:
   order:
     seed:
       enabled: ${ORDER_SEED_ENABLED:false}
+      rebuild-demo: ${ORDER_SEED_REBUILD_DEMO:false}
   sample-order:
     seed:
       enabled: ${SAMPLE_ORDER_SEED_ENABLED:false}

@@ -79,6 +79,7 @@ daiphat:
     payment-failure-max-attempts: 3
     seed:
       enabled: ${ORDER_SEED_ENABLED:false}
+      rebuild-demo: ${ORDER_SEED_REBUILD_DEMO:false}
     refund:
       closing-time: "14:00"
       window-minutes: 30
