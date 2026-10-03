@@ -25,6 +25,7 @@ class OrderDetailViewModel extends ChangeNotifier {
   final TransactionService _transactionService;
   final GetMyRefunds _getMyRefunds;
   final String orderId;
+  final DateTime Function() _now;
 
   OrderResponse? _order;
   bool _isLoading = false;
@@ -34,6 +35,9 @@ class OrderDetailViewModel extends ChangeNotifier {
 
   int _remainingSeconds = 0;
   Timer? _countdownTimer;
+  Timer? _paymentStatusTimer;
+  int _paymentGeneration = 0;
+  bool _disposed = false;
 
   OrderRefundEligibilityResponse? _eligibility;
   bool _isLoadingEligibility = false;
@@ -48,11 +52,13 @@ class OrderDetailViewModel extends ChangeNotifier {
     required TransactionService transactionService,
     required GetMyRefunds getMyRefunds,
     required this.orderId,
-  })  : _getMyOrderDetail = getMyOrderDetail,
-        _getOrderRefundEligibility = getOrderRefundEligibility,
-        _requestOrderRefund = requestOrderRefund,
-        _transactionService = transactionService,
-        _getMyRefunds = getMyRefunds {
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now,
+       _getMyOrderDetail = getMyOrderDetail,
+       _getOrderRefundEligibility = getOrderRefundEligibility,
+       _requestOrderRefund = requestOrderRefund,
+       _transactionService = transactionService,
+       _getMyRefunds = getMyRefunds {
     fetchOrderDetail();
   }
 
@@ -65,6 +71,8 @@ class OrderDetailViewModel extends ChangeNotifier {
   bool get isExpired => _remainingSeconds <= 0;
   bool get isPendingPayment =>
       _order?.status == 'PENDING_PAYMENT' && !isExpired;
+  bool get isConfirmingPayment =>
+      _order?.status == 'PENDING_PAYMENT' && isExpired;
   bool get isCancelled => _order?.status == 'CANCELLED';
 
   OrderRefundEligibilityResponse? get eligibility => _eligibility;
@@ -121,11 +129,7 @@ class OrderDetailViewModel extends ChangeNotifier {
     _refundSecondsLeft = 0;
 
     try {
-      final page = await _getMyRefunds(
-        page: 1,
-        limit: 50,
-        orderId: order.id,
-      );
+      final page = await _getMyRefunds(page: 1, limit: 50, orderId: order.id);
       _pendingFullOrderRefund = _findPendingFullOrderRefund(page.records);
     } catch (_) {
       // Không chặn chi tiết đơn nếu danh sách hoàn lỗi tạm thời.
@@ -168,7 +172,8 @@ class OrderDetailViewModel extends ChangeNotifier {
     final eligibility = _eligibility;
     final order = _order;
     _refundSecondsLeft = computeRefundSecondsLeft(
-      refundDeadlineAt: eligibility?.refundDeadlineAt ?? order?.refundDeadlineAt,
+      refundDeadlineAt:
+          eligibility?.refundDeadlineAt ?? order?.refundDeadlineAt,
       paymentSuccessAt:
           eligibility?.paymentSuccessAt ?? order?.refundPaymentSuccessAt,
       graceMinutes: eligibility?.graceMinutes ?? order?.refundGraceMinutes,
@@ -189,48 +194,64 @@ class OrderDetailViewModel extends ChangeNotifier {
   }
 
   Future<void> _initPaymentCountdown() async {
+    final generation = ++_paymentGeneration;
     _countdownTimer?.cancel();
+    _paymentStatusTimer?.cancel();
     _remainingSeconds = 0;
-    if (_order == null || _order!.status != 'PENDING_PAYMENT') {
-      return;
-    }
+    if (_disposed || _order?.status != 'PENDING_PAYMENT') return;
 
     try {
       final result = await _transactionService.getPendingPaymentCountdown(
-        _order!.id,
+        orderId,
       );
-      _remainingSeconds = result.remainingSeconds;
-      if (result.expired || _remainingSeconds <= 0) {
-        _remainingSeconds = 0;
-        notifyListeners();
-        // Payment expired -> sync from gateway to transition order to CANCELLED
-        try {
-          await _transactionService.syncOnlinePayment(_order!.id);
-          _order = await _getMyOrderDetail(orderId);
-          notifyListeners();
-        } catch (_) {}
-        return;
-      }
+      if (_disposed || generation != _paymentGeneration) return;
+      _remainingSeconds = result.expired ? 0 : result.remainingSeconds;
     } catch (_) {
-      _remainingSeconds = 0;
+      // A failed countdown request must not leave the screen stuck forever.
+      if (_disposed || generation != _paymentGeneration) return;
     }
 
-    if (_remainingSeconds <= 0) return;
+    if (_remainingSeconds <= 0) {
+      _remainingSeconds = 0;
+      notifyListeners();
+      _schedulePaymentStatusCheck(generation);
+      return;
+    }
 
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      if (_remainingSeconds > 0) {
-        _remainingSeconds--;
-        notifyListeners();
-      } else {
+    final deadline = _now().add(Duration(seconds: _remainingSeconds));
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_disposed || generation != _paymentGeneration) {
         timer.cancel();
-        _countdownTimer = null;
-        _remainingSeconds = 0;
+        return;
+      }
+      final milliseconds = deadline.difference(_now()).inMilliseconds;
+      _remainingSeconds = milliseconds > 0 ? (milliseconds / 1000).ceil() : 0;
+      notifyListeners();
+      if (_remainingSeconds == 0) {
+        timer.cancel();
+        _schedulePaymentStatusCheck(generation);
+      }
+    });
+  }
+
+  void _schedulePaymentStatusCheck(int generation) {
+    if (_disposed || generation != _paymentGeneration) return;
+    _paymentStatusTimer?.cancel();
+    _paymentStatusTimer = Timer(const Duration(seconds: 5), () async {
+      try {
+        // Read the order without repeatedly triggering PayOS reconciliation.
+        final updated = await _getMyOrderDetail(orderId);
+        if (_disposed || generation != _paymentGeneration) return;
+        _order = updated;
         notifyListeners();
-        try {
-          await _transactionService.syncOnlinePayment(_order!.id);
-          _order = await _getMyOrderDetail(orderId);
-          notifyListeners();
-        } catch (_) {}
+        if (updated.status != 'PENDING_PAYMENT') {
+          await _loadRefundContext();
+          return;
+        }
+        // Also recover if the original countdown request failed temporarily.
+        await _initPaymentCountdown();
+      } catch (_) {
+        _schedulePaymentStatusCheck(generation);
       }
     });
   }
@@ -281,10 +302,7 @@ class OrderDetailViewModel extends ChangeNotifier {
     try {
       final result = await _transactionService.processPayment(
         orderId: _order!.id,
-        request: ProcessPaymentRequest(
-          transactionId: tx.id,
-          gateway: 'PAYOS',
-        ),
+        request: ProcessPaymentRequest(transactionId: tx.id, gateway: 'PAYOS'),
       );
       return result.checkoutUrl;
     } catch (_) {
@@ -296,7 +314,15 @@ class OrderDetailViewModel extends ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
   void dispose() {
+    _disposed = true;
+    _paymentGeneration++;
+    _paymentStatusTimer?.cancel();
     _countdownTimer?.cancel();
     _refundCountdownTimer?.cancel();
     super.dispose();

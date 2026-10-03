@@ -286,6 +286,31 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               _buildPendingPaymentCard(),
               const SizedBox(height: 14),
             ],
+            if (_viewModel.isConfirmingPayment) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceWarning,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Đang xác nhận trạng thái thanh toán',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    SizedBox(height: 8),
+                    Text(
+                      'Hệ thống đang kiểm tra và sẽ tự cập nhật kết quả. '
+                      'Nếu bạn đã chuyển khoản, vui lòng không thanh toán lại. '
+                      'Khi đơn được xác nhận hủy do hết hạn, bạn có thể gửi '
+                      'khiếu nại thanh toán tại đây.',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
             _buildCustomerCard(order),
             const SizedBox(height: 14),
             _buildTicketsCard(order),
