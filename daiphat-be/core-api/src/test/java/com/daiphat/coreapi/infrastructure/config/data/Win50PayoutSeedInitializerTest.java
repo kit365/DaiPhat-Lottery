@@ -2,6 +2,7 @@ package com.daiphat.coreapi.infrastructure.config.data;
 
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultServicePort;
 import com.daiphat.coreapi.domain.model.enums.lottery.*;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.*;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
@@ -63,6 +64,14 @@ class Win50PayoutSeedInitializerTest {
         initializer.run(null);
         assertThat(storedOrders).hasSize(6);
         assertThat(storedOrders.values().stream().mapToInt(o -> o.getOrderDetails().size()).sum()).isEqualTo(50);
+        assertThat(storedOrders.values()).allSatisfy(order -> {
+            assertThat(order.getActualPickedUpAt()).isNull();
+            assertThat(order.getPickedUpBy()).isNull();
+            assertThat(order.getOrderDetails()).allSatisfy(detail -> {
+                assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.PROXY_HOLDING);
+                assertThat(detail.getHandedOverAt()).isNull();
+            });
+        });
         for (int i = 0; i < 3; i++) {
             final String username = "member" + i;
             var memberOrders = storedOrders.values().stream()
