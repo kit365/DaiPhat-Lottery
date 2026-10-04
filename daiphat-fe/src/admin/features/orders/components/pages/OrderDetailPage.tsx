@@ -61,6 +61,7 @@ import { getOrderStatusBadge, getOrderStatusAdminBadgeModifier } from '@/shared/
 import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import { resolveOrderPaymentMethodLabel } from '@/admin/features/orders/utils/orderPayment.util';
+import { ImagePreviewModal } from '@/admin/components/ui/ImagePreview';
 
 const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
     unpaid: { label: "Chưa thanh toán", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
@@ -84,6 +85,11 @@ export const OrderDetailPage = () => {
     const [complaintReviewOpen, setComplaintReviewOpen] = useState(false);
     const [complaintReviewApproved, setComplaintReviewApproved] = useState<boolean | null>(null);
     const [complaintReviewReason, setComplaintReviewReason] = useState('');
+    const [evidencePreview, setEvidencePreview] = useState<{ open: boolean; src: string; title: string }>({
+        open: false,
+        src: '',
+        title: '',
+    });
     const [confirmModal, setConfirmModal] = useState<{
         open: boolean;
         title: string;
@@ -425,11 +431,12 @@ export const OrderDetailPage = () => {
                                         </Typography>
                                     </Box>
                                     <Button
-                                        component="a"
-                                        href={order.handoverEvidenceUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
                                         variant="outlined"
+                                        onClick={() => setEvidencePreview({
+                                            open: true,
+                                            src: order.handoverEvidenceUrl!,
+                                            title: `Ảnh xác nhận bàn giao - Đơn #${order.orderCode || order.id}`,
+                                        })}
                                         startIcon={<Icon icon="solar:gallery-wide-bold-duotone" />}
                                         sx={{ textTransform: 'none', fontWeight: 700, flexShrink: 0 }}
                                     >
@@ -458,11 +465,12 @@ export const OrderDetailPage = () => {
                                     </Stack>
                                     {order.paymentComplaintEvidenceUrl && (
                                         <Button
-                                            component="a"
-                                            href={order.paymentComplaintEvidenceUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
                                             variant="outlined"
+                                            onClick={() => setEvidencePreview({
+                                                open: true,
+                                                src: order.paymentComplaintEvidenceUrl!,
+                                                title: `Chứng từ khách gửi - Đơn #${order.orderCode || order.id}`,
+                                            })}
                                             startIcon={<Icon icon="solar:gallery-wide-bold-duotone" />}
                                             sx={{ textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}
                                         >
@@ -514,11 +522,11 @@ export const OrderDetailPage = () => {
                                         <TableHead>
                                             <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                                                 <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Hoạt động</TableCell>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Hoạt động</TableCell>
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -554,7 +562,7 @@ export const OrderDetailPage = () => {
                                                 return (
                                                 <TableRow key={detail.id || detail.lotteryTicketSerialId || detail.serialNumber} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                                                     <TableCell align="center">
-                                                        <Box>
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                                                             <AdminLuckyDisplay
                                                                 value={
                                                                     detail.numbers
@@ -576,7 +584,7 @@ export const OrderDetailPage = () => {
                                                                     variant="caption"
                                                                     color="text.secondary"
                                                                     component="div"
-                                                                    sx={{ mt: 0.25, lineHeight: 1.4, wordBreak: 'break-all' }}
+                                                                    sx={{ mt: 0.25, lineHeight: 1.4, wordBreak: 'break-all', textAlign: 'center' }}
                                                                 >
                                                                     SN: {detail.serialNumber
                                                                         || detail.replacedByTicketSerial?.serialNumber
@@ -587,35 +595,39 @@ export const OrderDetailPage = () => {
                                                             )}
                                                         </Box>
                                                     </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                    <TableCell align="center">
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)', textAlign: 'center' }}>
                                                             {detail.stationName || detail.lotteryTicket?.province?.name || detail.lotteryTicket?.station?.name || detail.lotteryTicket?.stationName || 'N/A'}
                                                         </Typography>
                                                     </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                                    <TableCell align="center">
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)', textAlign: 'center' }}>
                                                             {(detail.drawDate || detail.lotteryTicket?.drawDate)
                                                                 ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).format("DD/MM/YYYY")
                                                                 : 'N/A'}
                                                         </Typography>
                                                     </TableCell>
 
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                    <TableCell align="center">
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)', textAlign: 'center' }}>
                                                             {(detail.price || 10000).toLocaleString('vi-VN')}đ
                                                         </Typography>
                                                     </TableCell>
                                                     <TableCell align="center">
-                                                        <AdminStatusBadge
-                                                            label={serialBadge.label}
-                                                            modifier={serialBadge.modifier}
-                                                        />
+                                                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                                            <AdminStatusBadge
+                                                                label={serialBadge.label}
+                                                                modifier={serialBadge.modifier}
+                                                            />
+                                                        </Box>
                                                     </TableCell>
                                                     <TableCell align="center">
-                                                        <AdminStatusBadge
-                                                            label={activityBadge.label}
-                                                            modifier={getOrderDetailStatusAdminBadgeModifier(detail.status)}
-                                                        />
+                                                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                                            <AdminStatusBadge
+                                                                label={activityBadge.label}
+                                                                modifier={getOrderDetailStatusAdminBadgeModifier(detail.status)}
+                                                            />
+                                                        </Box>
                                                     </TableCell>
                                                 </TableRow>
                                                 );
@@ -996,6 +1008,13 @@ export const OrderDetailPage = () => {
                     {confirmModal.content}
                 </Typography>
             </AdminConfirmDialog>
+
+            <ImagePreviewModal
+                open={evidencePreview.open}
+                onClose={() => setEvidencePreview((prev) => ({ ...prev, open: false }))}
+                src={evidencePreview.src}
+                dialogTitle={evidencePreview.title}
+            />
         </Box>
     );
 };

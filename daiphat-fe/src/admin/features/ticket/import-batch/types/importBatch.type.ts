@@ -497,6 +497,7 @@ export type ImportBatchFileCommitMode = 'MANUAL';
 export interface ImportBatchFileManualBatchBinding {
     drawDate: string;
     importBatchId: number;
+    selectionSnapshot: import('../utils/importBatchSelectionSnapshot').ImportBatchSelectionSnapshot;
 }
 
 export interface ImportBatchFileCommitPayload {

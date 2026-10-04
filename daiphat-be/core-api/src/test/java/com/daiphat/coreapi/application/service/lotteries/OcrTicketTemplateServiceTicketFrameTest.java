@@ -77,6 +77,18 @@ class OcrTicketTemplateServiceTicketFrameTest {
     }
 
     @Test
+    void createsDedicatedSerialOcrRegion() {
+        when(fieldLayoutRepositoryPort.findByTemplateId(TEMPLATE_ID)).thenReturn(List.of());
+        when(fieldLayoutRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        OcrFieldLayoutResponse saved = service.createFieldLayout(
+                TEMPLATE_ID, create(OcrTemplateFieldName.serialNumber, box(0.2, 0.3, 0.3, 0.1)));
+
+        assertThat(saved.fieldName()).isEqualTo(OcrTemplateFieldName.serialNumber);
+        assertThat(saved.isRequired()).isTrue();
+    }
+
+    @Test
     void createsFrameAsOptionalPriorityOneLayout() {
         when(fieldLayoutRepositoryPort.findByTemplateId(TEMPLATE_ID)).thenReturn(List.of());
         when(fieldLayoutRepositoryPort.existsByTemplateIdAndFieldNameAndPriority(any(), any(), eq(1)))
@@ -111,7 +123,7 @@ class OcrTicketTemplateServiceTicketFrameTest {
         ));
 
         assertThatThrownBy(() -> service.createFieldLayout(
-                TEMPLATE_ID, create(OcrTemplateFieldName.serialNumber, box(0.02, 0.05, 0.1, 0.05))))
+                TEMPLATE_ID, create(OcrTemplateFieldName.numbers, box(0.02, 0.05, 0.1, 0.05))))
                 .isInstanceOf(DomainException.class)
                 .extracting(e -> ((DomainException) e).getInternalMessage()).asString().contains("ngoài Khung vé");
         verify(fieldLayoutRepositoryPort, never()).save(any());

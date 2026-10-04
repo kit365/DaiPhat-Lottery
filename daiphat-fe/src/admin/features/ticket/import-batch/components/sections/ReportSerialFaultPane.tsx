@@ -24,6 +24,7 @@ import {
     DialogActions,
     Divider,
     Alert,
+    Pagination,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
@@ -144,6 +145,43 @@ interface FormState {
     };
 }
 
+interface TicketGroupDraft {
+    ticketBatchEvidenceMode: 'ALL' | 'EACH' | null;
+    pendingEvidenceUrl: string;
+    evidenceApplyDialogOpen: boolean;
+    serialEvidenceUrls: Record<string, string>;
+    replacementType: 'DIGITS' | 'SERIALS';
+    replacementDigits: string;
+    replacementDigitsImg: string;
+    digitsError: string;
+    serialProcessingMode: 'EACH' | 'ALL';
+    cancelMode: 'TICKET' | 'SERIAL';
+    ticketForm: FormState;
+}
+
+const createTicketGroupDraft = (
+    defaultCancelMode: 'TICKET' | 'SERIAL'
+): TicketGroupDraft => ({
+    ticketBatchEvidenceMode: null,
+    pendingEvidenceUrl: '',
+    evidenceApplyDialogOpen: false,
+    serialEvidenceUrls: {},
+    replacementType: 'DIGITS',
+    replacementDigits: '',
+    replacementDigitsImg: '',
+    digitsError: '',
+    serialProcessingMode: defaultCancelMode === 'SERIAL' ? 'EACH' : 'ALL',
+    cancelMode: 'SERIAL',
+    ticketForm: {
+        selected: true,
+        status: 'DAMAGED',
+        faultedBy: 'INTERNAL_FAULT',
+        damagedReason: '',
+        damagedEvidenceUrl: '',
+        errors: {},
+    },
+});
+
 const getTicketStatusConfig = (status?: string) => {
     const s = (status || 'IN_STOCK').toUpperCase();
     switch (s) {
@@ -247,40 +285,18 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     const [forms, setForms] = useState<Record<string | number, FormState>>({});
     const [submitting, setSubmitting] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmationPage, setConfirmationPage] = useState(0);
     const [incompleteGroupsOpen, setIncompleteGroupsOpen] = useState(false);
     const [incompleteGroupNumbers, setIncompleteGroupNumbers] = useState<string[]>([]);
-    const [ticketBatchEvidenceMode, setTicketBatchEvidenceMode] = useState<'ALL' | 'EACH' | null>(null);
-    const [pendingEvidenceUrl, setPendingEvidenceUrl] = useState('');
-    const [evidenceApplyDialogOpen, setEvidenceApplyDialogOpen] = useState(false);
-    const [serialEvidenceUrls, setSerialEvidenceUrls] = useState<Record<string, string>>({});
     const [workflowStep, setWorkflowStep] = useState<'FORM' | 'REFUND'>('FORM');
     const [refundDraftByOrderId, setRefundDraftByOrderId] = useState<Record<string, RefundOrderDraft>>({});
     const [pendingSelectedItems, setPendingSelectedItems] = useState<MappedSubmitItem[]>([]);
-
-    const [replacementType, setReplacementType] = useState<'DIGITS' | 'SERIALS'>('DIGITS');
-    const [replacementDigits, setReplacementDigits] = useState('');
-    const [replacementDigitsImg, setReplacementDigitsImg] = useState('');
-    const [digitsError, setDigitsError] = useState('');
 
     const [isPreparing, setIsPreparing] = useState(true);
     const [page, setPage] = useState(1);
     const [repPage, setRepPage] = useState(1);
     const [activeGroupIndex, setActiveGroupIndex] = useState(0);
     const pageSize = 10;
-
-    const [serialProcessingMode, setSerialProcessingMode] = useState<'EACH' | 'ALL'>(
-        defaultCancelMode === 'SERIAL' ? 'EACH' : 'ALL'
-    );
-    // 'TICKET' only when the user explicitly picks whole-ticket digit replacement for a data-entry fault.
-    const [cancelMode, setCancelMode] = useState<'TICKET' | 'SERIAL'>('SERIAL');
-    const [ticketForm, setTicketForm] = useState<FormState>({
-        selected: true,
-        status: 'DAMAGED',
-        faultedBy: 'INTERNAL_FAULT',
-        damagedReason: '',
-        damagedEvidenceUrl: '',
-        errors: {}
-    });
 
     const groups: TicketGroup[] = React.useMemo(() => {
         const map = new Map<string, TicketGroup>();
@@ -299,13 +315,76 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         return Array.from(map.values());
     }, [serials, ticketNumbers, ticketId]);
 
+    const activeGroupKey = groups[activeGroupIndex]?.ticketNumbers || ticketNumbers || 'Vé số';
+    const [groupDrafts, setGroupDrafts] = useState<Record<string, TicketGroupDraft>>({});
+    const currentGroupDraft = groupDrafts[activeGroupKey] || createTicketGroupDraft(defaultCancelMode);
+    const {
+        ticketBatchEvidenceMode,
+        pendingEvidenceUrl,
+        evidenceApplyDialogOpen,
+        serialEvidenceUrls,
+        replacementType,
+        replacementDigits,
+        replacementDigitsImg,
+        digitsError,
+        serialProcessingMode,
+        cancelMode,
+        ticketForm,
+    } = currentGroupDraft;
+
+    const setGroupDraftField = <K extends keyof TicketGroupDraft>(
+        field: K,
+        action: React.SetStateAction<TicketGroupDraft[K]>
+    ) => {
+        setGroupDrafts((previousDrafts) => {
+            const previousDraft = previousDrafts[activeGroupKey] || createTicketGroupDraft(defaultCancelMode);
+            const previousValue = previousDraft[field];
+            const nextValue = typeof action === 'function'
+                ? (action as (value: TicketGroupDraft[K]) => TicketGroupDraft[K])(previousValue)
+                : action;
+            return {
+                ...previousDrafts,
+                [activeGroupKey]: {
+                    ...previousDraft,
+                    [field]: nextValue,
+                },
+            };
+        });
+    };
+
+    const setTicketBatchEvidenceMode = (action: React.SetStateAction<'ALL' | 'EACH' | null>) =>
+        setGroupDraftField('ticketBatchEvidenceMode', action);
+    const setPendingEvidenceUrl = (action: React.SetStateAction<string>) =>
+        setGroupDraftField('pendingEvidenceUrl', action);
+    const setEvidenceApplyDialogOpen = (action: React.SetStateAction<boolean>) =>
+        setGroupDraftField('evidenceApplyDialogOpen', action);
+    const setSerialEvidenceUrls = (action: React.SetStateAction<Record<string, string>>) =>
+        setGroupDraftField('serialEvidenceUrls', action);
+    const setReplacementType = (action: React.SetStateAction<'DIGITS' | 'SERIALS'>) =>
+        setGroupDraftField('replacementType', action);
+    const setReplacementDigits = (action: React.SetStateAction<string>) =>
+        setGroupDraftField('replacementDigits', action);
+    const setReplacementDigitsImg = (action: React.SetStateAction<string>) =>
+        setGroupDraftField('replacementDigitsImg', action);
+    const setDigitsError = (action: React.SetStateAction<string>) =>
+        setGroupDraftField('digitsError', action);
+    const setSerialProcessingMode = (action: React.SetStateAction<'EACH' | 'ALL'>) =>
+        setGroupDraftField('serialProcessingMode', action);
+    const setCancelMode = (action: React.SetStateAction<'TICKET' | 'SERIAL'>) =>
+        setGroupDraftField('cancelMode', action);
+    const setTicketForm = (action: React.SetStateAction<FormState>) =>
+        setGroupDraftField('ticketForm', action);
+
+    const getGroupDraft = (ticketNumber: string): TicketGroupDraft =>
+        groupDrafts[ticketNumber] || createTicketGroupDraft(defaultCancelMode);
+
     useEffect(() => {
         setIsPreparing(true);
         setPage(1);
         setRepPage(1);
         setWorkflowStep('FORM');
-        setCancelMode('SERIAL');
-        setSerialProcessingMode(defaultCancelMode === 'SERIAL' ? 'EACH' : 'ALL');
+        setActiveGroupIndex(0);
+        setGroupDrafts({});
         const timer = setTimeout(() => {
             setIsPreparing(false);
         }, 300);
@@ -399,10 +478,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
             : ticketForm.damagedEvidenceUrl;
 
     useEffect(() => {
-        setTicketBatchEvidenceMode(null);
-        setSerialEvidenceUrls({});
-        setPendingEvidenceUrl('');
-        setEvidenceApplyDialogOpen(false);
         setRefundDraftByOrderId({});
         setPendingSelectedItems([]);
     }, [currentTicketId, activeGroupIndex, serials]);
@@ -464,18 +539,22 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
     const mapSerialsToSelectedItems = (targetSerials: SerialItem[]): MappedSubmitItem[] =>
         targetSerials.map((sItem) => {
+            const groupKey = sItem.ticketNumbers || ticketNumbers || 'Vé số';
+            const groupDraft = getGroupDraft(groupKey);
             const serialForm = forms[sItem.id];
-            const formState = serialProcessingMode === 'ALL' ? ticketForm : serialForm;
+            const formState = groupDraft.serialProcessingMode === 'ALL'
+                ? groupDraft.ticketForm
+                : serialForm;
             let damagedEvidenceUrl = formState.damagedEvidenceUrl;
             if (
-                serialProcessingMode === 'ALL' &&
-                isTicketBatchFaultFlow &&
-                ticketForm.status === 'DAMAGED'
+                groupDraft.serialProcessingMode === 'ALL' &&
+                groupDraft.ticketForm.faultedBy === 'INTERNAL_FAULT' &&
+                groupDraft.ticketForm.status === 'DAMAGED'
             ) {
                 damagedEvidenceUrl =
-                    ticketBatchEvidenceMode === 'EACH'
-                        ? serialEvidenceUrls[String(sItem.id)] || ''
-                        : ticketForm.damagedEvidenceUrl;
+                    groupDraft.ticketBatchEvidenceMode === 'EACH'
+                        ? groupDraft.serialEvidenceUrls[String(sItem.id)] || ''
+                        : groupDraft.ticketForm.damagedEvidenceUrl;
             }
             return {
                 id: Number(sItem.id),
@@ -493,9 +572,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         });
 
     const getTargetSerialsForSubmit = (): SerialItem[] =>
-        serialProcessingMode === 'ALL'
-            ? currentGroupSelectedSerials
-            : serials.filter((s) => forms[s.id]?.selected && isSerialIncidentEligible(s));
+        serials.filter((s) => forms[s.id]?.selected && isSerialIncidentEligible(s));
 
     const initializeRefundDrafts = (activeSerials: SerialItem[], selectedItems: MappedSubmitItem[]) => {
         const grouped = groupSerialsByOrderId(activeSerials);
@@ -708,10 +785,36 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     const confirmButtonVisible = true;
     const confirmButtonDisabled = submitting || !canSubmit;
 
-    const isSerialFormFilled = (form: FormState | undefined): boolean => {
-        if (!form?.selected) return false;
-        if (form.status === 'DAMAGED' || form.status === 'LOST' || form.status === 'VOIDED') {
-            if (!form.damagedReason?.trim()) return false;
+    const isTicketGroupFormFilled = (group: TicketGroup): boolean => {
+        const draft = getGroupDraft(group.ticketNumbers);
+        const selected = group.serials.filter(
+            (serial) => forms[serial.id]?.selected && isSerialIncidentEligible(serial)
+        );
+        if (selected.length === 0) return true;
+
+        if (draft.serialProcessingMode === 'ALL') {
+            const groupForm = draft.ticketForm;
+            if (groupForm.status === 'DAMAGED' || groupForm.status === 'LOST' || groupForm.status === 'VOIDED') {
+                if (!groupForm.damagedReason?.trim()) return false;
+                if (groupForm.status === 'DAMAGED' && groupForm.faultedBy === 'INTERNAL_FAULT') {
+                    if (draft.ticketBatchEvidenceMode === 'EACH') {
+                        return selected.every((serial) => draft.serialEvidenceUrls[String(serial.id)]?.trim());
+                    }
+                    if (!groupForm.damagedEvidenceUrl?.trim()) return false;
+                }
+            }
+            if (groupForm.status === 'VOIDED') {
+                if (draft.replacementType === 'DIGITS') {
+                    return draft.replacementDigits.trim().length === 6;
+                }
+                return selected.every((serial) => Boolean(forms[serial.id]?.replacementSerial?.trim()));
+            }
+            return true;
+        }
+
+        return selected.every((serial) => {
+            const form = forms[serial.id];
+            if (!form?.selected || !form.damagedReason?.trim()) return false;
             if (
                 form.status === 'DAMAGED' &&
                 form.faultedBy === 'INTERNAL_FAULT' &&
@@ -719,46 +822,32 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
             ) {
                 return false;
             }
-        }
-        if ((form.status === 'VOIDED' || isBulkVoidedReplacementScope) && replacementType === 'SERIALS') {
-            if (!form.replacementSerial?.trim()) return false;
-        }
-        return true;
-    };
-
-    const isTicketGroupFormFilled = (group: TicketGroup, groupIndex: number): boolean => {
-        if (serialProcessingMode === 'ALL') {
-            if (groupIndex !== activeGroupIndex) return true;
-            if (ticketForm.status === 'DAMAGED' || ticketForm.status === 'LOST' || ticketForm.status === 'VOIDED') {
-                if (!ticketForm.damagedReason?.trim()) return false;
-                if (ticketForm.status === 'DAMAGED' && ticketForm.faultedBy === 'INTERNAL_FAULT') {
-                    if (isTicketBatchFaultFlow && ticketBatchEvidenceMode === 'EACH') {
-                        return currentGroupSelectedSerials.every((serial) => serialEvidenceUrls[String(serial.id)]?.trim());
-                    }
-                    if (!ticketForm.damagedEvidenceUrl?.trim()) return false;
-                }
+            if (form.status === 'VOIDED') {
+                return draft.replacementType === 'DIGITS'
+                    ? draft.replacementDigits.trim().length === 6
+                    : Boolean(form.replacementSerial?.trim());
             }
-            return currentGroupSelectedSerials.length > 0;
-        }
-
-        const selected = group.serials.filter((s) => forms[s.id]?.selected);
-        if (selected.length === 0) return true;
-        return selected.every((s) => isSerialFormFilled(forms[s.id]));
+            return true;
+        });
     };
 
     const getIncompleteTicketGroups = (): TicketGroup[] => {
         if (groups.length <= 1) return [];
-        return groups.filter((group, index) => !isTicketGroupFormFilled(group, index));
+        return groups.filter((group) => !isTicketGroupFormFilled(group));
     };
 
     const getCompleteSelectedSerials = (): SerialItem[] => {
-        if (serialProcessingMode === 'ALL') {
-            if (!currentGroup || !isTicketGroupFormFilled(currentGroup, activeGroupIndex)) {
-                return [];
-            }
-            return currentGroupSelectedSerials;
-        }
-        return serials.filter((s) => isSerialIncidentEligible(s) && isSerialFormFilled(forms[s.id]));
+        const completeGroupKeys = new Set(
+            groups
+                .filter((group) => isTicketGroupFormFilled(group))
+                .map((group) => group.ticketNumbers)
+        );
+        return serials.filter((serial) => {
+            const groupKey = serial.ticketNumbers || ticketNumbers || 'Vé số';
+            return completeGroupKeys.has(groupKey)
+                && isSerialIncidentEligible(serial)
+                && forms[serial.id]?.selected;
+        });
     };
 
     const validateForms = (overrideTargets?: SerialItem[]): boolean => {
@@ -885,21 +974,25 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
             return;
         }
 
-        const hasVoidedItems = selectedItems.some(item => item.status === 'VOIDED');
-        if (hasVoidedItems && replacementType === 'DIGITS') {
-            if (!replacementDigits.trim()) {
-                setDigitsError('Dãy số vé thay thế không được để trống.');
-                AppToast.error('Vui lòng nhập dãy số vé thay thế.');
-                return;
-            }
-            if (replacementDigits.trim().length !== 6) {
-                setDigitsError('Dãy số vé thay thế phải có đúng 6 chữ số.');
-                AppToast.error('Dãy số vé thay thế phải có đúng 6 chữ số.');
-                return;
-            }
+        const selectedGroupKeys = new Set(
+            targetSerials.map((serial) => serial.ticketNumbers || ticketNumbers || 'Vé số')
+        );
+        const invalidReplacementGroup = groups.find((group) => {
+            if (!selectedGroupKeys.has(group.ticketNumbers)) return false;
+            const draft = getGroupDraft(group.ticketNumbers);
+            const hasVoidedItems = selectedItems.some(
+                (item) => item.ticketNumbers === group.ticketNumbers && item.status === 'VOIDED'
+            );
+            return hasVoidedItems
+                && draft.replacementType === 'DIGITS'
+                && draft.replacementDigits.trim().length !== 6;
+        });
+        if (invalidReplacementGroup) {
+            AppToast.error(`Dãy số vé thay thế của vé ${invalidReplacementGroup.ticketNumbers} phải có đúng 6 chữ số.`);
+            return;
         }
 
-        if (!validateForms(targetSerials)) {
+        if (groups.length === 1 && !validateForms(targetSerials)) {
             const sameAsCurrent = targetSerials.some((serial) => {
                 const form = forms[serial.id];
                 const replacement = (form?.replacementSerial ?? '').trim().toLowerCase();
@@ -919,10 +1012,19 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
         setPendingSelectedItems(selectedItems);
 
-        if (
-            needsRefundPrepStep(cancelMode, targetSerials, ticketForm.faultedBy) &&
-            !selectedItems.some((item) => item.status === 'VOIDED')
-        ) {
+        const needsAnyRefundPrep = groups.some((group) => {
+            const groupSerials = targetSerials.filter(
+                (serial) => (serial.ticketNumbers || ticketNumbers || 'Vé số') === group.ticketNumbers
+            );
+            if (groupSerials.length === 0) return false;
+            const draft = getGroupDraft(group.ticketNumbers);
+            return needsRefundPrepStep(
+                draft.cancelMode,
+                groupSerials,
+                draft.ticketForm.faultedBy
+            );
+        });
+        if (needsAnyRefundPrep && !selectedItems.some((item) => item.status === 'VOIDED')) {
             const activeSerials = getActiveTransactionSerials(targetSerials);
             const missingOrderLink = activeSerials.filter((serial) => !serial.reservedByOrderId);
             if (missingOrderLink.length > 0) {
@@ -938,6 +1040,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         if (beforeConfirm && !beforeConfirm()) {
             return;
         }
+        setConfirmationPage(0);
         setConfirmOpen(true);
     };
 
@@ -985,10 +1088,12 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         if (beforeConfirm && !beforeConfirm()) {
             return;
         }
+        setConfirmationPage(0);
         setConfirmOpen(true);
     };
 
     const reportSerialFaultItem = async (item: MappedSubmitItem) => {
+        const itemDraft = getGroupDraft(item.ticketNumbers || ticketNumbers || 'Vé số');
         await reportTicketSerialFault(
             item.id,
             buildReportSerialFaultPayload({
@@ -997,11 +1102,11 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 damagedReason: item.damagedReason,
                 damagedEvidenceUrl: item.damagedEvidenceUrl || undefined,
                 replacementSerialNumber:
-                    item.status === 'VOIDED' && replacementType === 'SERIALS'
+                    item.status === 'VOIDED' && itemDraft.replacementType === 'SERIALS'
                         ? item.replacementSerial?.trim() || undefined
                         : undefined,
                 replacementTicketImg:
-                    item.status === 'VOIDED' && replacementType === 'SERIALS'
+                    item.status === 'VOIDED' && itemDraft.replacementType === 'SERIALS'
                         ? item.replacementTicketImg || undefined
                         : undefined,
             })
@@ -1020,31 +1125,39 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
         setSubmitting(true);
         try {
-            const hasVoidedItems = selectedItems.some(item => item.status === 'VOIDED');
-            if (hasVoidedItems && replacementType === 'DIGITS') {
-                const targetTicketId = currentTicketId || ticketId;
-                if (targetTicketId) {
-                    await replaceTicketDigits(targetTicketId, {
-                        newNumbers: replacementDigits.trim(),
-                        newTicketImg: replacementDigitsImg || undefined
+            const digitReplacementGroupKeys = new Set<string>();
+            for (const group of groups) {
+                const draft = getGroupDraft(group.ticketNumbers);
+                const hasDigitReplacement = selectedItems.some(
+                    (item) => item.ticketNumbers === group.ticketNumbers && item.status === 'VOIDED'
+                ) && draft.replacementType === 'DIGITS';
+                if (!hasDigitReplacement) continue;
+
+                digitReplacementGroupKeys.add(group.ticketNumbers);
+                if (group.ticketId) {
+                    await replaceTicketDigits(group.ticketId, {
+                        newNumbers: draft.replacementDigits.trim(),
+                        newTicketImg: draft.replacementDigitsImg || undefined,
                     });
                 }
+            }
 
-                const nonDigitVoidedItems = selectedItems.filter(item => item.status !== 'VOIDED');
-                for (const item of nonDigitVoidedItems) {
-                    await reportSerialFaultItem(item);
-                }
-            } else {
-                const activeItems = selectedItems.filter((item) =>
+            const serialFaultItems = selectedItems.filter(
+                (item) => !(
+                    item.status === 'VOIDED'
+                    && digitReplacementGroupKeys.has(item.ticketNumbers || ticketNumbers || 'Vé số')
+                )
+            );
+            const activeItems = serialFaultItems.filter((item) =>
                     isActiveTransactionSerialStatus(item.originalStatus)
-                );
-                const inventoryItems = selectedItems.filter(
-                    (item) => !isActiveTransactionSerialStatus(item.originalStatus)
-                );
+            );
+            const inventoryItems = serialFaultItems.filter(
+                (item) => !isActiveTransactionSerialStatus(item.originalStatus)
+            );
 
-                const handledOrderIds = new Set<string>();
+            const handledOrderIds = new Set<string>();
 
-                for (const [orderId, draft] of Object.entries(refundDraftByOrderId)) {
+            for (const [orderId, draft] of Object.entries(refundDraftByOrderId)) {
                     const itemsForOrder = activeItems.filter(
                         (item) => String(item.reservedByOrderId) === orderId
                     );
@@ -1088,21 +1201,20 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         });
                         handledOrderIds.add(orderId);
                     }
-                }
+            }
 
-                const remainingActive = activeItems.filter(
-                    (item) => !handledOrderIds.has(String(item.reservedByOrderId || ''))
-                );
+            const remainingActive = activeItems.filter(
+                (item) => !handledOrderIds.has(String(item.reservedByOrderId || ''))
+            );
 
-                // Unpaid / inventory-only / already-handled leftovers: report serial fault only.
-                // Backend cancels the order only when the serial is the last active one.
-                for (const item of remainingActive) {
-                    await reportSerialFaultItem(item);
-                }
+            // Unpaid / inventory-only / already-handled leftovers: report serial fault only.
+            // Backend cancels the order only when the serial is the last active one.
+            for (const item of remainingActive) {
+                await reportSerialFaultItem(item);
+            }
 
-                for (const item of inventoryItems) {
-                    await reportSerialFaultItem(item);
-                }
+            for (const item of inventoryItems) {
+                await reportSerialFaultItem(item);
             }
 
             AppToast.success('Báo cáo sự cố và cập nhật vé thay thế thành công!');
@@ -1449,6 +1561,40 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     </Alert>
                 )}
 
+                {/* Chọn dãy vé trước khi nhập thông tin xử lý của riêng dãy đó. */}
+                {groups.length > 1 && (
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, px: 1.5, py: 1, bgcolor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                        <Button
+                            size="small"
+                            disabled={activeGroupIndex === 0}
+                            onClick={() => { setActiveGroupIndex(i => i - 1); setPage(1); setRepPage(1); }}
+                            sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.78rem' }}
+                        >
+                            ‹ Dãy trước
+                        </Button>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ overflowX: 'auto', py: 0.5, maxWidth: '65%' }}>
+                            {groups.map((g, idx) => (
+                                <Chip
+                                    key={g.ticketNumbers}
+                                    label={`Dãy ${g.ticketNumbers}${g.ticketId ? ` (${g.serials.length})` : ''}`}
+                                    color={idx === activeGroupIndex ? "primary" : "default"}
+                                    variant={idx === activeGroupIndex ? "filled" : "outlined"}
+                                    onClick={() => { setActiveGroupIndex(idx); setPage(1); setRepPage(1); }}
+                                    sx={{ fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem' }}
+                                />
+                            ))}
+                        </Stack>
+                        <Button
+                            size="small"
+                            disabled={activeGroupIndex === groups.length - 1}
+                            onClick={() => { setActiveGroupIndex(i => i + 1); setPage(1); setRepPage(1); }}
+                            sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.78rem' }}
+                        >
+                            Dãy sau ›
+                        </Button>
+                    </Stack>
+                )}
+
                 {/* 2. Nút chuyển đổi: Báo cáo lý do chung cho các vé hoặc Lý do cụ thể cho từng vé */}
                 <Box sx={{ mb: 2 }}>
                     <ToggleButtonGroup
@@ -1529,40 +1675,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         </Alert>
                     )}
                 </Box>
-
-                {/* Group (Ticket Numbers) Switcher Header - Shown for multiple ticket groups */}
-                {groups.length > 1 && (
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, px: 1.5, py: 1, bgcolor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                        <Button 
-                            size="small" 
-                            disabled={activeGroupIndex === 0} 
-                            onClick={() => { setActiveGroupIndex(i => i - 1); setPage(1); setRepPage(1); }}
-                            sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.78rem' }}
-                        >
-                            ‹ Dãy trước
-                        </Button>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ overflowX: 'auto', py: 0.5, maxWidth: '65%' }}>
-                            {groups.map((g, idx) => (
-                                <Chip
-                                    key={g.ticketNumbers}
-                                    label={`Dãy ${g.ticketNumbers}${g.ticketId ? ` (${g.serials.length})` : ''}`}
-                                    color={idx === activeGroupIndex ? "primary" : "default"}
-                                    variant={idx === activeGroupIndex ? "filled" : "outlined"}
-                                    onClick={() => { setActiveGroupIndex(idx); setPage(1); setRepPage(1); }}
-                                    sx={{ fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem' }}
-                                />
-                            ))}
-                        </Stack>
-                        <Button 
-                            size="small" 
-                            disabled={activeGroupIndex === groups.length - 1} 
-                            onClick={() => { setActiveGroupIndex(i => i + 1); setPage(1); setRepPage(1); }}
-                            sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.78rem' }}
-                        >
-                            Dãy sau ›
-                        </Button>
-                    </Stack>
-                )}
 
                 {/* ── 3. Form Khai báo sự cố chung (Khi chọn 'Báo cáo lý do chung cho các vé') ── */}
                 {serialProcessingMode === 'ALL' && (
@@ -2568,11 +2680,64 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
             {/* Confirmation Modal */}
             {(() => {
-                const targetSerialsList = getTargetSerialsForSubmit();
-                const isReplacingWholeTicket = cancelMode === 'TICKET' && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && replacementType === 'DIGITS' && Boolean(replacementDigits);
+                const confirmationItems = pendingSelectedItems.length > 0
+                    ? pendingSelectedItems
+                    : mapSerialsToSelectedItems(getTargetSerialsForSubmit());
+                const confirmationGroups = groups.filter((group) =>
+                    confirmationItems.some((item) => item.ticketNumbers === group.ticketNumbers)
+                );
+                const safeConfirmationPage = Math.min(
+                    confirmationPage,
+                    Math.max(confirmationGroups.length - 1, 0)
+                );
+                const confirmationGroup = confirmationGroups[safeConfirmationPage] || currentGroup;
+                const confirmationDraft = confirmationGroup
+                    ? getGroupDraft(confirmationGroup.ticketNumbers)
+                    : currentGroupDraft;
+                const confirmationItemIds = new Set(
+                    confirmationItems
+                        .filter((item) => item.ticketNumbers === confirmationGroup?.ticketNumbers)
+                        .map((item) => item.id)
+                );
+                const targetSerialsList = (confirmationGroup?.serials || []).filter((serial) =>
+                    confirmationItemIds.has(Number(serial.id))
+                );
+                const confirmationTicketForm = confirmationDraft.ticketForm;
+                const confirmationIsFullTicketScope = Boolean(
+                    confirmationGroup
+                    && confirmationGroup.serials.filter((serial) => isSerialIncidentEligible(serial)).length > 0
+                    && confirmationGroup.serials
+                        .filter((serial) => isSerialIncidentEligible(serial))
+                        .every((serial) => confirmationItemIds.has(Number(serial.id)))
+                );
+                const confirmationAllPhysical = targetSerialsList.length > 0
+                    && targetSerialsList.every((serial) => {
+                        const item = confirmationItems.find((entry) => entry.id === Number(serial.id));
+                        return item?.status === 'DAMAGED' || item?.status === 'LOST';
+                    });
+                const isReplacingWholeTicket = confirmationDraft.cancelMode === 'TICKET'
+                    && confirmationTicketForm.faultedBy === 'DATA_ENTRY_FAULT'
+                    && confirmationDraft.replacementType === 'DIGITS'
+                    && Boolean(confirmationDraft.replacementDigits);
                 const serialsWithReplacement = targetSerialsList.filter(s => Boolean(forms[s.id]?.replacementSerial?.trim()));
-                const isReplacingIndividualSerials = replacementType === 'SERIALS' && serialsWithReplacement.length > 0;
+                const isReplacingIndividualSerials = confirmationDraft.replacementType === 'SERIALS'
+                    && serialsWithReplacement.length > 0;
                 const hasAnyReplacement = isReplacingWholeTicket || isReplacingIndividualSerials;
+                const confirmationRefundEntries = Object.entries(refundDraftByOrderId)
+                    .map(([orderId, draft]) => [
+                        orderId,
+                        {
+                            ...draft,
+                            incidents: draft.incidents.filter((incident) =>
+                                confirmationItemIds.has(Number(incident.serialId))
+                            ),
+                        },
+                    ] as const)
+                    .filter(([, draft]) => draft.incidents.length > 0);
+                const confirmationInventoryItems = confirmationItems.filter(
+                    (item) => confirmationItemIds.has(item.id)
+                        && !isActiveTransactionSerialStatus(item.originalStatus)
+                );
 
                 return (
                     <Dialog 
@@ -2618,7 +2783,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     <Stack direction="row" alignItems="center" justifyContent="space-between">
                                         <Chip label="Vé báo sự cố" size="small" sx={{ fontWeight: 800, fontSize: '0.7rem', bgcolor: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca' }} />
                                         <Typography variant="subtitle1" fontWeight={900} color="#0f172a" sx={{ fontFamily: 'monospace', fontSize: '1rem', letterSpacing: '0.5px' }}>
-                                            #{currentTicketNumbers}
+                                            #{confirmationGroup?.ticketNumbers || '—'}
                                         </Typography>
                                     </Stack>
 
@@ -2629,14 +2794,14 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                             Phạm vi áp dụng
                                         </Typography>
                                         <Typography variant="body2" fontWeight={800} color="#1e293b">
-                                            {cancelMode === 'TICKET' || isFullTicketScope
+                                            {confirmationDraft.cancelMode === 'TICKET' || confirmationIsFullTicketScope
                                                 ? `Báo sự cố toàn bộ vé (${targetSerialsList.length} sê-ri)`
                                                 : `Báo sự cố ${targetSerialsList.length} sê-ri đã chọn`}
                                         </Typography>
                                     </Box>
 
                                     {/* Danh sách các sê-ri được chọn nếu chọn một vài sê-ri */}
-                                    {(!isFullTicketScope && targetSerialsList.length > 0 && targetSerialsList.length <= 10) && (
+                                    {(!confirmationIsFullTicketScope && targetSerialsList.length > 0 && targetSerialsList.length <= 10) && (
                                         <Box>
                                             <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.5 }}>
                                                 Các sê-ri áp dụng (${targetSerialsList.length}):
@@ -2667,15 +2832,15 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                             Nguyên nhân sự cố
                                         </Typography>
                                         <Chip 
-                                            label={(ticketForm.faultedBy === 'DATA_ENTRY_FAULT') ? 'Lỗi thao tác nhập liệu' : 'Sự cố vật lý'} 
+                                            label={(confirmationTicketForm.faultedBy === 'DATA_ENTRY_FAULT') ? 'Lỗi thao tác nhập liệu' : 'Sự cố vật lý'}
                                             size="small" 
                                             sx={{ 
                                                 fontWeight: 800, 
                                                 fontSize: '0.72rem',
-                                                bgcolor: (ticketForm.faultedBy === 'DATA_ENTRY_FAULT') ? '#eff6ff' : '#fef2f2',
-                                                color: (ticketForm.faultedBy === 'DATA_ENTRY_FAULT') ? '#1d4ed8' : '#b91c1c',
+                                                bgcolor: (confirmationTicketForm.faultedBy === 'DATA_ENTRY_FAULT') ? '#eff6ff' : '#fef2f2',
+                                                color: (confirmationTicketForm.faultedBy === 'DATA_ENTRY_FAULT') ? '#1d4ed8' : '#b91c1c',
                                                 border: '1px solid',
-                                                borderColor: (ticketForm.faultedBy === 'DATA_ENTRY_FAULT') ? '#bfdbfe' : '#fecaca'
+                                                borderColor: (confirmationTicketForm.faultedBy === 'DATA_ENTRY_FAULT') ? '#bfdbfe' : '#fecaca'
                                             }} 
                                         />
                                     </Box>
@@ -2685,12 +2850,12 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                             Lý do chi tiết
                                         </Typography>
                                         <Typography variant="body2" color="#334155" sx={{ fontStyle: 'italic', bgcolor: '#ffffff', p: 1, borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.8rem' }}>
-                                            "{serialProcessingMode === 'ALL' ? (ticketForm.damagedReason || 'Chưa nhập lý do') : 'Khai báo theo từng sê-ri riêng lẻ'}"
+                                            "{confirmationDraft.serialProcessingMode === 'ALL' ? (confirmationTicketForm.damagedReason || 'Chưa nhập lý do') : 'Khai báo theo từng sê-ri riêng lẻ'}"
                                         </Typography>
                                     </Box>
 
                                     {/* Ảnh minh chứng đính kèm (nếu có) */}
-                                    {ticketForm.damagedEvidenceUrl && (
+                                    {confirmationTicketForm.damagedEvidenceUrl && (
                                         <Box>
                                             <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
                                                 Ảnh minh chứng
@@ -2710,8 +2875,8 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                             <Typography variant="caption" color="#334155" sx={{ fontSize: '0.73rem', display: 'block', lineHeight: 1.45 }}>
                                                 {isReplacingWholeTicket ? (
                                                     <>Dãy số cũ sẽ được chuyển sang trạng thái lưu trữ đối soát; toàn bộ các vé sê-ri được tự động chuyển sang dãy số mới.</>
-                                                ) : allSelectedSerialsPhysicalFault || isFullTicketScope ? (
-                                                    <>Toàn bộ <strong>${eligibleCurrentSerials.length} sê-ri</strong> của dãy số sẽ bị hủy bỏ và ngừng phát hành. Các đơn hàng có liên quan sẽ được tự động xử lý hoàn tiền.</>
+                                                ) : confirmationAllPhysical || confirmationIsFullTicketScope ? (
+                                                    <>Toàn bộ <strong>${confirmationGroup?.serials.filter((serial) => isSerialIncidentEligible(serial)).length || 0} sê-ri</strong> của dãy số sẽ bị hủy bỏ và ngừng phát hành. Các đơn hàng có liên quan sẽ được tự động xử lý hoàn tiền.</>
                                                 ) : (
                                                     <>Chỉ <strong>${targetSerialsList.length} sê-ri</strong> đã chọn bị ghi nhận sự cố và hủy bỏ. Các sê-ri còn lại trong dãy vẫn có thể phát hành bình thường.</>
                                                 )}
@@ -2750,7 +2915,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                         Dãy số vé mới sẽ tạo
                                                     </Typography>
                                                     <Typography variant="h4" fontWeight={900} color="#16a34a" sx={{ letterSpacing: '2px', fontFamily: 'monospace' }}>
-                                                        {replacementDigits || 'Chưa nhập'}
+                                                        {confirmationDraft.replacementDigits || 'Chưa nhập'}
                                                     </Typography>
                                                 </Box>
 
@@ -2759,7 +2924,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                         Số lượng sê-ri chuyển mới
                                                     </Typography>
                                                     <Typography variant="body2" fontWeight={800} color="#1e293b">
-                                                        {currentSerials.length} sê-ri vật lý
+                                                        {confirmationGroup?.serials.length || 0} sê-ri vật lý
                                                     </Typography>
                                                 </Box>
 
@@ -2768,7 +2933,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                         Ảnh minh chứng vé mới
                                                     </Typography>
                                                     <Typography variant="body2" color="#475569">
-                                                        {replacementDigitsImg ? 'Đã tải lên ảnh vé mới' : 'Không có ảnh đính kèm'}
+                                                        {confirmationDraft.replacementDigitsImg ? 'Đã tải lên ảnh vé mới' : 'Không có ảnh đính kèm'}
                                                     </Typography>
                                                 </Box>
 
@@ -2839,7 +3004,35 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                 )}
                             </Box>
 
-                            {Object.keys(refundDraftByOrderId).length > 0 && (
+                            {confirmationGroups.length > 1 && (
+                                <Stack alignItems="center" sx={{ mt: 2 }}>
+                                    <Pagination
+                                        count={confirmationGroups.length}
+                                        page={safeConfirmationPage + 1}
+                                        onChange={(_, nextPage) => setConfirmationPage(nextPage - 1)}
+                                        color="primary"
+                                        shape="rounded"
+                                        siblingCount={1}
+                                        boundaryCount={1}
+                                        showFirstButton={false}
+                                        showLastButton={false}
+                                        aria-label="Chuyển vé cần xác nhận"
+                                        sx={{
+                                            '& .MuiPagination-ul': { justifyContent: 'center' },
+                                            '& .MuiPaginationItem-root': { fontWeight: 750 },
+                                            '& .Mui-selected': {
+                                                bgcolor: '#ef4444 !important',
+                                                color: '#fff',
+                                            },
+                                        }}
+                                    />
+                                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75 }}>
+                                        Vé {safeConfirmationPage + 1}/{confirmationGroups.length}
+                                    </Typography>
+                                </Stack>
+                            )}
+
+                            {confirmationRefundEntries.length > 0 && (
                                 <Paper
                                     variant="outlined"
                                     sx={{
@@ -2854,7 +3047,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         Hoàn tiền đơn hàng liên kết
                                     </Typography>
                                     <Stack spacing={1.5}>
-                                        {Object.entries(refundDraftByOrderId).map(([orderId, draft]) => {
+                                        {confirmationRefundEntries.map(([orderId, draft]) => {
                                             const orderTypeLabel =
                                                 ORDER_TYPE_LABELS[draft.orderType || ''] || draft.orderType || '—';
 
@@ -2909,16 +3102,13 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         })}
                                     </Stack>
 
-                                    {pendingSelectedItems.some(
-                                        (item) => !isActiveTransactionSerialStatus(item.originalStatus)
-                                    ) && (
+                                    {confirmationInventoryItems.length > 0 && (
                                         <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed #fde68a' }}>
                                             <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 0.5 }}>
                                                 Sê-ri chỉ cập nhật kho (IN_STOCK) — không hoàn tiền:
                                             </Typography>
                                             <Typography variant="caption" color="#475569">
-                                                {pendingSelectedItems
-                                                    .filter((item) => !isActiveTransactionSerialStatus(item.originalStatus))
+                                                {confirmationInventoryItems
                                                     .map((item) => item.serialNumber || item.id)
                                                     .join(', ')}
                                             </Typography>

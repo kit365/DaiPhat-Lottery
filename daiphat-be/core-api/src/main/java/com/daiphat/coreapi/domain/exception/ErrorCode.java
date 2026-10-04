@@ -607,6 +607,11 @@ public enum ErrorCode {
             "Nhập vé cần cả cột dãy số và cột sê-ri.",
             HttpStatus.BAD_REQUEST
     ),
+    IMPORT_BATCH_SELECTION_STALE(
+            "LT_148",
+            "Phiếu nhập hoặc phân bổ nhà đài đã thay đổi. Vui lòng xem lại trước khi nhập vé.",
+            HttpStatus.CONFLICT
+    ),
 
     // Street Agent Profile Errors
     STREET_AGENT_PROFILE_NOT_FOUND("SAG_001", "Hồ sơ đại lý bán dạo không tồn tại.", HttpStatus.NOT_FOUND),

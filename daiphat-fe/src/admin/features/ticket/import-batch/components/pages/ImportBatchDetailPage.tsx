@@ -52,6 +52,10 @@ import { exportImportBatchFile } from '../../services/importBatchService';
 import { toast } from 'react-toastify';
 import { useStations } from '../../../../station/hooks/useStation';
 import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
+import { ImportBatchMethodSelectionDialog } from '../sections/ImportBatchMethodSelectionDialog';
+import { ImportBatchFileImportDialog } from '../sections/ImportBatchFileImportDialog';
+import { OcrTicketImportDialog } from '../../../ocr-import/components/OcrTicketImportDialog';
+import type { ImportBatch, ImportBatchLine } from '../../types/importBatch.type';
 import { usePermissions } from '../../../../../hooks/usePermission';
 import { formatVnd } from '../../utils/importCostCalculator';
 import {
@@ -95,6 +99,16 @@ export const ImportBatchDetailPage = () => {
     const { data: activeSuppliers = [] } = useActiveSuppliers();
     const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     const providers = (providersRes as any)?.data?.recordList || [];
+    const [methodSelectionBatch, setMethodSelectionBatch] = useState<ImportBatch | null>(null);
+    const [methodSelectionLine, setMethodSelectionLine] = useState<ImportBatchLine | null>(null);
+    const [ocrTarget, setOcrTarget] = useState<{
+        batch: ImportBatch;
+        line?: ImportBatchLine | null;
+    } | null>(null);
+    const [fileTarget, setFileTarget] = useState<{
+        supplierId?: number | null;
+        batchId?: number | null;
+    } | null>(null);
     const [importLineId, setImportLineId] = useState<string | null>(null);
 
     const resolveStationName = (stationId: number) =>
@@ -128,6 +142,39 @@ export const ImportBatchDetailPage = () => {
     if (!isLoading && batch && isImportBatchEditable(batch) && can(PERMISSIONS.IMPORT_BATCH.CREATE)) {
         return <ImportBatchEditPage />;
     }
+
+    const handleOpenImportMethodModal = (targetBatch: ImportBatch, line?: ImportBatchLine | null) => {
+        if (intakeGate?.blocked || intakeGate?.notYetAllowed) {
+            toast.error(intakeGate?.tooltipTitle ?? intakeGate?.message ?? 'Phiếu nhập lô này hiện không đủ điều kiện nhập vé.');
+            return;
+        }
+        setMethodSelectionBatch(targetBatch);
+        setMethodSelectionLine(line ?? null);
+    };
+
+    const handleSelectOcr = (targetBatch: ImportBatch, line?: ImportBatchLine | null) => {
+        const resolvedLine = line ?? findFirstIncompleteLine(targetBatch);
+        setOcrTarget({
+            batch: targetBatch,
+            line: resolvedLine ?? null,
+        });
+    };
+
+    const handleSelectFile = (targetBatch: ImportBatch) => {
+        setFileTarget({
+            supplierId: targetBatch.supplierId,
+            batchId: targetBatch.id,
+        });
+    };
+
+    const handleSelectManual = (targetBatch: ImportBatch, line?: ImportBatchLine | null) => {
+        const resolvedLine = line ?? findFirstIncompleteLine(targetBatch);
+        if (resolvedLine?.id != null) {
+            setImportLineId(String(resolvedLine.id));
+        } else {
+            toast.info('Tất cả các đài đã hoàn thành số lượng vé cần nhập.');
+        }
+    };
 
     const handleExport = async () => {
         if (!batch) return;
@@ -206,10 +253,7 @@ export const ImportBatchDetailPage = () => {
                                                 disabled={importTicketsBlocked}
                                                 startIcon={<ConfirmationNumberOutlinedIcon />}
                                                 onClick={() => {
-                                                    const firstLine = findFirstIncompleteLine(batch);
-                                                    if (firstLine?.id != null) {
-                                                        setImportLineId(String(firstLine.id));
-                                                    }
+                                                    handleOpenImportMethodModal(batch, findFirstIncompleteLine(batch));
                                                 }}
                                                 sx={{
                                                     textTransform: 'none',
@@ -811,7 +855,7 @@ export const ImportBatchDetailPage = () => {
                                                                         size="small"
                                                                         variant="outlined"
                                                                         disabled={importTicketsBlocked}
-                                                                        onClick={() => setImportLineId(String(line.id))}
+                                                                        onClick={() => handleOpenImportMethodModal(batch, line)}
                                                                         sx={{
                                                                             minWidth: 0,
                                                                             px: 1.25,
@@ -1045,6 +1089,45 @@ export const ImportBatchDetailPage = () => {
                     )}
                 </Stack>
             )}
+
+            {/* Method Selection Dialog */}
+            <ImportBatchMethodSelectionDialog
+                open={!!methodSelectionBatch}
+                batch={methodSelectionBatch}
+                targetLine={methodSelectionLine}
+                onClose={() => {
+                    setMethodSelectionBatch(null);
+                    setMethodSelectionLine(null);
+                }}
+                onSelectOcr={handleSelectOcr}
+                onSelectFile={handleSelectFile}
+                onSelectManual={handleSelectManual}
+            />
+
+            {/* OCR Ticket Import Dialog */}
+            <OcrTicketImportDialog
+                open={!!ocrTarget}
+                onClose={() => setOcrTarget(null)}
+                onImported={() => {
+                    setOcrTarget(null);
+                    refetch();
+                }}
+                prefillBatch={ocrTarget?.batch ?? null}
+                prefillLine={ocrTarget?.line ?? null}
+                restoreSelectedImportBatchId={ocrTarget?.batch?.id ?? null}
+            />
+
+            {/* File Ticket Import Dialog */}
+            <ImportBatchFileImportDialog
+                open={!!fileTarget}
+                onClose={() => setFileTarget(null)}
+                onImported={() => {
+                    setFileTarget(null);
+                    refetch();
+                }}
+                prefillSupplierId={fileTarget?.supplierId ?? null}
+                prefillBatchId={fileTarget?.batchId ?? null}
+            />
 
             {/* Inline ticket importer modal host */}
             <ImportBatchLineImportHost

@@ -5,6 +5,9 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicket
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.OcrConfirmImportRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.OcrConfirmImportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntrySerialResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse;
@@ -22,6 +25,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.OcrConfirmImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ScanImportOutcome;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
+import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService;
@@ -50,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -64,6 +69,8 @@ class OcrConfirmImportServiceTest {
     private ImportBatchDraftExpiryService importBatchDraftExpiryService;
     @Mock
     private ImportBatchImportModeResolver importBatchImportModeResolver;
+    @Mock
+    private ImportBatchSelectionSnapshotValidator importBatchSelectionSnapshotValidator;
     @Mock
     private LotteryTicketServicePort lotteryTicketServicePort;
     @Mock
@@ -90,6 +97,7 @@ class OcrConfirmImportServiceTest {
                 importBatchRepositoryPort,
                 importBatchDraftExpiryService,
                 importBatchImportModeResolver,
+                importBatchSelectionSnapshotValidator,
                 lotteryTicketServicePort,
                 lotteryStationServicePort,
                 ocrScanResultRepositoryPort,
@@ -224,6 +232,7 @@ class OcrConfirmImportServiceTest {
                 .importedBy(operatorId)
                 .build();
         when(importBatchRepositoryPort.findById(80L)).thenReturn(Optional.of(batch));
+        when(importBatchSelectionSnapshotValidator.validate(80L, null)).thenReturn(batch);
 
         assertThatThrownBy(() -> service.confirm(
                 OcrConfirmImportRequest.builder()
@@ -252,8 +261,11 @@ class OcrConfirmImportServiceTest {
                 .importedBy(operatorId)
                 .build();
         when(importBatchRepositoryPort.findById(80L)).thenReturn(Optional.of(batch));
+        when(importBatchSelectionSnapshotValidator.validate(80L, null)).thenReturn(batch);
         when(importBatchServicePort.ensureOpenLinesByStation(eq(80L), any(), eq(operatorId)))
                 .thenReturn(Map.of(10L, 801L));
+        when(lotteryTicketServicePort.listEntryTicketsByImportBatchLine(801L))
+                .thenReturn(ImportBatchLineEntryTicketsResponse.builder().tickets(List.of()).build());
         when(lotteryTicketServicePort.create(any(CreateLotteryTicketRequest.class), eq(operatorId)))
                 .thenReturn(LotteryTicketResponse.builder()
                         .id(900L)
@@ -285,6 +297,132 @@ class OcrConfirmImportServiceTest {
                 ArgumentCaptor.forClass(CreateLotteryTicketRequest.class);
         verify(lotteryTicketServicePort).create(ticketCaptor.capture(), eq(operatorId));
         assertThat(ticketCaptor.getValue().importBatchLineId()).isEqualTo(801L);
+    }
+
+    @Test
+    void manualFailureReportsTheActualOutcomeAndDoesNotLinkFailedOcrResult() {
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(80L)
+                .batchCode("IB-80")
+                .drawDate(drawDate)
+                .supplierId(7L)
+                .status(ImportBatchStatus.DRAFT)
+                .importedBy(operatorId)
+                .build();
+        when(importBatchRepositoryPort.findById(80L)).thenReturn(Optional.of(batch));
+        when(importBatchSelectionSnapshotValidator.validate(80L, null)).thenReturn(batch);
+        when(importBatchServicePort.ensureOpenLinesByStation(eq(80L), any(), eq(operatorId)))
+                .thenReturn(Map.of(10L, 801L));
+        when(lotteryTicketServicePort.listEntryTicketsByImportBatchLine(801L))
+                .thenReturn(ImportBatchLineEntryTicketsResponse.builder().tickets(List.of()).build());
+        when(lotteryTicketServicePort.create(any(CreateLotteryTicketRequest.class), eq(operatorId)))
+                .thenThrow(new DomainException(ErrorCode.INVALID_INPUT, "Dòng nhập lô không còn nhận vé."));
+
+        OcrConfirmImportResponse response = service.confirm(
+                OcrConfirmImportRequest.builder()
+                        .mode(OcrConfirmImportMode.MANUAL)
+                        .importBatchId(80L)
+                        .tickets(List.of(OcrConfirmImportTicketRequest.builder()
+                                .stationId(10L)
+                                .drawDate(drawDate)
+                                .numbers("123456")
+                                .serialNumber("A012345")
+                                .ocrScanResultId(123L)
+                                .build()))
+                        .build(),
+                operatorId
+        );
+
+        assertThat(response.successCount()).isZero();
+        assertThat(response.failedCount()).isEqualTo(1);
+        assertThat(response.batches().getFirst().ticketResults().getFirst().outcome())
+                .isEqualTo(ScanImportOutcome.FAILED);
+        assertThat(response.batches().getFirst().ticketResults().getFirst().message())
+                .isEqualTo("Dòng nhập lô không còn nhận vé.");
+        verify(ocrScanResultRepositoryPort, never()).findById(any());
+        verify(ocrScanResultFieldService, never()).applyConfirmSnapshot(
+                any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void manualKeepsSuccessfulOutcomeWhenOcrAuditLoggingFails() {
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(80L).batchCode("IB-80").drawDate(drawDate).supplierId(7L)
+                .status(ImportBatchStatus.DRAFT).importedBy(operatorId).build();
+        when(importBatchRepositoryPort.findById(80L)).thenReturn(Optional.of(batch));
+        when(importBatchSelectionSnapshotValidator.validate(80L, null)).thenReturn(batch);
+        when(importBatchServicePort.ensureOpenLinesByStation(eq(80L), any(), eq(operatorId)))
+                .thenReturn(Map.of(10L, 801L));
+        when(lotteryTicketServicePort.listEntryTicketsByImportBatchLine(801L))
+                .thenReturn(ImportBatchLineEntryTicketsResponse.builder().tickets(List.of()).build());
+        when(lotteryTicketServicePort.create(any(CreateLotteryTicketRequest.class), eq(operatorId)))
+                .thenReturn(LotteryTicketResponse.builder()
+                        .id(900L)
+                        .serials(List.of(LotteryTicketSerialResponse.builder()
+                                .id(901L).serialNumber("A012345").build()))
+                        .build());
+        doThrow(new IllegalStateException("audit unavailable"))
+                .when(lotteryScanLogServicePort).recordEvent(
+                        any(), any(), any(), any(), any(), eq(true), any());
+
+        OcrConfirmImportResponse response = service.confirm(
+                OcrConfirmImportRequest.builder()
+                        .mode(OcrConfirmImportMode.MANUAL)
+                        .importBatchId(80L)
+                        .tickets(List.of(ticket(10L, drawDate, "123456", "A012345")))
+                        .build(),
+                operatorId
+        );
+
+        assertThat(response.successCount()).isEqualTo(1);
+        assertThat(response.failedCount()).isZero();
+        assertThat(response.batches().getFirst().ticketResults().getFirst().outcome())
+                .isEqualTo(ScanImportOutcome.SUCCESS);
+    }
+
+    @Test
+    void manualRejectsTicketAlreadyPresentOnSelectedLineBeforeCreatingAnything() {
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(80L).drawDate(drawDate).status(ImportBatchStatus.RECEIVING)
+                .importedBy(operatorId)
+                .lines(List.of(ImportBatchLineModel.builder()
+                        .id(801L).lotteryStationId(10L).build()))
+                .build();
+        when(importBatchRepositoryPort.findById(80L)).thenReturn(Optional.of(batch));
+        when(lotteryTicketServicePort.listEntryTicketsByImportBatchLine(801L))
+                .thenReturn(ImportBatchLineEntryTicketsResponse.builder().tickets(List.of(
+                        ImportBatchLineEntryTicketResponse.builder()
+                                .numbers("123456")
+                                .serials(List.of(ImportBatchLineEntrySerialResponse.builder()
+                                        .serialNumber("a012345").build()))
+                                .build())).build());
+
+        assertThatThrownBy(() -> service.confirm(OcrConfirmImportRequest.builder()
+                .mode(OcrConfirmImportMode.MANUAL).importBatchId(80L)
+                .tickets(List.of(ticket(10L, drawDate, "123456", "A012345")))
+                .build(), operatorId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(error -> assertThat(((DomainException) error).getInternalMessage())
+                        .contains("123456", "A012345"));
+        verify(lotteryTicketServicePort, never()).create(any(), any());
+        verify(importBatchSelectionSnapshotValidator, never()).validate(any(), any());
+    }
+
+    @Test
+    void manualReportsWhenSelectedBatchBelongsToAnotherOperator() {
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(80L).drawDate(drawDate).status(ImportBatchStatus.RECEIVING)
+                .importedBy(UUID.randomUUID()).build();
+        when(importBatchRepositoryPort.findById(80L)).thenReturn(Optional.of(batch));
+
+        assertThatThrownBy(() -> service.confirm(OcrConfirmImportRequest.builder()
+                .mode(OcrConfirmImportMode.MANUAL).importBatchId(80L)
+                .tickets(List.of(ticket(10L, drawDate, "123456", "A012345")))
+                .build(), operatorId))
+                .isInstanceOf(DomainException.class)
+                .satisfies(error -> assertThat(((DomainException) error).getInternalMessage())
+                        .contains("người nhập khác"));
+        verify(lotteryTicketServicePort, never()).create(any(), any());
     }
 
     private static OcrConfirmImportTicketRequest ticket(

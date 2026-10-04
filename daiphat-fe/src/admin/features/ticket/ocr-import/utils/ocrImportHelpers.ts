@@ -12,6 +12,7 @@ import {
 } from '../../import-batch/utils/importBatchProgress';
 import type {
     FieldValidationResult,
+    OcrConfirmImportResponse,
     OcrReviewRow,
     ScannedTicket,
     ScannedTicketStatus,
@@ -305,7 +306,16 @@ export const evaluateOcrFieldUiStatus = (
         if (wasEdited) {
             return { status: 'corrected' };
         }
-        // batchCode is optional, so when not present on ticket, don't show warning
+        if (row.expectedOcrFields?.includes('batchCode') && !row.batchCode?.trim()) {
+            return {
+                status: 'unreadable',
+                message: formatVietnameseErrorMessage(unreadabilityMessage || 'Không nhận diện được Ký hiệu / Lô.'),
+            };
+        }
+        if (validation?.status === 'MISMATCHED') {
+            return { status: 'invalid', message: formatVietnameseErrorMessage(validation.message) || undefined };
+        }
+        // A lot code is optional only when its issuer template does not tag it.
         return { status: 'valid' };
     }
 
@@ -559,6 +569,8 @@ export const mapScannedTicketToReviewRow = (
         status,
         confidence: ticket.confidence ?? 0,
         adjustedConfidence: ticket.adjustedConfidence ?? null,
+        ocrAccuracy: ticket.ocrAccuracy ?? null,
+        expectedOcrFields: ticket.expectedOcrFields ?? null,
         bbox: ticket.bbox ?? null,
         imageWidth: ticket.imageWidth ?? scanImageWidth ?? null,
         imageHeight: ticket.imageHeight ?? scanImageHeight ?? null,
@@ -855,6 +867,48 @@ export const getImportOutcomeLabel = (outcome: string): string => {
     }
 };
 
+export type OcrImportResultPresentation = {
+    tone: 'success' | 'warning' | 'error';
+    title: string;
+};
+
+/**
+ * The confirm endpoint reports a processed batch even when individual ticket
+ * imports fail. Derive the user-facing status from the item counters instead
+ * of treating every HTTP 200 response as a successful warehouse import.
+ */
+export const getOcrImportResultPresentation = (
+    result: OcrConfirmImportResponse
+): OcrImportResultPresentation => {
+    const allSucceeded = result.totalRequested > 0
+        && result.successCount === result.totalRequested
+        && result.duplicateCount === 0
+        && result.failedCount === 0;
+
+    if (allSucceeded) {
+        return {
+            tone: 'success',
+            title: 'Hoàn tất nhập vé vào kho thành công!',
+        };
+    }
+    if (result.successCount > 0) {
+        return {
+            tone: 'warning',
+            title: 'Đã nhập vé vào kho một phần.',
+        };
+    }
+    if (result.duplicateCount > 0 && result.failedCount === 0) {
+        return {
+            tone: 'warning',
+            title: 'Không có vé mới được nhập kho.',
+        };
+    }
+    return {
+        tone: 'error',
+        title: 'Nhập vé vào kho thất bại.',
+    };
+};
+
 /**
  * OCR confidences are 0..1 fractions. Values slightly above 1 are station
  * ranking scores saved before they were capped (up to ~1.2), not percentages;
@@ -1112,23 +1166,22 @@ export const OCR_FIELD_LABELS: Record<OcrFieldKey, string> = {
     ticketType: 'Mệnh giá',
 };
 
-/** Recognition accuracy shown in the review table, averaged from the fields OCR read. */
+/** Recognition accuracy over every OCR field expected by the issuer template. */
 export const getOcrReviewFieldConfidence = (
     row: OcrReviewRow
 ): number | null => {
-    const confidences = OCR_FIELD_KEYS.flatMap((fieldKey) => {
-        const hasOptionalBatchCode =
-            fieldKey !== 'batchCode' ||
-            Boolean(row.batchCode?.trim() || row.fields?.batchCode?.value?.trim()) ||
-            row.fieldConfidences?.batchCode != null ||
-            row.fields?.batchCode?.confidence != null;
-        if (!hasOptionalBatchCode) return [];
+    if (row.ocrAccuracy != null && Number.isFinite(row.ocrAccuracy)) {
+        return toConfidenceRatio(row.ocrAccuracy);
+    }
+    const expected = row.expectedOcrFields?.length
+        ? [...new Set(row.expectedOcrFields)]
+        : OCR_FIELD_KEYS.filter((key) => key !== 'batchCode' && key !== 'serialNumber');
+    if (!expected.length) return null;
+    const sum = expected.reduce((total, fieldKey) => {
         const raw = row.fieldConfidences?.[fieldKey] ?? row.fields?.[fieldKey]?.confidence ?? null;
-        const confidence = raw != null && Number.isFinite(raw) ? toConfidenceRatio(raw) : null;
-        return [confidence];
-    });
-    if (!confidences.some((confidence) => confidence != null)) return null;
-    return confidences.reduce<number>((sum, confidence) => sum + (confidence ?? 0), 0) / confidences.length;
+        return total + (raw != null && Number.isFinite(raw) ? toConfidenceRatio(raw) : 0);
+    }, 0);
+    return sum / expected.length;
 };
 
 /** Business-rule mismatches do not mean the OCR failed to read the ticket. */

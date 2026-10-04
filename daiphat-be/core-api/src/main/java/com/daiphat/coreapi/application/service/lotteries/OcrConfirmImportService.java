@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicket
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.OcrConfirmImportRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.OcrConfirmImportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrConfirmImportBatchResult;
@@ -44,8 +45,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -66,6 +70,7 @@ public class OcrConfirmImportService {
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
     private final ImportBatchImportModeResolver importBatchImportModeResolver;
+    private final ImportBatchSelectionSnapshotValidator importBatchSelectionSnapshotValidator;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final OcrScanResultRepositoryPort ocrScanResultRepositoryPort;
@@ -194,7 +199,7 @@ public class OcrConfirmImportService {
                             + " (" + tally.failed + " vé lỗi). Đã hủy tạo phiếu nhập tự động cho ngày này."
             );
         }
-        linkOcrResults(tickets, stationToLine, operatorId);
+        linkOcrResults(tally.importedTickets, stationToLine, operatorId);
 
         return OcrConfirmImportBatchResult.builder()
                 .importBatchId(created.id())
@@ -216,12 +221,27 @@ public class OcrConfirmImportService {
         importBatchDraftExpiryService.cancelIfOverdue(batch);
         batch = importBatchRepositoryPort.findById(request.importBatchId())
                 .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
+        if (batch.getImportedBy() == null || !batch.getImportedBy().equals(operatorId)) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Phiếu nhập lô đã chọn thuộc người nhập khác. Vui lòng chọn phiếu do bạn tạo.");
+        }
+        Map<Long, Long> currentLinesByStation = batch.getActiveLines().stream()
+                .filter(line -> line.getStatus() != com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.CANCELLED)
+                .filter(line -> line.getStatus() != com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.IMPORTED)
+                .collect(Collectors.toMap(
+                        com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel::getLotteryStationId,
+                        com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel::getId,
+                        (first, ignored) -> first));
+        validateNoDuplicateLineTickets(request.tickets(), currentLinesByStation, batch.getDrawDate());
+        batch = importBatchSelectionSnapshotValidator.validate(
+                request.importBatchId(), request.selectionSnapshot());
 
         if (!batch.isEditable()) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
         }
         if (batch.getImportedBy() == null || !batch.getImportedBy().equals(operatorId)) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_IMPORT_BATCH_MISMATCH);
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Phiếu nhập lô đã chọn thuộc người nhập khác. Vui lòng chọn phiếu do bạn tạo.");
         }
 
         LocalDate batchDrawDate = batch.getDrawDate();
@@ -246,8 +266,13 @@ public class OcrConfirmImportService {
                 operatorId
         );
 
+        validateNoDuplicateLineTickets(request.tickets(), stationToLine, batchDrawDate);
+
         TicketImportTally tally = importTickets(request.tickets(), stationToLine, batchDrawDate, operatorId);
-        linkOcrResults(request.tickets(), stationToLine, operatorId);
+        // A completed HTTP request is not necessarily a successful ticket
+        // import. Only successful items may be linked to the batch line and
+        // written back as the confirmed OCR snapshot.
+        linkOcrResults(tally.importedTickets, stationToLine, operatorId);
 
         OcrConfirmImportBatchResult batchResult = OcrConfirmImportBatchResult.builder()
                 .importBatchId(batch.getId())
@@ -269,6 +294,49 @@ public class OcrConfirmImportService {
                 .build();
     }
 
+    /** Compare against the latest ticket rows on the chosen batch lines, inside the import transaction. */
+    private void validateNoDuplicateLineTickets(
+            List<OcrConfirmImportTicketRequest> incoming,
+            Map<Long, Long> stationToLine,
+            LocalDate drawDate
+    ) {
+        Set<String> existing = new LinkedHashSet<>();
+        for (Map.Entry<Long, Long> entry : stationToLine.entrySet()) {
+            for (ImportBatchLineEntryTicketResponse ticket :
+                    lotteryTicketServicePort.listEntryTicketsByImportBatchLine(entry.getValue()).tickets()) {
+                if (ticket.serials() == null) {
+                    continue;
+                }
+                ticket.serials().forEach(serial -> existing.add(ticketIdentity(
+                        entry.getKey(), drawDate, ticket.numbers(), serial.serialNumber())));
+            }
+        }
+
+        Set<String> seen = new LinkedHashSet<>();
+        List<String> duplicates = new ArrayList<>();
+        for (OcrConfirmImportTicketRequest ticket : incoming) {
+            String identity = ticketIdentity(ticket.stationId(), ticket.drawDate(),
+                    ticket.numbers(), ticket.serialNumber());
+            if (existing.contains(identity) || !seen.add(identity)) {
+                duplicates.add("đài #" + ticket.stationId() + ", ngày " + ticket.drawDate()
+                        + ", dãy số " + ticket.numbers().trim()
+                        + ", sê-ri " + ticket.serialNumber().trim());
+            }
+        }
+        if (!duplicates.isEmpty()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Vé đã có trên dòng nhập lô hoặc bị lặp trong lần nhập này: "
+                            + String.join("; ", duplicates) + ". Vui lòng kiểm tra lại.");
+        }
+    }
+
+    private String ticketIdentity(Long stationId, LocalDate drawDate, String numbers, String serial) {
+        // Production lot is not stored on LotteryTicket/serial and is not part
+        // of the existing unique key: station + draw date + number + serial.
+        return stationId + "|" + drawDate + "|" + numbers.trim()
+                + "|" + serial.trim().toUpperCase(Locale.ROOT);
+    }
+
     private TicketImportTally importTickets(
             List<OcrConfirmImportTicketRequest> tickets,
             Map<Long, Long> stationToLine,
@@ -279,6 +347,7 @@ public class OcrConfirmImportService {
         int success = 0;
         int duplicate = 0;
         int failed = 0;
+        List<OcrConfirmImportTicketRequest> importedTickets = new ArrayList<>();
 
         for (OcrConfirmImportTicketRequest ticket : tickets) {
             Long lineId = stationToLine.get(ticket.stationId());
@@ -319,16 +388,24 @@ public class OcrConfirmImportService {
                         .findFirst()
                         .map(LotteryTicketSerialResponse::id)
                         .orElse(null);
-                lotteryScanLogServicePort.recordEvent(
-                        ScanEventType.TICKET_CREATED,
-                        ticket.ocrScanResultId(),
-                        createdSerialId,
-                        operatorId,
-                        ScanMethod.OCR_SCAN,
-                        true,
-                        null
-                );
+                try {
+                    lotteryScanLogServicePort.recordEvent(
+                            ScanEventType.TICKET_CREATED,
+                            ticket.ocrScanResultId(),
+                            createdSerialId,
+                            operatorId,
+                            ScanMethod.OCR_SCAN,
+                            true,
+                            null
+                    );
+                } catch (Exception auditError) {
+                    // The warehouse write already succeeded. An auxiliary OCR
+                    // audit-log failure must not rewrite that outcome as FAILED.
+                    log.warn("Ticket {} was imported but its OCR audit event could not be recorded",
+                            created.id(), auditError);
+                }
                 success++;
+                importedTickets.add(ticket);
                 results.add(ScanBatchImportItemResponse.builder()
                         .numbers(ticket.numbers())
                         .serialNumber(ticket.serialNumber())
@@ -343,7 +420,7 @@ public class OcrConfirmImportService {
                             .numbers(ticket.numbers())
                             .serialNumber(ticket.serialNumber())
                             .outcome(ScanImportOutcome.DUPLICATE)
-                            .message(e.getMessage())
+                            .message(domainErrorMessage(e))
                             .build());
                 } else {
                     failed++;
@@ -351,7 +428,7 @@ public class OcrConfirmImportService {
                             .numbers(ticket.numbers())
                             .serialNumber(ticket.serialNumber())
                             .outcome(ScanImportOutcome.FAILED)
-                            .message(e.getMessage())
+                            .message(domainErrorMessage(e))
                             .build());
                 }
             } catch (Exception e) {
@@ -365,7 +442,13 @@ public class OcrConfirmImportService {
                         .build());
             }
         }
-        return new TicketImportTally(success, duplicate, failed, results);
+        return new TicketImportTally(success, duplicate, failed, results, importedTickets);
+    }
+
+    private String domainErrorMessage(DomainException exception) {
+        return exception.getInternalMessage() != null && !exception.getInternalMessage().isBlank()
+                ? exception.getInternalMessage()
+                : exception.getMessage();
     }
 
     private void linkOcrResults(
@@ -507,7 +590,8 @@ public class OcrConfirmImportService {
             int success,
             int duplicate,
             int failed,
-            List<ScanBatchImportItemResponse> results
+            List<ScanBatchImportItemResponse> results,
+            List<OcrConfirmImportTicketRequest> importedTickets
     ) {
     }
 }

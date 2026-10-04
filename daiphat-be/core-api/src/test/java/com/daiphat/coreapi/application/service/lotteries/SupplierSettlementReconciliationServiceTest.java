@@ -30,6 +30,7 @@ import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementAdjustmentGroupType;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementAdjustmentReasonCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementDiscrepancyType;
@@ -1093,9 +1094,62 @@ class SupplierSettlementReconciliationServiceTest {
     private List<SettlementResolvableSerialRow> resolvableRows(long firstId, int count) {
         return LongStream.range(firstId, firstId + count)
                 .mapToObj(id -> new SettlementResolvableSerialRow(
-                        id, null, null, null, null, null, null, null, null
+                        id, null, null, LotteryTicketSerialStatus.IN_STOCK,
+                        TicketCondition.GOOD, null, null, null, null
                 ))
                 .toList();
+    }
+
+    @Test
+    @DisplayName("listImportResolvableTickets keeps only unsold GOOD tickets")
+    void listImportResolvableTickets_filtersIneligibleRepositoryRows() {
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(10L)
+                .status(SupplierSettlementStatus.OPEN)
+                .discrepancyItems(List.of(SettlementDiscrepancyItem.ofQuantity(
+                        SupplierSettlementDiscrepancyType.IMPORT_QUANTITY, 1
+                )))
+                .build();
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.findImportResolvableSerialsBySettlementId(10L)).thenReturn(List.of(
+                new SettlementResolvableSerialRow(201L, "800000A", "800000",
+                        LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD,
+                        "Bình Dương", BigDecimal.TEN, 20L, "PN-20"),
+                new SettlementResolvableSerialRow(202L, "800000B", "800000",
+                        LotteryTicketSerialStatus.SOLD, TicketCondition.GOOD,
+                        "Bình Dương", BigDecimal.TEN, 20L, "PN-20"),
+                new SettlementResolvableSerialRow(203L, "800000C", "800000",
+                        LotteryTicketSerialStatus.IN_STOCK, TicketCondition.DAMAGED,
+                        "Bình Dương", BigDecimal.TEN, 20L, "PN-20")
+        ));
+
+        var result = supplierSettlementService.listImportResolvableTickets(10L);
+
+        assertThat(result).extracting("serialId").containsExactly(201L);
+    }
+
+    @Test
+    @DisplayName("resolveImport requires an adjustment note when reason is OTHER")
+    void resolveImport_otherReasonWithoutNote_rejectedBeforeMutation() {
+        ResolveImportDiscrepancyRequest request = new ResolveImportDiscrepancyRequest(
+                List.of(201L),
+                TicketCondition.LOST,
+                SupplierSettlementAdjustmentReasonCode.OTHER,
+                BigDecimal.ZERO,
+                "   ",
+                true,
+                null,
+                null,
+                null
+        );
+
+        assertThatThrownBy(() -> supplierSettlementService.resolveImportDiscrepancy(10L, request, ACTOR))
+                .isInstanceOf(DomainException.class)
+                .satisfies(error -> assertThat(((DomainException) error).getInternalMessage())
+                        .contains("ghi chú điều chỉnh"));
+
+        verify(supplierSettlementRepositoryPort, never()).findById(10L);
+        verify(supplierSettlementRepositoryPort, never()).save(any());
     }
 
     @Test

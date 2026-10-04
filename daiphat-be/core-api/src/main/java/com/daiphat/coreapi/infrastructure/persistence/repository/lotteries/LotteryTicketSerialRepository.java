@@ -221,6 +221,12 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             WHERE s.deletedAt IS NULL
               AND s.returnBatchLineId IS NULL
               AND s.id IN :ids
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
             """)
     int assignToReturnBatchLine(
             @Param("lineId") Long lineId,
@@ -301,6 +307,7 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             JOIN ibl.importBatch b
             WHERE s.deletedAt IS NULL
               AND t.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
               AND b.deletedAt IS NULL
               AND b.supplier.id = :supplierId
               AND t.drawDate = :drawDate
@@ -321,6 +328,143 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             @Param("stationIdsEmpty") boolean stationIdsEmpty
     );
 
+    @Query(value = """
+            SELECT t.id
+            FROM LotteryTicketSerialEntity s
+            JOIN s.ticket t
+            JOIN t.station st
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch b
+            WHERE s.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND b.supplier.id = :supplierId
+              AND t.drawDate = :drawDate
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
+              AND s.returnBatchLineId IS NULL
+              AND (:stationIdsEmpty = true OR st.id IN :stationIds)
+              AND (:lotteryStationId IS NULL OR st.id = :lotteryStationId)
+              AND (
+                  :search = ''
+                  OR LOWER(s.serialNumber) LIKE CONCAT('%', :search, '%')
+                  OR LOWER(t.numbers) LIKE CONCAT('%', :search, '%')
+                  OR LOWER(st.name) LIKE CONCAT('%', :search, '%')
+              )
+            GROUP BY t.id, st.name, t.numbers
+            ORDER BY st.name ASC, t.numbers ASC, t.id ASC
+            """, countQuery = """
+            SELECT COUNT(DISTINCT t.id)
+            FROM LotteryTicketSerialEntity s
+            JOIN s.ticket t
+            JOIN t.station st
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch b
+            WHERE s.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND b.supplier.id = :supplierId
+              AND t.drawDate = :drawDate
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
+              AND s.returnBatchLineId IS NULL
+              AND (:stationIdsEmpty = true OR st.id IN :stationIds)
+              AND (:lotteryStationId IS NULL OR st.id = :lotteryStationId)
+              AND (
+                  :search = ''
+                  OR LOWER(s.serialNumber) LIKE CONCAT('%', :search, '%')
+                  OR LOWER(t.numbers) LIKE CONCAT('%', :search, '%')
+                  OR LOWER(st.name) LIKE CONCAT('%', :search, '%')
+              )
+            """)
+    org.springframework.data.domain.Page<Long> findReturnEligibleTicketIds(
+            @Param("supplierId") Long supplierId,
+            @Param("drawDate") java.time.LocalDate drawDate,
+            @Param("stationIds") Collection<Long> stationIds,
+            @Param("stationIdsEmpty") boolean stationIdsEmpty,
+            @Param("lotteryStationId") Long lotteryStationId,
+            @Param("search") String search,
+            org.springframework.data.domain.Pageable pageable
+    );
+
+    @Query("""
+            SELECT s FROM LotteryTicketSerialEntity s
+            JOIN FETCH s.ticket t
+            JOIN FETCH t.station st
+            JOIN FETCH s.importBatchLine ibl
+            JOIN ibl.importBatch b
+            WHERE s.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND b.supplier.id = :supplierId
+              AND t.drawDate = :drawDate
+              AND t.id IN :ticketIds
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
+              AND s.returnBatchLineId IS NULL
+              AND (:stationIdsEmpty = true OR st.id IN :stationIds)
+            ORDER BY st.name ASC, t.numbers ASC, s.serialNumber ASC
+            """)
+    List<LotteryTicketSerialEntity> findReturnEligibleSerialsByTicketIds(
+            @Param("supplierId") Long supplierId,
+            @Param("drawDate") java.time.LocalDate drawDate,
+            @Param("stationIds") Collection<Long> stationIds,
+            @Param("stationIdsEmpty") boolean stationIdsEmpty,
+            @Param("ticketIds") Collection<Long> ticketIds
+    );
+
+    @Query("""
+            SELECT new com.daiphat.coreapi.application.port.out.lotteries.ReturnInspectableStationSummaryData(
+                st.id,
+                st.name,
+                COUNT(s.id),
+                COALESCE(SUM(ibl.importCost), 0)
+            )
+            FROM LotteryTicketSerialEntity s
+            JOIN s.ticket t
+            JOIN t.station st
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch b
+            WHERE s.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND b.supplier.id = :supplierId
+              AND t.drawDate = :drawDate
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
+              AND s.returnBatchLineId IS NULL
+              AND (:stationIdsEmpty = true OR st.id IN :stationIds)
+            GROUP BY st.id, st.name
+            ORDER BY st.name ASC
+            """)
+    List<com.daiphat.coreapi.application.port.out.lotteries.ReturnInspectableStationSummaryData>
+    summarizeReturnEligibleByStation(
+            @Param("supplierId") Long supplierId,
+            @Param("drawDate") java.time.LocalDate drawDate,
+            @Param("stationIds") Collection<Long> stationIds,
+            @Param("stationIdsEmpty") boolean stationIdsEmpty
+    );
+
     @Query("""
             SELECT COUNT(s) FROM LotteryTicketSerialEntity s
             JOIN s.ticket t
@@ -329,6 +473,7 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             JOIN ibl.importBatch b
             WHERE s.deletedAt IS NULL
               AND t.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
               AND b.deletedAt IS NULL
               AND b.supplier.id = :supplierId
               AND t.drawDate = :drawDate

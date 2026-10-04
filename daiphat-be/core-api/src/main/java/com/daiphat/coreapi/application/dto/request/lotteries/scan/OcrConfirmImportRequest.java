@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.dto.request.lotteries.scan;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.OcrConfirmImportMode;
+import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchSelectionSnapshotRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -18,6 +19,7 @@ public record OcrConfirmImportRequest(
         Boolean forceCreate,
         /** Required when mode = MANUAL. */
         Long importBatchId,
+        @Valid ImportBatchSelectionSnapshotRequest selectionSnapshot,
         @NotEmpty @Valid List<OcrConfirmImportTicketRequest> tickets
 ) {
 }

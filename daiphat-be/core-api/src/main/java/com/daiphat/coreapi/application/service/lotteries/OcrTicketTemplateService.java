@@ -37,7 +37,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
-
     private final OcrTicketTemplateRepositoryPort templateRepositoryPort;
     private final OcrFieldLayoutRepositoryPort fieldLayoutRepositoryPort;
     private final OcrFieldValidationRuleRepositoryPort validationRuleRepositoryPort;

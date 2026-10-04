@@ -29,6 +29,7 @@ import {
     TableCell,
     TableFooter,
     TableHead,
+    TablePagination,
     TableRow,
     Tabs,
     TextField,
@@ -162,7 +163,7 @@ const isValidTicketNumbers = (value: string) => /^\d{6}$/.test(value.trim());
 const isValidTicketSerial = (value: string) => /^(?:[A-Za-z]\d+|\d+[A-Za-z])$/.test(value.trim());
 
 export const ImportDiscrepancyPanel = ({
-    serials,
+    serials: rawSerials,
     inventoryByStation = [],
     importBatches = [],
     supplierId,
@@ -184,6 +185,15 @@ export const ImportDiscrepancyPanel = ({
     // recorded more imported tickets than were actually received.
     const isShortage = direction === 'NEGATIVE';
     const canActOnSerials = isShortage;
+    // Keep stale/client-cached responses from presenting tickets that the API no
+    // longer considers eligible. The API repeats these checks on confirmation.
+    const serials = useMemo(
+        () => rawSerials.filter((serial) => (
+            (serial.status === 'IN_STOCK' || serial.status === 'EXPIRED')
+            && serial.ticketCondition === 'GOOD'
+        )),
+        [rawSerials]
+    );
     const totalDiff = Math.abs(Number(difference ?? serials.length));
 
     const [mode, setMode] = useState<'EXISTING' | 'MISSING' | 'EXCESS'>(isShortage ? 'EXISTING' : 'MISSING');
@@ -194,6 +204,7 @@ export const ImportDiscrepancyPanel = ({
     );
     const [amount, setAmount] = useState('');
     const [note, setNote] = useState('');
+    const otherReasonRequiresNote = reasonCode === 'OTHER' && note.trim().length === 0;
 
     // Missing placeholders: per-station qty split by condition
     const [lostTickets, setLostTickets] = useState<LostTicketEntry[]>([]);
@@ -226,6 +237,9 @@ export const ImportDiscrepancyPanel = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedBatchKey, setSelectedBatchKey] = useState<string>('ALL');
     const [selectedStation, setSelectedStation] = useState<string>('ALL');
+    const [showOnlySelected, setShowOnlySelected] = useState(false);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [receiptPreview, setReceiptPreview] = useState<{ url: string; title: string } | null>(null);
     const [receiptListOpen, setReceiptListOpen] = useState(false);
     const [ticketImageToDelete, setTicketImageToDelete] = useState<{ stationId: number; groupIdx: number; serialIdx: number; serialNumber: string } | null>(null);
@@ -338,8 +352,22 @@ export const ImportDiscrepancyPanel = ({
         }
     }, [stationList, selectedStation]);
 
+    useEffect(() => {
+        if (selected.length === 0 && showOnlySelected) {
+            setShowOnlySelected(false);
+        }
+    }, [selected.length, showOnlySelected]);
+
+    useEffect(() => {
+        setPage(0);
+    }, [searchQuery, selectedStation, selectedBatchKey, showOnlySelected]);
+
     const filteredSerials = useMemo(() => {
         return serialsInSelectedBatch.filter((s) => {
+            if (showOnlySelected && !selected.includes(s.serialId)) {
+                return false;
+            }
+
             const matchSearch =
                 !searchQuery.trim() ||
                 s.serialNumber.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
@@ -353,7 +381,7 @@ export const ImportDiscrepancyPanel = ({
 
             return matchSearch && matchStation;
         });
-    }, [serialsInSelectedBatch, searchQuery, selectedStation]);
+    }, [serialsInSelectedBatch, searchQuery, selectedStation, showOnlySelected, selected]);
 
     const groupedFilteredSerials = useMemo(() => {
         const groups = new Map<string, { key: string; numbers: string; stationName: string; batchLabel: string; importCost: number; serials: SettlementResolvableSerial[] }>();
@@ -380,6 +408,11 @@ export const ImportDiscrepancyPanel = ({
         return Array.from(groups.values());
     }, [filteredSerials]);
 
+    const paginatedGroups = useMemo(() => {
+        const start = page * rowsPerPage;
+        return groupedFilteredSerials.slice(start, start + rowsPerPage);
+    }, [groupedFilteredSerials, page, rowsPerPage]);
+
     const filteredIds = useMemo(() => filteredSerials.map((s) => s.serialId), [filteredSerials]);
 
     const isAllFilteredSelected =
@@ -392,13 +425,48 @@ export const ImportDiscrepancyPanel = ({
         if (isAllFilteredSelected) {
             setSelected((prev) => prev.filter((id) => !filteredIds.includes(id)));
         } else {
+            const unselectedFiltered = filteredIds.filter((id) => !selected.includes(id));
+            const availableSlots = totalDiff > 0 ? totalDiff - selected.length : Infinity;
+            if (unselectedFiltered.length > availableSlots) {
+                AppToast.warning(
+                    `Không thể chọn tất cả (${unselectedFiltered.length} vé) vì vượt quá số lượng cần xử lý (${totalDiff.toLocaleString('vi-VN')} vé).`
+                );
+                return;
+            }
             setSelected((prev) => Array.from(new Set([...prev, ...filteredIds])));
         }
     };
 
     const toggle = (id: number) => {
         if (!canActOnSerials) return;
-        setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+        setSelected((prev) => {
+            if (prev.includes(id)) {
+                return prev.filter((x) => x !== id);
+            }
+            if (totalDiff > 0 && prev.length >= totalDiff) {
+                AppToast.warning(`Chỉ được chọn tối đa ${totalDiff.toLocaleString('vi-VN')} vé cần xử lý chênh lệch.`);
+                return prev;
+            }
+            return [...prev, id];
+        });
+    };
+
+    const handleToggleGroup = (ids: number[]) => {
+        if (!canActOnSerials) return;
+        const allSelected = ids.length > 0 && ids.every((id) => selected.includes(id));
+        if (allSelected) {
+            setSelected((current) => current.filter((id) => !ids.includes(id)));
+        } else {
+            const unselectedInGroup = ids.filter((id) => !selected.includes(id));
+            const availableSlots = totalDiff > 0 ? totalDiff - selected.length : Infinity;
+            if (unselectedInGroup.length > availableSlots) {
+                AppToast.warning(
+                    `Không thể chọn cả nhóm (${unselectedInGroup.length} vé) vì vượt quá số lượng cần xử lý (${totalDiff.toLocaleString('vi-VN')} vé). Vui lòng mở rộng nhóm để chọn từng vé lẻ.`
+                );
+                return;
+            }
+            setSelected((current) => Array.from(new Set([...current, ...ids])));
+        }
     };
 
     // Calculate sum of import costs for all selected tickets
@@ -1642,107 +1710,105 @@ export const ImportDiscrepancyPanel = ({
                         </Tabs>
                     </Box>
 
-                    {/* Station sub-tabs */}
-                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, display: isImportedTicketListLocked ? 'none' : undefined }}>
-                        <Tabs
-                            value={selectedStation}
-                            onChange={(_, val) => setSelectedStation(val)}
-                            variant="scrollable"
-                            scrollButtons="auto"
-                            sx={tabSx}
-                        >
-                            <Tab
-                                value="ALL"
-                                label={
-                                    <Stack direction="row" spacing={0.75} alignItems="center">
-                                        <span>Tất cả nhà đài</span>
-                                        <Chip
-                                            size="small"
-                                            label={serialsInSelectedBatch.length}
-                                            sx={{
-                                                height: 20,
-                                                fontSize: '0.7rem',
-                                                fontWeight: 700,
-                                                bgcolor: selectedStation === 'ALL' ? '#dbeafe' : '#f1f5f9',
-                                                color: selectedStation === 'ALL' ? '#1d4ed8' : '#64748b',
-                                            }}
-                                        />
-                                    </Stack>
-                                }
-                            />
-                            {stationList.map((station) => (
-                                <Tab
-                                    key={station.name}
-                                    value={station.name}
-                                    label={
-                                        <Stack direction="row" spacing={0.75} alignItems="center">
-                                            <span>{station.name}</span>
-                                            <Chip
-                                                size="small"
-                                                label={station.count}
-                                                sx={{
-                                                    height: 20,
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 700,
-                                                    bgcolor: selectedStation === station.name ? '#dbeafe' : '#f1f5f9',
-                                                    color: selectedStation === station.name ? '#1d4ed8' : '#64748b',
-                                                }}
-                                            />
-                                        </Stack>
-                                    }
-                                />
-                            ))}
-                        </Tabs>
-                    </Box>
-
                     {/* Search & Selection Summary Bar */}
                     <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
+                        direction={{ xs: 'column', md: 'row' }}
                         spacing={2}
-                        alignItems={{ xs: 'stretch', sm: 'center' }}
+                        alignItems={{ xs: 'stretch', md: 'center' }}
                         justifyContent="space-between"
                         sx={{ mb: 2, display: isImportedTicketListLocked ? 'none' : undefined }}
                     >
-                        <TextField
-                            size="small"
-                            placeholder="Tìm kiếm theo mã sê-ri, nhà đài hoặc mã lô..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon sx={{ color: '#94a3b8', fontSize: '1.2rem' }} />
-                                    </InputAdornment>
-                                ),
-                                endAdornment: searchQuery ? (
-                                    <InputAdornment position="end">
-                                        <IconButton size="small" onClick={() => setSearchQuery('')}>
-                                            <ClearIcon fontSize="small" />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ) : null,
-                            }}
-                            sx={{
-                                maxWidth: { xs: '100%', sm: 400 },
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: '10px',
-                                    bgcolor: '#f8fafc',
-                                },
-                            }}
-                        />
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" sx={{ flex: 1, maxWidth: { xs: '100%', md: 620 } }}>
+                            <TextField
+                                size="small"
+                                placeholder="Tìm kiếm theo mã sê-ri, nhà đài hoặc mã lô..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ color: '#94a3b8', fontSize: '1.2rem' }} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: searchQuery ? (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => setSearchQuery('')}>
+                                                <ClearIcon fontSize="small" />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ) : null,
+                                }}
+                                sx={{
+                                    flex: 1,
+                                    width: { xs: '100%', sm: 'auto' },
+                                    minWidth: { xs: '100%', sm: 260 },
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '10px',
+                                        bgcolor: '#f8fafc',
+                                    },
+                                }}
+                            />
+
+                            <FormControl size="small" sx={{ minWidth: 170, width: { xs: '100%', sm: 'auto' } }}>
+                                <Select
+                                    value={selectedStation}
+                                    onChange={(e) => setSelectedStation(e.target.value)}
+                                    displayEmpty
+                                    sx={{
+                                        borderRadius: '10px',
+                                        bgcolor: '#f8fafc',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    <MenuItem value="ALL">
+                                        <em>Tất cả nhà đài ({serialsInSelectedBatch.length})</em>
+                                    </MenuItem>
+                                    {stationList.map((station) => (
+                                        <MenuItem key={station.name} value={station.name} sx={{ fontSize: '0.85rem' }}>
+                                            {station.name} ({station.count})
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Stack>
 
                         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
-                            <Typography variant="caption" fontWeight={600} color="#64748b">
-                                Hiển thị: <strong>{filteredSerials.length}</strong> / {serialsInSelectedBatch.length} vé
-                            </Typography>
                             {canActOnSerials && selected.length > 0 && (
-                                <Chip
-                                    size="small"
-                                    color="primary"
-                                    label={`Đã chọn ${selected.length} vé (${formatSettlementMoney(selectedCostSum)} VNĐ)`}
-                                    onDelete={() => setSelected([])}
-                                    sx={{ fontWeight: 700 }}
-                                />
+                                <>
+                                    <Button
+                                        size="small"
+                                        variant={showOnlySelected ? 'contained' : 'outlined'}
+                                        color={showOnlySelected ? 'primary' : 'inherit'}
+                                        startIcon={showOnlySelected ? <FilterAltOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                                        onClick={() => setShowOnlySelected((prev) => !prev)}
+                                        sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 700,
+                                            fontSize: '0.8rem',
+                                            borderRadius: '8px',
+                                            py: 0.6,
+                                            px: 1.5,
+                                            borderColor: '#cbd5e1',
+                                            bgcolor: showOnlySelected ? '#2563eb' : '#ffffff',
+                                            color: showOnlySelected ? '#ffffff' : '#334155',
+                                            '&:hover': {
+                                                bgcolor: showOnlySelected ? '#1d4ed8' : '#f8fafc',
+                                                borderColor: showOnlySelected ? '#1d4ed8' : '#94a3b8',
+                                            },
+                                        }}
+                                    >
+                                        {showOnlySelected ? 'Hiển thị tất cả vé' : 'Hiển thị các vé đã chọn'}
+                                    </Button>
+
+                                    <Chip
+                                        size="small"
+                                        color="primary"
+                                        label={`Đã chọn ${selected.length}/${totalDiff} vé (${formatSettlementMoney(selectedCostSum)} VNĐ)`}
+                                        onDelete={() => setSelected([])}
+                                        sx={{ fontWeight: 700 }}
+                                    />
+                                </>
                             )}
                         </Stack>
                     </Stack>
@@ -1778,13 +1844,13 @@ export const ImportDiscrepancyPanel = ({
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {groupedFilteredSerials.flatMap((group) => {
+                                        {paginatedGroups.flatMap((group) => {
                                             const ids = group.serials.map((item) => item.serialId);
                                             const allSelected = canActOnSerials && ids.length > 0 && ids.every((id) => selected.includes(id));
                                             const expanded = expandedImportedRanges.includes(group.key);
                                             const rows: React.ReactNode[] = [
                                                 <TableRow key={`range-${group.key}`} hover sx={{ cursor: 'pointer', bgcolor: expanded ? '#eff6ff' : 'inherit' }} onClick={() => setExpandedImportedRanges((current) => expanded ? current.filter((key) => key !== group.key) : [...current, group.key])}>
-                                                    {canActOnSerials && <TableCell padding="checkbox" onClick={(event) => event.stopPropagation()}><Checkbox checked={allSelected} indeterminate={!allSelected && ids.some((id) => selected.includes(id))} onChange={() => setSelected((current) => allSelected ? current.filter((id) => !ids.includes(id)) : Array.from(new Set([...current, ...ids])))} size="small" /></TableCell>}
+                                                    {canActOnSerials && <TableCell padding="checkbox" onClick={(event) => event.stopPropagation()}><Checkbox checked={allSelected} indeterminate={!allSelected && ids.some((id) => selected.includes(id))} onChange={() => handleToggleGroup(ids)} size="small" /></TableCell>}
                                                     <TableCell>
                                                         <Stack direction="row" spacing={0.75} alignItems="center">
                                                             {expanded ? <KeyboardArrowDownIcon fontSize="small" /> : <KeyboardArrowRightIcon fontSize="small" />}
@@ -1820,6 +1886,31 @@ export const ImportDiscrepancyPanel = ({
                                     </TableBody>
                                 </Table>
                             </Box>
+                            {groupedFilteredSerials.length > 0 && (
+                                <TablePagination
+                                    rowsPerPageOptions={[10, 20, 50, 100]}
+                                    component="div"
+                                    count={groupedFilteredSerials.length}
+                                    rowsPerPage={rowsPerPage}
+                                    page={Math.min(page, Math.max(0, Math.ceil(groupedFilteredSerials.length / rowsPerPage) - 1))}
+                                    onPageChange={(_, newPage) => setPage(newPage)}
+                                    onRowsPerPageChange={(e) => {
+                                        setRowsPerPage(parseInt(e.target.value, 10));
+                                        setPage(0);
+                                    }}
+                                    labelRowsPerPage="Dòng/trang:"
+                                    labelDisplayedRows={({ from, to, count }) => `${from}–${to} trên ${count}`}
+                                    sx={{
+                                        borderTop: '1px solid #f1f5f9',
+                                        '& .MuiTablePagination-toolbar': { minHeight: 44, px: 2 },
+                                        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                                            fontSize: '0.8rem',
+                                            fontWeight: 600,
+                                            color: '#64748b',
+                                        },
+                                    }}
+                                />
+                            )}
                         </Paper>
                     )}
 
@@ -2002,10 +2093,15 @@ export const ImportDiscrepancyPanel = ({
                                 <TextField
                                     size="small"
                                     label="Ghi chú điều chỉnh"
+                                    required={reasonCode === 'OTHER'}
                                     fullWidth
                                     placeholder="Diễn giải chi tiết lý do..."
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
+                                    error={otherReasonRequiresNote}
+                                    helperText={otherReasonRequiresNote
+                                        ? 'Vui lòng nhập ghi chú điều chỉnh khi chọn Lý do khác.'
+                                        : undefined}
                                     sx={{
                                         '& .MuiOutlinedInput-root': {
                                             borderRadius: '10px',
@@ -2037,7 +2133,7 @@ export const ImportDiscrepancyPanel = ({
                     <Stack direction="row" spacing={1.5} justifyContent="flex-end" alignItems="center">
                         <Button
                             variant="outlined"
-                            disabled={submitting || selected.length === 0 || (isShortage && !isSelectedQtyExact)}
+                            disabled={submitting || selected.length === 0 || (isShortage && !isSelectedQtyExact) || otherReasonRequiresNote}
                             startIcon={<SaveOutlinedIcon />}
                             onClick={() => {
                                 const parsedAmount = amount ? parseInt(amount.replace(/\D/g, ''), 10) : undefined;
@@ -2046,7 +2142,7 @@ export const ImportDiscrepancyPanel = ({
                                     ticketCondition: condition || null,
                                     reasonCode,
                                     adjustmentAmount: parsedAmount,
-                                    note: note || undefined,
+                                    note: note.trim() || undefined,
                                     markResolved: false,
                                 });
                             }}
@@ -2063,7 +2159,7 @@ export const ImportDiscrepancyPanel = ({
                         </Button>
                         <Button
                             variant="contained"
-                            disabled={submitting || selected.length === 0 || (isShortage && !isSelectedQtyExact)}
+                            disabled={submitting || selected.length === 0 || (isShortage && !isSelectedQtyExact) || otherReasonRequiresNote}
                             startIcon={<CheckCircleOutlinedIcon />}
                             onClick={() => {
                                 const parsedAmount = amount ? parseInt(amount.replace(/\D/g, ''), 10) : undefined;
@@ -2072,7 +2168,7 @@ export const ImportDiscrepancyPanel = ({
                                     ticketCondition: condition || null,
                                     reasonCode,
                                     adjustmentAmount: parsedAmount,
-                                    note: note || undefined,
+                                    note: note.trim() || undefined,
                                     markResolved: true,
                                 });
                             }}

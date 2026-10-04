@@ -88,6 +88,46 @@ export interface InspectableReturnSerial {
     ticketPrice?: number | null;
 }
 
+export interface InspectableReturnTicket {
+    ticketId: number;
+    ticketNumbers?: string | null;
+    drawDate?: string | null;
+    lotteryStationId?: number | null;
+    lotteryStationName?: string | null;
+    targetReturnBatchLineId?: number | null;
+    ticketPrice?: number | null;
+    serials: InspectableReturnSerial[];
+}
+
+export interface InspectableReturnStationSummary {
+    lotteryStationId: number;
+    lotteryStationName?: string | null;
+    eligibleSerialCount: number;
+    totalImportCost: number;
+}
+
+export interface InspectableReturnTicketsResponse {
+    recordList: InspectableReturnTicket[];
+    pagination: {
+        totalRecords: number;
+        totalPages: number;
+        currentPage: number;
+        limit: number;
+        isFirst?: boolean;
+        isLast?: boolean;
+    };
+    eligibleSerialCount: number;
+    eligibleReturnValue: number;
+    stationSummaries: InspectableReturnStationSummary[];
+}
+
+export interface InspectableReturnTicketParams {
+    page?: number;
+    size?: number;
+    search?: string;
+    lotteryStationId?: number;
+}
+
 export interface ReturnBatchListParams {
     page?: number;
     size?: number;
@@ -116,7 +156,8 @@ export interface AttachReturnSerialsPayload {
 
 export interface ConfirmReturnInspectionPayload {
     deliveryMode: ReturnDeliveryMode;
-    serialIds: number[];
+    serialIds?: number[];
+    allEligible?: boolean;
     returnReceiptUrl?: string | null;
 }
 

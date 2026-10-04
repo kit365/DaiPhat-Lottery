@@ -115,7 +115,18 @@ public class LotteryTicketScanController {
                 principal.getUsername()
         );
         OcrConfirmImportResponse response = ocrConfirmImportService.confirm(request, principal.getId());
-        return ApiResponse.success("Xác nhận nhập vé OCR thành công.", response);
+        String message;
+        if (response.totalRequested() > 0
+                && response.successCount() == response.totalRequested()
+                && response.duplicateCount() == 0
+                && response.failedCount() == 0) {
+            message = "Xác nhận nhập vé OCR thành công.";
+        } else if (response.successCount() > 0) {
+            message = "Xác nhận nhập vé OCR hoàn tất một phần.";
+        } else {
+            message = "Không có vé OCR nào được nhập kho.";
+        }
+        return ApiResponse.success(message, response);
     }
 
     @GetMapping("/ocr-scan-results")

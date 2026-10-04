@@ -159,7 +159,8 @@ def test_scan_legacy_first_skips_groq_when_legacy_confident(monkeypatch):
     assert response.json()["data"]["recognitionEngineUsed"] == "legacy"
 
 
-def test_serial_symbol_template_uses_template_ocr_even_when_llm_first_is_configured(monkeypatch):
+@pytest.mark.parametrize("serial_field", ["serialNumber", "serialSymbol"])
+def test_serial_template_uses_template_ocr_even_when_llm_first_is_configured(monkeypatch, serial_field):
     from routers.scan import _scan_image_sync
 
     monkeypatch.setattr("routers.scan.settings.TICKET_VISION_LEGACY_FIRST", False)
@@ -169,7 +170,7 @@ def test_serial_symbol_template_uses_template_ocr_even_when_llm_first_is_configu
         stationId=2,
         templateId=28,
         fieldLayouts=[FieldLayoutMetadata(
-            id=47, fieldName="serialSymbol", x=0.8, y=0.3, width=0.1, height=0.1
+            id=47, fieldName=serial_field, x=0.8, y=0.3, width=0.1, height=0.1
         )],
     )])
 
@@ -262,7 +263,7 @@ def test_merge_boost_keeps_legacy_numbers_when_llm_collage_mixes_tickets():
     assert ticket.extracted.numbers == "676789"
     assert ticket.extracted.stationCode == "HCM"
     assert ticket.extracted.drawDate == "2026-04-27"
-    assert ticket.extracted.serialNumber == "A111111"  # filled from LLM gap
+    assert ticket.extracted.serialNumber is None  # no symbol tag; LLM cannot fill Serial
     assert ticket.extracted.batchCode == "4E2"
 
 
@@ -319,6 +320,88 @@ def test_merge_boost_respects_template_serial_priority(local_serial, used_layout
         assert ticket.status == TicketStatus.COMPLETE
     else:
         assert "serialNumber" in ticket.missingFields
+
+
+def test_mixed_tickets_retry_only_their_identified_issuer_serial_template():
+    from routers.scan import _merge_boost_with_legacy, _retry_missing_template_serials
+    from dto.request.scan_metadata import StationMetadata
+
+    class SerialRetry:
+        def __init__(self):
+            self.calls = []
+
+        def retry_template_serial_for_known_station(self, image_bytes, metadata, ticket, station_id, numbers, numbers_confidence):
+            self.calls.append((ticket.ticketIndex, station_id, numbers))
+            field = "serialNumber" if station_id == 1 else "serialSymbol"
+            serial = "123456H" if station_id == 1 else "654321G"
+            return ticket.model_copy(update={
+                "extracted": ticket.extracted.model_copy(update={"serialNumber": serial}),
+                "fieldConfidences": {"numbers": 0.9, "serialNumber": 0.9},
+                "usedFieldLayouts": {field: station_id + 40},
+            })
+
+    boxes = [
+        BoundingBox(x=0, y=0, width=100, height=200, corners=[]),
+        BoundingBox(x=120, y=0, width=100, height=200, corners=[]),
+    ]
+    local_tickets = [TicketScanResult(
+        ticketIndex=i, bbox=boxes[i], status=TicketStatus.INCOMPLETE,
+        confidence=0.5, extracted=ExtractedTicketFields(
+            numbers=n, serialNumber=n if i == 0 else None
+        ),
+        fieldConfidences={"numbers": 0.9, "serialNumber": 0.0},
+    ) for i, n in enumerate(("123456", "654321"))]
+    cloud_tickets = [TicketScanResult(
+        ticketIndex=i, bbox=boxes[i], status=TicketStatus.INCOMPLETE,
+        confidence=0.8, extracted=ExtractedTicketFields(
+            stationName=name, stationCode=code, numbers=n, serialNumber=None),
+        fieldConfidences={"numbers": 0.9},
+    ) for i, (name, code, n) in enumerate((
+        ("Tây Ninh", "TNI", "123456"), ("Vũng Tàu", "VTU", "654321"),
+    ))]
+    local = ScanResponse(scanId="local", ticketCount=2, tickets=local_tickets)
+    cloud = ScanResponse(scanId="cloud", ticketCount=2, tickets=cloud_tickets)
+    metadata = ScanMetadata(
+        activeStations=[
+            StationMetadata(id=1, name="Tây Ninh", code="TNI"),
+            StationMetadata(id=2, name="Vũng Tàu", code="VTU"),
+        ],
+        stationTemplates=[StationTemplateMetadata(
+            stationId=i, fieldLayouts=[FieldLayoutMetadata(
+                fieldName=field, x=0.1, y=0.1, width=0.3, height=0.1,
+            )],
+        ) for i, field in ((1, "serialNumber"), (2, "serialSymbol"))],
+    )
+    service = SerialRetry()
+
+    retried = _retry_missing_template_serials(local, cloud, b"image", metadata, service)
+    merged = _merge_boost_with_legacy(retried, cloud)
+
+    assert service.calls == [(0, 1, "123456"), (1, 2, "654321")]
+    assert [ticket.extracted.serialNumber for ticket in merged.tickets] == ["123456H", "654321G"]
+
+
+def test_merge_boost_does_not_replace_unreadable_tagged_lot_with_llm_text():
+    from routers.scan import _merge_boost_with_legacy
+
+    bbox = BoundingBox(x=10, y=10, width=200, height=400, corners=[])
+    local = TicketScanResult(
+        ticketIndex=0, bbox=bbox, status=TicketStatus.INCOMPLETE, confidence=0.5,
+        extracted=ExtractedTicketFields(numbers="123456", batchCode=None),
+        fieldConfidences={"numbers": 0.9, "batchCode": 0.0},
+        usedFieldLayouts={"batchCode": 49},
+    )
+    llm = local.model_copy(update={
+        "extracted": local.extracted.model_copy(update={"batchCode": "AB01"}),
+        "fieldConfidences": {"numbers": 0.9, "batchCode": 0.95},
+        "usedFieldLayouts": {},
+    })
+    merged = _merge_boost_with_legacy(
+        ScanResponse(scanId="local", ticketCount=1, tickets=[local]),
+        ScanResponse(scanId="llm", ticketCount=1, tickets=[llm]),
+    ).tickets[0]
+    assert merged.extracted.batchCode is None
+    assert merged.fieldConfidences["batchCode"] == 0.0
 
 
 def test_scan_legacy_first_skips_groq_boost_when_api_key_missing(monkeypatch):

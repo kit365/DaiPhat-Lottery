@@ -465,6 +465,17 @@ def test_batch_field_drops_printed_label_glued_to_code(sample_stations):
     assert parser.normalise_field("batchCode", [OcrTextResult(text="Vé8K4", confidence=0.9)]) == "8K4"
     assert parser.normalise_field("batchCode", [OcrTextResult(text="05K22", confidence=0.9)]) == "05K22"
     assert parser.normalise_field("batchCode", [OcrTextResult(text="L040", confidence=0.9)]) == "L040"
+    assert parser.normalise_field("batchCode", [
+        OcrTextResult(text="47", confidence=0.9, x_center=0.1),
+        OcrTextResult(text="VL", confidence=0.9, x_center=0.2),
+        OcrTextResult(text="33", confidence=0.9, x_center=0.3),
+    ]) == "47VL33"
+    assert parser.normalise_field("batchCode", [
+        OcrTextResult(text="Loại", confidence=0.9, x_center=0.05),
+        OcrTextResult(text="47", confidence=0.9, x_center=0.1),
+        OcrTextResult(text="VL", confidence=0.9, x_center=0.2),
+        OcrTextResult(text="33", confidence=0.9, x_center=0.3),
+    ]) == "47VL33"
 
 
 def test_template_fields_ignore_whole_ticket_guesses(sample_stations):

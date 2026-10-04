@@ -95,7 +95,7 @@ _FIELD_OCR_ORDER = (
 )
 
 # Core fields — whole-ticket OCR always runs; this set is for coverage metrics.
-_CORE_FIELD_HINTS = frozenset({"numbers", "serialNumber", "drawDate", "stationName"})
+_CORE_FIELD_HINTS = frozenset({"numbers", "drawDate", "stationName"})
 
 
 def _heuristic_serial_box(
@@ -348,6 +348,10 @@ def _reading_score(
             "numbers": _FULL_NUMBER_BONUS,
             "batchCode": _PREFERRED_BATCH_BONUS,
         }.get(field_name, 0.0)
+    if field_name == "batchCode" and not is_preferred_batch_code(value):
+        # Within the tagged lot box, a complete split code (47 VL 33) should
+        # beat a plausible but truncated neighbouring pair (VL 33).
+        score += 0.06 * min(len(value), 8)
     return score
 
 
@@ -849,6 +853,7 @@ class TicketScanService:
         ch, cw = canvas.shape[:2]
         tx, ty, tw, th = region.bbox
         boxes = dict(field_boxes or {})
+        boxes.pop("serialNumber", None)
 
         # Drop YOLO drawDate when it landed on the QR (square lower-right).
         draw_box = boxes.get("drawDate")
@@ -859,10 +864,8 @@ class TicketScanService:
             boxes.pop("drawDate", None)
 
         # Full-frame heuristics only make sense next to full-frame YOLO boxes;
-        # otherwise the crop-local heuristic fills below cover serial/batch
+        # otherwise the crop-local heuristic fills below cover batch
         # (and stay correct on a rotated / OBB-warped crop).
-        if boxes and "serialNumber" not in boxes and tw > 0 and th > 0:
-            boxes["serialNumber"] = _heuristic_serial_box(tx, ty, tw, th)
         if boxes and "batchCode" not in boxes and tw > 0 and th > 0:
             boxes["batchCode"] = _heuristic_batch_box(tx, ty, tw, th)
 
@@ -917,8 +920,6 @@ class TicketScanService:
             heuristic_fills.append(("ticketType", _heuristic_price_box_local(cw, ch)))
         if "numbers" not in crop_local_boxes:
             heuristic_fills.append(("numbers", _heuristic_numbers_box_local(cw, ch)))
-        if "serialNumber" not in crop_local_boxes:
-            heuristic_fills.append(("serialNumber", _heuristic_serial_box(0, 0, cw, ch)))
         if "batchCode" not in crop_local_boxes:
             heuristic_fills.append(("batchCode", _heuristic_batch_box(0, 0, cw, ch)))
 
@@ -935,33 +936,6 @@ class TicketScanService:
             )
             if lines:
                 ocr_results_by_region[key] = lines
-
-        # Serial: at most one extra ROI if the primary band was empty.
-        # (Letter recovery from digit-only crops is handled by whole-ticket OCR.)
-        serial_key = f"{FIELD_REGION_PREFIX}serialNumber"
-        if not ocr_results_by_region.get(serial_key):
-            footer = _heuristic_serial_box_footer(0, 0, cw, ch)
-            fx, fy, fw, fh = image_pipeline.expand_bbox(
-                footer[0], footer[1], footer[2], footer[3], cw, ch, pad_ratio=0.03, min_pad_px=3
-            )
-            lines = self._ocr_field_crop(
-                canvas, (fx, fy, fw, fh), field_hint="serialNumber", preview=None
-            )
-            if lines:
-                ocr_results_by_region[serial_key] = lines
-                crop_local_boxes["serialNumber"] = (fx, fy, fw, fh)
-            else:
-                # Single vertical-edge attempt (HCM-style) — one orientation only.
-                edge_w = max(int(cw * 0.14), 24)
-                edge = canvas[:, max(0, cw - edge_w) : cw]
-                if edge.size > 0:
-                    probe = image_pipeline.rotate_quarter_turns(edge, 1)
-                    probe = image_pipeline.upscale_if_too_small(probe)
-                    lines = self._ocr_region(
-                        probe, field_hint="serialNumber", already_enhanced=True
-                    )
-                    if lines:
-                        ocr_results_by_region[serial_key] = lines
 
         # Always OCR the whole oriented color ticket once.
         if whole_lines is None:
@@ -993,6 +967,8 @@ class TicketScanService:
             regions_map = layout.get_regions(canvas)
             for name, region_image in regions_map.items():
                 if name == "whole":
+                    continue
+                if _field_hint_from_region(name) == "serialNumber":
                     continue
                 ocr_results_by_region[name] = self._ocr_region(
                     region_image,
@@ -1095,10 +1071,13 @@ class TicketScanService:
                 crop, parsed, parser, expected_length
             )
 
-        # Only a template with a separately tagged letter can complete a
-        # numeric serial. Read that optional region after normal serial OCR.
-        if serial_symbol_reader is not None:
-            serial_symbol_reader(parsed)
+        if "serialNumber" not in template_fields:
+            # Without a Serial tag, derive only from the extracted ticket
+            # number and the separately tagged serial symbol.
+            parsed.extracted.serialNumber = None
+            parsed.field_confidences["serialNumber"] = 0.0
+            if serial_symbol_reader is not None:
+                serial_symbol_reader(parsed)
 
         # Retarget overlay batch box toward bottom-left when we have a code
         # but the mid/logo heuristic was used (YOLO has no batch class).
@@ -1162,6 +1141,102 @@ class TicketScanService:
             validationErrors=validation.errors,
             croppedImageBase64=cropped_image_base64,
         )
+
+    def retry_template_serial_for_known_station(
+        self,
+        image_bytes: bytes,
+        metadata: ScanMetadata,
+        ticket: TicketScanResult,
+        station_id: int,
+        numbers: str | None,
+        numbers_confidence: float = 0.0,
+    ) -> TicketScanResult:
+        """Read just the known issuer's Serial tag (or its symbol tag)."""
+        template = template_locator.select_station_template(station_id, metadata.stationTemplates)
+        if template is None or not any(
+            template_locator.normalize_template_field(layout.fieldName) in {"serialNumber", "serialSymbol"}
+            for layout in template.fieldLayouts
+        ):
+            return ticket
+        if not ticket.bbox or not ticket.extracted:
+            return ticket
+
+        has_direct_tag = any(
+            template_locator.normalize_template_field(layout.fieldName) == "serialNumber"
+            for layout in template.fieldLayouts
+        )
+        field_name = "serialNumber" if has_direct_tag else "serialSymbol"
+        image_pipeline.guard_file_size(image_bytes, self._max_file_size_mb)
+        original = image_pipeline.decode_image(image_bytes)
+        image = image_pipeline.resize_if_needed(original, self._max_image_dimension)
+        scale = original.shape[1] / float(max(image.shape[1], 1))
+        box = ticket.bbox
+        corners = (
+            [(int(x), int(y)) for x, y in box.corners]
+            if box.corners and len(box.corners) == 4
+            else [(box.x, box.y), (box.x + box.width, box.y),
+                  (box.x + box.width, box.y + box.height), (box.x, box.y + box.height)]
+        )
+        region = DetectedRegion(
+            bbox=(box.x, box.y, box.width, box.height), corners=corners
+        )
+        crop = self._correct_orientation(self._template_ticket_crop(image, region, original, scale))
+        placement = self._place_template(template, crop, original)
+        if placement is None:
+            return ticket
+        complete = self._registered_ticket_crop(template, placement, original)
+        if complete is not None:
+            crop = complete
+        grouped = template_locator.group_by_field(placement.regions)
+        field_regions = grouped.get(field_name)
+        if not field_regions:
+            return ticket
+
+        stations = [
+            StationRef(id=s.id, name=s.name, code=s.code, aliases=tuple(s.aliases))
+            for s in metadata.activeStations
+        ] or list(DEFAULT_STATIONS)
+        parser = TicketParser(StationMatcher(stations), self._station_fuzzy_threshold)
+        station = next((s for s in metadata.activeStations if s.id == station_id), None)
+        expected_length = station.expectedNumberLength if station is not None else None
+        lines, used_region, _ = self._read_template_field(
+            crop, placement, field_name, field_regions, {}, parser, expected_length
+        )
+        read_value = parser.normalise_field(field_name, lines, expected_length)
+        serial = (
+            read_value if has_direct_tag
+            else _combine_serial_symbol(numbers, read_value, expected_length)
+        )
+        extracted = ticket.extracted.model_copy()
+        if serial and SERIAL_PATTERN.fullmatch(serial):
+            extracted.serialNumber = serial
+        confidences = dict(ticket.fieldConfidences or {})
+        if extracted.serialNumber:
+            read_confidence = max((float(line.confidence) for line in lines), default=0.0)
+            if has_direct_tag:
+                confidences["serialNumber"] = read_confidence
+            else:
+                confidences["serialNumber"] = min(numbers_confidence, read_confidence)
+                confidences["serialSymbol"] = read_confidence
+            # Validate the constructed value without changing other OCR fields.
+            checked = extracted.model_copy()
+            validation = self._validator.validate(checked, expected_number_length=expected_length)
+            if "serialNumber" in validation.missing_fields or checked.serialNumber != extracted.serialNumber:
+                extracted.serialNumber = None
+                confidences["serialNumber"] = 0.0
+        layouts = dict(ticket.usedFieldLayouts or {})
+        if used_region.layout_id is not None:
+            layouts[field_name] = used_region.layout_id
+        source_boxes = dict(ticket.sourceFieldBoxes or {})
+        source_boxes[field_name] = _quad_to_bounding_box(
+            placement.upload_quad(used_region), scale
+        )
+        return ticket.model_copy(update={
+            "extracted": extracted,
+            "fieldConfidences": confidences,
+            "usedFieldLayouts": layouts,
+            "sourceFieldBoxes": source_boxes,
+        })
 
     def _scan_one_region_with_template(
         self,
@@ -1294,7 +1369,13 @@ class TicketScanService:
         )
 
         ch, cw = crop.ocr_ready.shape[:2]
-        ocr_results_by_region: dict[str, list] = {"whole": whole_lines, **extra_regions}
+        # A tagged Serial uses the selected issuer's region, never a generic
+        # detector crop carried over from the initial detection pass.
+        ocr_results_by_region: dict[str, list] = {
+            "whole": whole_lines,
+            **{name: lines for name, lines in extra_regions.items()
+               if name != f"{FIELD_REGION_PREFIX}serialNumber"},
+        }
         crop_local_boxes: dict[str, tuple[int, int, int, int]] = {}
         source_field_boxes: dict[str, BoundingBox] = {}
         used_layouts: dict[str, int] = {}
@@ -1325,37 +1406,28 @@ class TicketScanService:
                 used_layouts[field_name] = used_region.layout_id
 
         def read_serial_symbol(parsed: ParsedTicket) -> None:
-            serial = parsed.extracted.serialNumber
+            if grouped.get("serialNumber"):
+                return
             numbers = parsed.extracted.numbers
             symbol_regions = grouped.get("serialSymbol")
-            if (
-                not symbol_regions
-                or (grouped.get("serialNumber") and SERIAL_PATTERN.fullmatch(serial or ""))
-            ):
+            if not symbol_regions:
                 return
-            # A missing/invalid Serial tag cannot borrow a generic OCR value.
-            parsed.extracted.serialNumber = None
-            parsed.field_confidences["serialNumber"] = 0.0
             if symbol_regions[0].layout_id is not None:
                 used_layouts["serialSymbol"] = symbol_regions[0].layout_id
-            if (
-                not numbers
-                or len(numbers) != (expected_length or 6)
-                or not numbers.isascii()
-                or not numbers.isdigit()
-            ):
-                return
             lines, symbol_region, origin = self._read_template_field(
                 crop, placement, "serialSymbol", symbol_regions, in_region, parser, expected_length
             )
             symbol = parser.normalise_field("serialSymbol", lines, expected_length)
+            parsed.field_confidences["serialSymbol"] = (
+                max((line.confidence for line in lines), default=0.0) if symbol else 0.0
+            )
             combined = _combine_serial_symbol(numbers, symbol, expected_length)
             if combined is None:
                 return
             parsed.extracted.serialNumber = combined
             parsed.field_confidences["serialNumber"] = min(
                 parsed.field_confidences.get("numbers", 0.0),
-                max(line.confidence for line in lines),
+                parsed.field_confidences["serialSymbol"],
             )
             quad = placement.upload_quad(symbol_region)
             box = _quad_to_crop_box(quad, crop, cw, ch)

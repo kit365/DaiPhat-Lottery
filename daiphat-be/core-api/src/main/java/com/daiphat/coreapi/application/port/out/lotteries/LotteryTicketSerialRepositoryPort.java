@@ -3,6 +3,8 @@ package com.daiphat.coreapi.application.port.out.lotteries;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.lotteries.SettlementStationInventoryRow;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Collection;
 import java.util.List;
@@ -85,6 +87,28 @@ public interface LotteryTicketSerialRepositoryPort {
      * IN_STOCK|EXPIRED + GOOD (or null) + not already linked to a return line.
      */
     List<ReturnInspectableSerialData> findInStockForSupplierAndDrawDate(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds
+    );
+
+    Page<Long> findReturnEligibleTicketIds(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds,
+            Long lotteryStationId,
+            String search,
+            Pageable pageable
+    );
+
+    List<ReturnInspectableSerialData> findReturnEligibleSerialsByTicketIds(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds,
+            Collection<Long> ticketIds
+    );
+
+    List<ReturnInspectableStationSummaryData> summarizeReturnEligibleByStation(
             Long supplierId,
             java.time.LocalDate drawDate,
             Collection<Long> stationIds
