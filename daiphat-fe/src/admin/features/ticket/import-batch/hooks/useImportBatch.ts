@@ -366,6 +366,8 @@ export const useEligibleImportBatchStations = (
         enabled: !!drawDate && !!importMode,
         select: (res) => res.data ?? { eligible: [], blocked: [] },
         staleTime: 10_000,
+        // A blocked receipt can be edited/deleted in the tab opened by "Xem phiếu".
+        refetchOnWindowFocus: 'always',
     });
 };
 

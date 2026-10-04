@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { resolveIsAdmin } from '@/admin/utils/permission.util';
 import { toast } from 'react-toastify';
 import {
     getActiveImportBatchDraft,
@@ -37,6 +38,7 @@ import {
 } from '../utils/ocrImportDraftStorage';
 import {
     canConfirmReviewRow,
+    canOperateOcrImportBatch,
     collectOcrBatchOptions,
     createFailedReviewRow,
     createPrefillLineOption,
@@ -266,7 +268,9 @@ export const useOcrImportWizard = ({
     restoreSelectedImportBatchId = null,
     onDraftRestored,
 }: UseOcrImportWizardArgs) => {
-    const operatorId = useAuthStore((state) => state.user?.id);
+    const currentUser = useAuthStore((state) => state.user);
+    const operatorId = currentUser?.id;
+    const canUseAnyImportBatch = resolveIsAdmin(currentUser);
     const [step, setStep] = useState<OcrWizardStep>('upload');
     const [loadingBatches, setLoadingBatches] = useState(false);
     const [batchOptions, setBatchOptions] = useState<OcrBatchOption[]>([]);
@@ -384,10 +388,10 @@ export const useOcrImportWizard = ({
                 byId.set(prefillBatch.id, prefillBatch);
             }
 
-            // The confirmation API only accepts batches owned by the operator.
-            // The /incomplete endpoint itself includes other operators' batches.
+            // Admins supervise the shared intake queue and may continue any open
+            // batch. Staff remain restricted to batches assigned to themselves.
             const batches = Array.from(byId.values()).filter(
-                (batch) => batch.importedBy === operatorId
+                (batch) => canOperateOcrImportBatch(batch, operatorId, canUseAnyImportBatch)
             );
             setImportBatches(batches);
             setBatchOptions(collectOcrBatchOptions(batches));
@@ -409,7 +413,7 @@ export const useOcrImportWizard = ({
         } finally {
             setLoadingBatches(false);
         }
-    }, [prefillBatch, prefillLine, operatorId]);
+    }, [prefillBatch, prefillLine, operatorId, canUseAnyImportBatch]);
 
     const applyDraft = useCallback(
         (draft: OcrImportDraft, overrideBatchId?: number | null, targetStep?: OcrWizardStep) => {
@@ -1318,8 +1322,14 @@ export const useOcrImportWizard = ({
             return false;
         }
         return selectedImportBatchId != null && selectedImportBatchId > 0 &&
-            selectedImportBatch?.importedBy === operatorId;
-    }, [confirmableCount, selectedImportBatchId, selectedImportBatch, operatorId]);
+            canOperateOcrImportBatch(selectedImportBatch, operatorId, canUseAnyImportBatch);
+    }, [
+        confirmableCount,
+        selectedImportBatchId,
+        selectedImportBatch,
+        operatorId,
+        canUseAnyImportBatch,
+    ]);
 
     const selectDraftBatch = useCallback((batchId: number | null) => {
         setDraftIntent('USE_EXISTING');
@@ -1409,13 +1419,13 @@ export const useOcrImportWizard = ({
                     setStaleImportBatchId(selectedImportBatchId);
                     return 'BLOCKED';
                 }
-                if (selectedImportBatch.importedBy !== operatorId) {
+                if (!canOperateOcrImportBatch(selectedImportBatch, operatorId, canUseAnyImportBatch)) {
                     toast.error('Phiếu nhập lô đã chọn thuộc người nhập khác. Vui lòng chọn phiếu do bạn tạo.');
                     return 'BLOCKED';
                 }
                 const selectionSnapshot = buildImportBatchSelectionSnapshot(selectedImportBatch);
                 const latestBatch = (await getImportBatchById(selectedImportBatchId)).data;
-                if (latestBatch && latestBatch.importedBy === operatorId) {
+                if (latestBatch && canOperateOcrImportBatch(latestBatch, operatorId, canUseAnyImportBatch)) {
                     const selectedStations = new Set(selectedRows.map((row) => row.stationId));
                     const relevantLines = (latestBatch.lines ?? []).filter(
                         (line) => selectedStations.has(line.lotteryStationId) &&
@@ -1494,7 +1504,14 @@ export const useOcrImportWizard = ({
                 setConfirming(false);
             }
         },
-        [rows, isRowConfirmable, selectedImportBatchId, selectedImportBatch, operatorId]
+        [
+            rows,
+            isRowConfirmable,
+            selectedImportBatchId,
+            selectedImportBatch,
+            operatorId,
+            canUseAnyImportBatch,
+        ]
     );
 
     const acknowledgeStaleImportBatch = useCallback(async () => {

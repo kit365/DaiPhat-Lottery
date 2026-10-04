@@ -867,6 +867,15 @@ export const getImportOutcomeLabel = (outcome: string): string => {
     }
 };
 
+/** Keep the batch ownership rule identical wherever the OCR wizard uses it. */
+export const canOperateOcrImportBatch = (
+    batch: Pick<ImportBatch, 'importedBy'> | null | undefined,
+    operatorId: string | null | undefined,
+    canUseAnyImportBatch: boolean
+): boolean => Boolean(
+    batch && operatorId && (canUseAnyImportBatch || batch.importedBy === operatorId)
+);
+
 export type OcrImportResultPresentation = {
     tone: 'success' | 'warning' | 'error';
     title: string;

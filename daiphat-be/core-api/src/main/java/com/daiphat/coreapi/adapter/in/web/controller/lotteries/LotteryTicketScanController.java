@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -106,7 +107,8 @@ public class LotteryTicketScanController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'ticket:create')")
     public ApiResponse<OcrConfirmImportResponse> ocrConfirmImport(
             @Valid @RequestBody OcrConfirmImportRequest request,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            Authentication authentication
     ) {
         log.info(
                 "REST request to OCR confirm-import mode={} tickets={} by user: {}",
@@ -114,7 +116,14 @@ public class LotteryTicketScanController {
                 request.tickets() != null ? request.tickets().size() : 0,
                 principal.getUsername()
         );
-        OcrConfirmImportResponse response = ocrConfirmImportService.confirm(request, principal.getId());
+        boolean canUseAnyImportBatch = authentication != null
+                && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        OcrConfirmImportResponse response = ocrConfirmImportService.confirm(
+                request,
+                principal.getId(),
+                canUseAnyImportBatch
+        );
         String message;
         if (response.totalRequested() > 0
                 && response.successCount() == response.totalRequested()

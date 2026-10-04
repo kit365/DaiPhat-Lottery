@@ -80,6 +80,14 @@ public class OcrConfirmImportService {
     private final PlatformTransactionManager transactionManager;
 
     public OcrConfirmImportResponse confirm(OcrConfirmImportRequest request, UUID operatorId) {
+        return confirm(request, operatorId, false);
+    }
+
+    public OcrConfirmImportResponse confirm(
+            OcrConfirmImportRequest request,
+            UUID operatorId,
+            boolean canUseAnyImportBatch
+    ) {
         if (request.tickets() == null || request.tickets().isEmpty()) {
             throw new DomainException(ErrorCode.TICKET_SCAN_NO_TICKETS_TO_IMPORT);
         }
@@ -90,7 +98,7 @@ public class OcrConfirmImportService {
         }
         if (request.mode() == OcrConfirmImportMode.MANUAL) {
             TransactionTemplate tx = new TransactionTemplate(transactionManager);
-            return tx.execute(status -> confirmManual(request, operatorId));
+            return tx.execute(status -> confirmManual(request, operatorId, canUseAnyImportBatch));
         }
         throw new DomainException(ErrorCode.INVALID_INPUT, "Chế độ nhập OCR không hợp lệ.");
     }
@@ -191,7 +199,8 @@ public class OcrConfirmImportService {
                         LinkedHashMap::new
                 ));
 
-        TicketImportTally tally = importTickets(tickets, stationToLine, drawDate, operatorId);
+        TicketImportTally tally = importTickets(
+                tickets, stationToLine, drawDate, operatorId, operatorId);
         if (tally.failed > 0) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
@@ -212,7 +221,11 @@ public class OcrConfirmImportService {
                 .build();
     }
 
-    private OcrConfirmImportResponse confirmManual(OcrConfirmImportRequest request, UUID operatorId) {
+    private OcrConfirmImportResponse confirmManual(
+            OcrConfirmImportRequest request,
+            UUID operatorId,
+            boolean canUseAnyImportBatch
+    ) {
         if (request.importBatchId() == null) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_IMPORT_BATCH_REQUIRED);
         }
@@ -221,7 +234,8 @@ public class OcrConfirmImportService {
         importBatchDraftExpiryService.cancelIfOverdue(batch);
         batch = importBatchRepositoryPort.findById(request.importBatchId())
                 .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
-        if (batch.getImportedBy() == null || !batch.getImportedBy().equals(operatorId)) {
+        if (!canUseAnyImportBatch
+                && (batch.getImportedBy() == null || !batch.getImportedBy().equals(operatorId))) {
             throw new DomainException(ErrorCode.INVALID_INPUT,
                     "Phiếu nhập lô đã chọn thuộc người nhập khác. Vui lòng chọn phiếu do bạn tạo.");
         }
@@ -239,7 +253,8 @@ public class OcrConfirmImportService {
         if (!batch.isEditable()) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
         }
-        if (batch.getImportedBy() == null || !batch.getImportedBy().equals(operatorId)) {
+        if (!canUseAnyImportBatch
+                && (batch.getImportedBy() == null || !batch.getImportedBy().equals(operatorId))) {
             throw new DomainException(ErrorCode.INVALID_INPUT,
                     "Phiếu nhập lô đã chọn thuộc người nhập khác. Vui lòng chọn phiếu do bạn tạo.");
         }
@@ -260,15 +275,24 @@ public class OcrConfirmImportService {
                         OcrConfirmImportTicketRequest::stationId,
                         Collectors.collectingAndThen(Collectors.counting(), Long::intValue)
                 ));
+        UUID batchOwnershipOperatorId = canUseAnyImportBatch && batch.getImportedBy() != null
+                ? batch.getImportedBy()
+                : operatorId;
         Map<Long, Long> stationToLine = importBatchServicePort.ensureOpenLinesByStation(
                 batch.getId(),
                 declareByStation,
-                operatorId
+                batchOwnershipOperatorId
         );
 
         validateNoDuplicateLineTickets(request.tickets(), stationToLine, batchDrawDate);
 
-        TicketImportTally tally = importTickets(request.tickets(), stationToLine, batchDrawDate, operatorId);
+        TicketImportTally tally = importTickets(
+                request.tickets(),
+                stationToLine,
+                batchDrawDate,
+                batchOwnershipOperatorId,
+                operatorId
+        );
         // A completed HTTP request is not necessarily a successful ticket
         // import. Only successful items may be linked to the batch line and
         // written back as the confirmed OCR snapshot.
@@ -341,7 +365,8 @@ public class OcrConfirmImportService {
             List<OcrConfirmImportTicketRequest> tickets,
             Map<Long, Long> stationToLine,
             LocalDate drawDate,
-            UUID operatorId
+            UUID batchOwnershipOperatorId,
+            UUID actingOperatorId
     ) {
         List<ScanBatchImportItemResponse> results = new ArrayList<>();
         int success = 0;
@@ -381,7 +406,7 @@ public class OcrConfirmImportService {
                                 .serials(List.of(new CreateLotteryTicketSerialRequest(ticketImg, ticket.serialNumber())))
                                 .isAutoSave(false)
                                 .build(),
-                        operatorId
+                        batchOwnershipOperatorId
                 );
                 Long createdSerialId = created.serials() == null ? null : created.serials().stream()
                         .filter(s -> ticket.serialNumber().equals(s.serialNumber()))
@@ -393,7 +418,7 @@ public class OcrConfirmImportService {
                             ScanEventType.TICKET_CREATED,
                             ticket.ocrScanResultId(),
                             createdSerialId,
-                            operatorId,
+                            actingOperatorId,
                             ScanMethod.OCR_SCAN,
                             true,
                             null

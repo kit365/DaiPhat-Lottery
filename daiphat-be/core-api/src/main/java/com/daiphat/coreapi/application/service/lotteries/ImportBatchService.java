@@ -646,6 +646,12 @@ public class ImportBatchService implements ImportBatchServicePort {
     @Override
     @Transactional
     public ImportBatchResponse cancelDraft(Long batchId, UUID operatorId) {
+        return cancelDraft(batchId, operatorId, false);
+    }
+
+    @Override
+    @Transactional
+    public ImportBatchResponse cancelDraft(Long batchId, UUID operatorId, boolean canUseAnyImportBatch) {
         ImportBatchModel batch = getImportBatchOrThrow(batchId);
         importBatchDraftExpiryService.cancelIfOverdue(batch);
         batch = getImportBatchOrThrow(batchId);
@@ -653,8 +659,9 @@ public class ImportBatchService implements ImportBatchServicePort {
         if (!batch.isEditable()) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
         }
-        if (batch.getImportedBy() == null || !batch.getImportedBy().equals(operatorId)) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_IMPORT_BATCH_MISMATCH);
+        if (operatorId == null || (!canUseAnyImportBatch
+                && !operatorId.equals(batch.getImportedBy()))) {
+            throw new DomainException(ErrorCode.ACCESS_DENIED);
         }
 
         LocalDateTime now = LocalDateTime.now(clock);
@@ -879,6 +886,12 @@ public class ImportBatchService implements ImportBatchServicePort {
         importBatchLineRepositoryPort.save(line);
 
         batch.setLines(importBatchLineRepositoryPort.findByImportBatchId(batchId));
+        // Deleting an allocation removes its declared quantity; do not transfer it
+        // to another station or retain the old header total.
+        batch.setTotalDeclareQuantity(batch.getActiveLines().stream()
+                .mapToInt(activeLine -> activeLine.getDeclareQuantity() != null
+                        ? activeLine.getDeclareQuantity() : 0)
+                .sum());
         batch.recalculateAggregates();
         batch.refreshImportStatus(now);
         ImportBatchModel saved = importBatchRepositoryPort.save(batch);

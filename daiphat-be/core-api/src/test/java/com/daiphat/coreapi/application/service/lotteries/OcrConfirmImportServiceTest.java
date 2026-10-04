@@ -425,6 +425,39 @@ class OcrConfirmImportServiceTest {
         verify(lotteryTicketServicePort, never()).create(any(), any());
     }
 
+    @Test
+    void adminCanImportIntoAnotherOperatorsOpenBatch() {
+        UUID batchOwnerId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(80L).batchCode("IB-80").drawDate(drawDate)
+                .status(ImportBatchStatus.DRAFT).importedBy(batchOwnerId).build();
+        when(importBatchRepositoryPort.findById(80L)).thenReturn(Optional.of(batch));
+        when(importBatchSelectionSnapshotValidator.validate(80L, null)).thenReturn(batch);
+        when(importBatchServicePort.ensureOpenLinesByStation(eq(80L), any(), eq(batchOwnerId)))
+                .thenReturn(Map.of(10L, 801L));
+        when(lotteryTicketServicePort.listEntryTicketsByImportBatchLine(801L))
+                .thenReturn(ImportBatchLineEntryTicketsResponse.builder().tickets(List.of()).build());
+        when(lotteryTicketServicePort.create(any(CreateLotteryTicketRequest.class), eq(batchOwnerId)))
+                .thenReturn(LotteryTicketResponse.builder()
+                        .id(900L)
+                        .serials(List.of(LotteryTicketSerialResponse.builder()
+                                .id(901L).serialNumber("A012345").build()))
+                        .build());
+
+        OcrConfirmImportResponse response = service.confirm(
+                OcrConfirmImportRequest.builder()
+                        .mode(OcrConfirmImportMode.MANUAL).importBatchId(80L)
+                        .tickets(List.of(ticket(10L, drawDate, "123456", "A012345")))
+                        .build(),
+                operatorId,
+                true
+        );
+
+        assertThat(response.successCount()).isEqualTo(1);
+        verify(importBatchServicePort).ensureOpenLinesByStation(eq(80L), any(), eq(batchOwnerId));
+        verify(lotteryTicketServicePort).create(any(CreateLotteryTicketRequest.class), eq(batchOwnerId));
+    }
+
     private static OcrConfirmImportTicketRequest ticket(
             Long stationId,
             LocalDate drawDate,

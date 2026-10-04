@@ -472,6 +472,42 @@ class ImportBatchServiceTest {
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.IMPORT_BATCH_HAS_IMPORTED_LINE);
+
+        assertThatThrownBy(() -> importBatchService.cancelDraft(10L, UUID.randomUUID(), true))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_HAS_IMPORTED_LINE);
+    }
+
+    @Test
+    void cancelDraft_otherOperator_reportsAccessDenied() {
+        var batch = ImportBatchModel.builder().id(10L).importedBy(UUID.randomUUID()).build();
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        assertThatThrownBy(() -> importBatchService.cancelDraft(10L, OPERATOR_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.ACCESS_DENIED);
+    }
+
+    @Test
+    void cancelDraft_adminCanCancelAnotherOperatorsDraft() {
+        fixedClock(LocalDateTime.of(2026, 7, 6, 10, 0));
+        var owner = UUID.randomUUID();
+        var line = ImportBatchLineModel.builder().id(100L).importBatchId(10L)
+                .status(ImportBatchLineStatus.OPEN).build();
+        var batch = ImportBatchModel.builder().id(10L).importedBy(owner)
+                .lines(new ArrayList<>(List.of(line))).build();
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(line));
+        when(importBatchRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        importBatchService.cancelDraft(10L, OPERATOR_ID, true);
+
+        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.CANCELLED);
+        assertThat(batch.getImportedBy()).isEqualTo(owner);
+        assertThat(line.getStatus()).isEqualTo(ImportBatchLineStatus.CANCELLED);
+        verify(lotteryTicketServicePort).purgeImportBatchLineTickets(100L);
+        verify(importBatchRepositoryPort).save(batch);
     }
 
     @Test
@@ -587,6 +623,47 @@ class ImportBatchServiceTest {
         verify(lotteryTicketServicePort).activateTicketsForImportBatchLine(201L);
         assertThat(response.status()).isEqualTo(ImportBatchStatus.IMPORTED);
         assertThat(deletingLine.getDeletedAt()).isNotNull();
+        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.IMPORTED);
+        assertThat(batch.getTotalDeclareQuantity()).isEqualTo(10);
+        assertThat(batch.getTotalImportedQuantity()).isEqualTo(10);
+        assertThat(batch.getActiveLines()).containsExactly(remainingLine);
+    }
+
+    @Test
+    void update_removeOpenAllocation_finishesBatchWithoutChangingCompletedAllocation() {
+        fixedClock(LocalDateTime.of(2026, 7, 6, 10, 0));
+        var completed = ImportBatchLineModel.builder().id(427L).importBatchId(236L)
+                .lotteryStationId(3L).declareQuantity(500).totalQuantity(500)
+                .importCost(BigDecimal.valueOf(10000)).status(ImportBatchLineStatus.IMPORTED).build();
+        var removed = ImportBatchLineModel.builder().id(428L).importBatchId(236L)
+                .lotteryStationId(1L).declareQuantity(500).totalQuantity(0)
+                .importCost(BigDecimal.valueOf(10000)).status(ImportBatchLineStatus.OPEN).build();
+        var batch = ImportBatchModel.builder().id(236L).supplierId(SUPPLIER_ID).drawDate(DRAW_DATE)
+                .importMode(ImportBatchImportMode.IN_DAY).status(ImportBatchStatus.PARTIALLY_IMPORTED)
+                .totalDeclareQuantity(1000).totalImportedQuantity(500)
+                .lines(new ArrayList<>(List.of(completed, removed))).build();
+        when(importBatchRepositoryPort.findById(236L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.countActiveByImportBatchId(236L)).thenReturn(2L);
+        when(importBatchLineRepositoryPort.findByImportBatchId(236L)).thenAnswer(invocation ->
+                List.of(completed, removed).stream().filter(line -> line.getDeletedAt() == null).toList());
+        when(importBatchRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        importBatchService.update(236L, UpdateImportBatchRequest.builder().supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(500).lines(List.of(
+                        UpdateImportBatchLineRequest.builder().id(427L).lotteryStationId(3L)
+                                .declareQuantity(500).importCost(BigDecimal.valueOf(10000)).build(),
+                        UpdateImportBatchLineRequest.builder().id(428L).lotteryStationId(1L)
+                                .declareQuantity(500).importCost(BigDecimal.valueOf(10000)).removed(true).build()
+                )).build());
+
+        assertThat(removed.getDeletedAt()).isNotNull();
+        assertThat(batch.getActiveLines()).containsExactly(completed);
+        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.IMPORTED);
+        assertThat(batch.getTotalDeclareQuantity()).isEqualTo(500);
+        assertThat(batch.getTotalImportedQuantity()).isEqualTo(500);
+        assertThat(completed.getDeclareQuantity()).isEqualTo(500);
+        verify(importBatchLineRepositoryPort).save(removed);
+        verify(importBatchRepositoryPort).save(batch);
     }
 
     @Test

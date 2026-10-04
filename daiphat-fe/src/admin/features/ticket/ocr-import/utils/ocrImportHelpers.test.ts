@@ -4,6 +4,7 @@ import {
     buildReviewImageGroups,
     buildReviewStationGroups,
     canConfirmReviewRow,
+    canOperateOcrImportBatch,
     collectOcrBatchOptions,
     createFailedReviewRow,
     evaluateOcrFieldUiStatus,
@@ -34,6 +35,19 @@ describe('OCR serial response mapping', () => {
         const row = mapScannedTicketToReviewRow(ticket, 'image-1', 'ticket.jpg');
         expect(row.serialNumber).toBe(serial);
         expect(row.batchCode).toBe('6K2');
+    });
+});
+
+describe('OCR import-batch authorization', () => {
+    const batch = { importedBy: 'owner-1' };
+
+    it('allows the assigned operator and an administrator', () => {
+        expect(canOperateOcrImportBatch(batch, 'owner-1', false)).toBe(true);
+        expect(canOperateOcrImportBatch(batch, 'admin-1', true)).toBe(true);
+    });
+
+    it('blocks another non-admin operator', () => {
+        expect(canOperateOcrImportBatch(batch, 'operator-2', false)).toBe(false);
     });
 });
 

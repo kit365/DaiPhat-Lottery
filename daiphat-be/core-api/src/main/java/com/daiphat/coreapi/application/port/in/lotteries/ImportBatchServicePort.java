@@ -101,6 +101,8 @@ public interface ImportBatchServicePort {
     /** Operator discards an editable draft/incomplete import-batch they own. */
     ImportBatchResponse cancelDraft(Long batchId, UUID operatorId);
 
+    ImportBatchResponse cancelDraft(Long batchId, UUID operatorId, boolean canUseAnyImportBatch);
+
     ImportBatchReductionTicketsResponse getReductionTickets(Long importBatchId);
 
     ImportBatchLineEntryTicketsResponse getLineEntryTickets(Long batchId, Long lineId);
