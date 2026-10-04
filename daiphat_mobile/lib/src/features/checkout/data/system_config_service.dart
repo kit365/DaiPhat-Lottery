@@ -63,4 +63,28 @@ class SystemConfigService {
       return const SiteOperatingHours();
     }
   }
+
+  Future<String> getSitePhone() async {
+    try {
+      final res = await _apiClient.get(
+        '/public/system-configs/batch',
+        queryParameters: {
+          'keys': 'SITE_PHONE',
+        },
+        includeAuth: false,
+      );
+
+      final data = res['data'];
+      if (data is Map<String, dynamic>) {
+        final phoneObj = data['SITE_PHONE'];
+        if (phoneObj is Map && phoneObj['configValue'] != null) {
+          final val = phoneObj['configValue'].toString().trim();
+          if (val.isNotEmpty) return val;
+        }
+      }
+      return '1900 636 365';
+    } catch (_) {
+      return '1900 636 365';
+    }
+  }
 }

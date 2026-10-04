@@ -96,11 +96,12 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (order.getStatus() != OrderStatus.PREPARING
+        if (order.getStatus() != OrderStatus.PAID
+                && order.getStatus() != OrderStatus.PREPARING
                 && order.getStatus() != OrderStatus.PENDING_PICKUP) {
             throw new DomainException(
                     ErrorCode.ORDER_INVALID_STATUS,
-                    "Chỉ được xử lý vé sự cố khi đơn đang PREPARING hoặc PENDING_PICKUP.");
+                    "Chỉ được xử lý vé sự cố khi đơn đã thanh toán, đang chuẩn bị hoặc chờ nhận vé.");
         }
 
         repairPrematureSoldSerials(order);
@@ -234,9 +235,12 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
 
         if (incident.replacementTicketId() == null) {
             // No replacement → mark reported serial as faulted; partial refund follows.
-            applyFault(
-                    oldSerial,
-                    incident.reason(),
+            // The order detail still awaits handover: expiry does not end agency custody.
+            oldSerial.reportAwaitingHandoverFault(
+                    incident.reason() == TicketIncidentReason.LOST
+                            ? com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.LOST
+                            : com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.DAMAGED,
+                    LotteryTicketSerialFaultedBy.INTERNAL_FAULT,
                     incident.damagedReason() != null ? incident.damagedReason() : incident.reason().getLabel(),
                     incident.damagedEvidenceUrl());
             lotteryTicketSerialRepositoryPort.save(oldSerial);

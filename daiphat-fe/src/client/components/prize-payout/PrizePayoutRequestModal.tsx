@@ -719,6 +719,17 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                                     },
                                 )}
                             </div>
+
+                            {/* CCCD Privacy & Security Policy Banner */}
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 flex items-start gap-2.5 text-[12px] text-emerald-900 mt-1">
+                                <i className="fa-solid fa-shield-halved text-emerald-600 text-[15px] mt-0.5 shrink-0" />
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="font-bold text-emerald-900">Cam kết bảo mật thông tin CCCD</span>
+                                    <p className="text-emerald-800 text-[11.5px] m-0 leading-relaxed">
+                                        Hình ảnh và thông tin CCCD chỉ được sử dụng duy nhất nhằm xác thực danh tính đổi thưởng và đối soát nghiệp vụ nội bộ theo quy định. Hệ thống cam kết bảo mật tuyệt đối, không chia sẻ cho bên thứ ba hoặc phục vụ mục đích thương mại ngoài luồng.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
                         <hr className="border-t border-[#E5E8EB] my-1" />

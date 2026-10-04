@@ -9,6 +9,8 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/auth/domain/entities/user.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_dialog.dart';
 import '../viewmodels/admin_scan_viewmodel.dart';
+import '../widgets/full_screen_photo_viewer.dart';
+import '../widgets/continuous_camera_view.dart';
 
 class AdminScanView extends StatefulWidget {
   final AdminScanViewModel viewModel;
@@ -28,11 +30,27 @@ class AdminScanView extends StatefulWidget {
 
 class _AdminScanViewState extends State<AdminScanView> {
   final _pinController = TextEditingController();
+  final List<XFile> _pendingPhotos = [];
 
   @override
   void dispose() {
     _pinController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleDisconnectSession(BuildContext context) async {
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Ngắt kết nối',
+      message:
+          'Bạn có chắc chắn muốn ngắt kết nối với phiên Web Admin này không?',
+      confirmLabel: 'Ngắt kết nối',
+      isDestructive: true,
+    );
+
+    if (confirmed && mounted) {
+      widget.viewModel.disconnectRemoteSession();
+    }
   }
 
   Future<void> _handleLogout(BuildContext context) async {
@@ -71,7 +89,9 @@ class _AdminScanViewState extends State<AdminScanView> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  isRemote ? 'Máy quét vé Web Admin' : 'Quét vé số OCR (Admin)',
+                  isRemote
+                      ? 'Gửi ảnh sang Web Admin'
+                      : 'Quét vé số OCR (Admin)',
                   style: AppTypography.h3(
                     color: AppColors.textMain,
                     fontWeight: FontWeight.bold,
@@ -97,7 +117,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                     color: AppColors.primary,
                   ),
                   tooltip: 'Ngắt kết nối',
-                  onPressed: () => vm.disconnectRemoteSession(),
+                  onPressed: () => _handleDisconnectSession(context),
                 ),
               if (widget.onLogout != null)
                 IconButton(
@@ -173,7 +193,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Nhập mã PIN 6 số hiển thị trên Web Admin để bắt đầu truyền vé.',
+                        'Nhập mã PIN 6 số hiển thị trên Web Admin để bắt đầu gửi ảnh.',
                         style: AppTypography.caption(
                           fontSize: 12,
                           color: AppColors.contentSecondary,
@@ -385,10 +405,13 @@ class _AdminScanViewState extends State<AdminScanView> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildRemoteStatusBar(context),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-          child: _buildRemoteActionButtons(context),
-        ),
+        if (_pendingPhotos.isNotEmpty)
+          _buildPendingStagingCard(context)
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+            child: _buildRemoteActionButtons(context),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Row(
@@ -413,9 +436,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             ],
           ),
         ),
-        Expanded(
-          child: _buildRemoteScannedList(),
-        ),
+        Expanded(child: _buildRemoteScannedList()),
       ],
     );
   }
@@ -423,45 +444,41 @@ class _AdminScanViewState extends State<AdminScanView> {
   Widget _buildRemoteStatusBar(BuildContext context) {
     final vm = widget.viewModel;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surfacePrimary,
         border: Border(
-          bottom: BorderSide(
-            color: AppColors.borderDefault,
-            width: 1,
-          ),
+          bottom: BorderSide(color: AppColors.borderSubtle, width: 1),
         ),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.statusSuccessSurface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.statusSuccess.withValues(alpha: 0.3),
-              ),
+              color: const Color(0xFFDCFCE7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF86EFAC)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 7,
+                  height: 7,
                   decoration: const BoxDecoration(
-                    color: AppColors.statusSuccess,
+                    color: Color(0xFF16A34A),
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 6),
-                Text(
+                const Text(
                   'ĐÃ KẾT NỐI',
-                  style: AppTypography.caption(
-                    fontWeight: FontWeight.bold,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
                     fontSize: 11,
-                    color: AppColors.statusSuccessForeground,
+                    color: Color(0xFF15803D),
+                    letterSpacing: 0.3,
                   ),
                 ),
               ],
@@ -472,23 +489,336 @@ class _AdminScanViewState extends State<AdminScanView> {
             child: Text(
               'Phiên #${vm.remoteSessionCode}',
               style: AppTypography.subtitle2(
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textMain,
+                fontSize: 14,
               ),
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: AppColors.surfaceNeutral,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderDefault),
             ),
             child: Text(
-              '${vm.remoteScannedCount} vé đã gửi',
+              '${vm.remoteScannedCount} ảnh đã gửi',
               style: AppTypography.caption(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+                color: AppColors.contentSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingStagingCard(BuildContext context) {
+    final vm = widget.viewModel;
+    final isScanning = vm.isScanning;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      decoration: BoxDecoration(
+        color: AppColors.surfacePrimary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderDefault),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.collections_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ảnh chờ gửi (${_pendingPhotos.length})',
+                    style: AppTypography.subtitle2(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                ],
+              ),
+              if (!isScanning)
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: AppColors.statusError,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    setState(() => _pendingPhotos.clear());
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded, size: 15),
+                  label: const Text(
+                    'Xóa tất cả',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 128,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _pendingPhotos.length + 1,
+              separatorBuilder: (context, index) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                if (index == _pendingPhotos.length) {
+                  return Container(
+                    width: 90,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceNeutral,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.borderDefault,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: isScanning
+                          ? null
+                          : () => _handleCaptureFromCamera(),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add_a_photo_rounded,
+                              color: AppColors.primary,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '+ Thêm ảnh',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.caption(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                final photo = _pendingPhotos[index];
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 90,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.borderDefault),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            FullScreenPhotoViewer.show(
+                              context,
+                              items: _pendingPhotos,
+                              initialIndex: index,
+                              canDelete: true,
+                              onDelete: (delIdx) {
+                                setState(() {
+                                  _pendingPhotos.removeAt(delIdx);
+                                });
+                              },
+                            );
+                          },
+                          child: Image.file(
+                            File(photo.path),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 5,
+                          left: 5,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '#${index + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              setState(() {
+                                _pendingPhotos.removeAt(index);
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textMain,
+                      side: const BorderSide(
+                        color: AppColors.borderDefault,
+                        width: 1.2,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: isScanning
+                        ? null
+                        : () => _handleCaptureFromCamera(),
+                    icon: const Icon(Icons.add_a_photo_outlined, size: 17),
+                    label: const Text(
+                      'Chụp tiếp',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.surfacePrimary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: isScanning
+                        ? null
+                        : () => _handleUploadPendingPhotos(),
+                    icon: isScanning
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded, size: 16),
+                    label: Text(
+                      isScanning
+                          ? 'Đang gửi ảnh...'
+                          : 'Gửi ${_pendingPhotos.length} ảnh sang Web',
+                      style: AppTypography.buttonMedium(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.contentSecondary,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              ),
+              onPressed: isScanning ? null : () => _handlePickFromGallery(),
+              icon: const Icon(
+                Icons.photo_library_outlined,
+                size: 15,
+                color: AppColors.contentSecondary,
+              ),
+              label: Text(
+                'Thêm ảnh từ thư viện',
+                style: AppTypography.caption(
+                  fontSize: 12,
+                  color: AppColors.contentSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -515,9 +845,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: isScanning
-                ? null
-                : () => _handlePickAndConfirm(ImageSource.camera),
+            onPressed: isScanning ? null : () => _handleCaptureFromCamera(),
             icon: isScanning
                 ? const SizedBox(
                     width: 20,
@@ -529,7 +857,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                   )
                 : const Icon(Icons.camera_alt_rounded, size: 22),
             label: Text(
-              isScanning ? 'Đang gửi vé lên Web...' : 'Chụp vé số (Camera)',
+              isScanning ? 'Đang gửi ảnh lên Web...' : 'Chụp liên tục',
               style: AppTypography.buttonMedium(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
@@ -548,9 +876,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: isScanning
-                ? null
-                : () => _handlePickAndConfirm(ImageSource.gallery),
+            onPressed: isScanning ? null : () => _handlePickFromGallery(),
             icon: const Icon(Icons.photo_library_outlined, size: 18),
             label: Text(
               'Chọn ảnh từ thư viện',
@@ -565,188 +891,60 @@ class _AdminScanViewState extends State<AdminScanView> {
     );
   }
 
-  Future<void> _handlePickAndConfirm(ImageSource source) async {
-    final vm = widget.viewModel;
-    final photos = await vm.pickPhotos(source);
-    if (!mounted || photos.isEmpty) return;
-    _showConfirmUploadBottomSheet(photos);
-  }
-
-  void _showConfirmUploadBottomSheet(List<XFile> photos) {
-    final vm = widget.viewModel;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          return Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.8,
-            ),
-            decoration: const BoxDecoration(
-              color: AppColors.surfacePrimary,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.borderDefault,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+  Future<void> _handleCaptureFromCamera() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ContinuousCameraView(
+          onCaptured: (photo) {
+            if (mounted) setState(() => _pendingPhotos.add(photo));
+          },
+          onRemoved: (photo) {
+            if (mounted) {
+              setState(
+                () => _pendingPhotos.removeWhere(
+                  (item) => item.path == photo.path,
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.preview_rounded,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Xem trước vé (${photos.length} ảnh)',
-                        style: AppTypography.subtitle1(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 240,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: photos.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) {
-                      final photo = photos[index];
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Stack(
-                          children: [
-                            Image.file(
-                              File(photo.path),
-                              height: 240,
-                              fit: BoxFit.cover,
-                            ),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setModalState(() {
-                                    photos.removeAt(index);
-                                  });
-                                  if (photos.isEmpty) {
-                                    Navigator.pop(ctx);
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Kiểm tra hình ảnh vé rõ nét, không bị lóa hoặc mất góc trước khi gửi sang Web Admin.',
-                  style: AppTypography.caption(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textMain,
-                          side: const BorderSide(color: AppColors.borderDefault),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Hủy / Chọn lại'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.surfacePrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          Navigator.pop(ctx);
-                          final count = await vm.uploadPickedPhotos(photos);
-                          if (count > 0) {
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text('Đã gửi thành công $count vé sang Web Admin!'),
-                                backgroundColor: AppColors.statusSuccessForeground,
-                              ),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.send_rounded, size: 18),
-                        label: Text(
-                          'Xác nhận gửi (${photos.length})',
-                          style: AppTypography.buttonMedium(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
+              );
+            }
+          },
+        ),
       ),
     );
+  }
+
+  Future<void> _handlePickFromGallery() async {
+    final vm = widget.viewModel;
+    final photos = await vm.pickPhotos(ImageSource.gallery);
+    if (photos.isNotEmpty && mounted) {
+      setState(() {
+        _pendingPhotos.addAll(photos);
+      });
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  Future<void> _handleUploadPendingPhotos() async {
+    if (_pendingPhotos.isEmpty) return;
+    final vm = widget.viewModel;
+    final messenger = ScaffoldMessenger.of(context);
+    final photosToUpload = List<XFile>.from(_pendingPhotos);
+
+    final uploadedPaths = await vm.uploadPickedPhotos(photosToUpload);
+    if (uploadedPaths.isNotEmpty && mounted) {
+      setState(() {
+        _pendingPhotos.removeWhere(
+          (photo) => uploadedPaths.contains(photo.path),
+        );
+      });
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Đã gửi ${uploadedPaths.length} ảnh. Bấm “Bắt đầu quét” trên Web khi sẵn sàng.',
+          ),
+          backgroundColor: AppColors.statusSuccessForeground,
+        ),
+      );
+    }
   }
 
   Widget _buildRemoteScannedList() {
@@ -774,7 +972,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Chưa có vé nào được gửi',
+                  'Chưa có ảnh nào được gửi',
                   style: AppTypography.subtitle2(
                     fontWeight: FontWeight.w600,
                     color: AppColors.contentSecondary,
@@ -782,7 +980,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Bấm "Chụp vé số" ở trên để chụp và tự động truyền vé sang Web.',
+                  'Chụp nhiều ảnh, kiểm tra rồi gửi sang Web. Ảnh sẽ chờ bạn bấm “Bắt đầu quét” trên máy tính.',
                   textAlign: TextAlign.center,
                   style: AppTypography.caption(
                     fontSize: 12,
@@ -809,72 +1007,100 @@ class _AdminScanViewState extends State<AdminScanView> {
             borderRadius: BorderRadius.circular(12),
             side: const BorderSide(color: AppColors.borderDefault),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _ticketImage(ticket.imagePath),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Ảnh vé #${tickets.length - index}',
-                            style: AppTypography.subtitle2(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textMain,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              final ticketImages = tickets
+                  .map((t) => t.imagePath ?? '')
+                  .where((p) => p.isNotEmpty)
+                  .toList();
+              if (ticketImages.isNotEmpty) {
+                FullScreenPhotoViewer.show(
+                  context,
+                  items: ticketImages,
+                  initialIndex: index.clamp(0, ticketImages.length - 1),
+                  canDelete: false,
+                );
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: _ticketImage(ticket.imagePath),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Ảnh vé #${tickets.length - index}',
+                              style: AppTypography.subtitle2(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textMain,
+                              ),
                             ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.statusSuccessSurface,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.check_circle_rounded,
-                                  size: 13,
-                                  color: AppColors.statusSuccessForeground,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Đã tải lên Web',
-                                  style: AppTypography.caption(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.statusSuccessSurface,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 13,
                                     color: AppColors.statusSuccessForeground,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Đã tải lên Web',
+                                    style: AppTypography.caption(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.statusSuccessForeground,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Đã gửi lúc ${DateFormat('HH:mm:ss').format(ticket.scannedAt)} • Chờ đối soát trên máy tính',
-                        style: AppTypography.caption(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Đã gửi lúc ${DateFormat('HH:mm:ss').format(ticket.scannedAt)} • Chờ đối soát',
+                                style: AppTypography.caption(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                            const Icon(
+                              Icons.zoom_in_rounded,
+                              size: 16,
+                              color: AppColors.contentSecondary,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

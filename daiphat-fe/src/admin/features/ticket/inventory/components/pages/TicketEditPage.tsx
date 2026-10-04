@@ -30,7 +30,7 @@ import {
     resolveRegionLengthRules,
     sanitizeTicketNumberInput,
 } from "../../utils/ticketNumberValidation";
-import { resolveAvailableTicketQuantity } from "../../utils/ticketQuantity";
+import { resolveTicketSerialQuantity } from "../../utils/ticketQuantity";
 import { buildSerialStatusFilterOptions } from "../../constants/serial-status-filter.config";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
@@ -423,7 +423,7 @@ export const TicketEditPage = () => {
                                         <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                             <Typography variant="caption" color="text.secondary">Số lượng</Typography>
                                             <Typography variant="body1" fontWeight={600}>
-                                                {resolveAvailableTicketQuantity(ticketDetail)} tờ
+                                                {resolveTicketSerialQuantity(ticketDetail)} tờ
                                             </Typography>
                                         </Box>
 

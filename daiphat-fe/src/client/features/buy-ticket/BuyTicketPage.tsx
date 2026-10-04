@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
+import { useQueryClient } from '@tanstack/react-query';
+import { validateTicketInventory } from '../../utils/cartStock.util';
 import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, Filter, LayoutGrid, SlidersHorizontal, Trash2, Search } from 'lucide-react';
@@ -148,6 +150,10 @@ if (typeof window !== 'undefined') {
     });
 }
 export const BuyTicketPage = () => {
+    const queryClient = useQueryClient();
+    const [inventoryReadyId, setInventoryReadyId] = useState<string | null>(null);
+    const [checkingInventory, setCheckingInventory] = useState(false);
+    const inventoryBusy = useRef(false);
     const router = useRouter();
     const searchParams = useSearchParams();
     const urlStationId = searchParams.get('stationId');
@@ -521,9 +527,55 @@ export const BuyTicketPage = () => {
         observer.observe(sentinel);
         return () => observer.disconnect();
     }, [hasMoreTickets, isFetchingMoreTickets, fetchMoreTickets, availableTickets.length]);
-    const selectedTicket = (availableTickets as unknown as PublicLotteryTicket[]).find(
+    const catalogSelectedTicket = (availableTickets as unknown as PublicLotteryTicket[]).find(
         (ticket) => getTicketKey(ticket) === selectedTicketId
     );
+    const selectedTicket = inventoryReadyId === selectedTicketId ? catalogSelectedTicket : undefined;
+    useEffect(() => {
+        let cancelled = false;
+        setInventoryReadyId(null);
+        if (selectedTicketId) {
+            void validateTicketInventory([{ id: selectedTicketId, quantity: 1 }], queryClient)
+                .then(([latest]) => {
+                    if (cancelled) return;
+                    if (latest.valid) setInventoryReadyId(selectedTicketId);
+                    else {
+                        setSelectedTicketId(null);
+                        toast.error(latest.message ?? 'Vé không còn khả dụng.');
+                    }
+                }).catch(() => {
+                    if (!cancelled) {
+                        setSelectedTicketId(null);
+                        toast.error('Không thể kiểm tra tồn kho. Vui lòng chọn lại vé.');
+                    }
+                });
+        }
+        return () => { cancelled = true; };
+    }, [selectedTicketId, queryClient]);
+
+    const checkSelectedInventory = async (includeCart: boolean) => {
+        if (!selectedTicket || inventoryBusy.current) return null;
+        inventoryBusy.current = true;
+        setCheckingInventory(true);
+        try {
+            const id = getTicketKey(selectedTicket);
+            const inCart = includeCart ? useCartStore.getState().items.find(item => item.id === id)?.quantity ?? 0 : 0;
+            const [latest] = await validateTicketInventory([{ id, quantity: ticketQuantity + inCart }], queryClient);
+            if (!latest.valid) {
+                setTicketQuantity(Math.max(1, Math.min(ticketQuantity, latest.availableQuantity)));
+                if (!latest.purchasable) setSelectedTicketId(null);
+                toast.error(latest.message ?? 'Vé không còn khả dụng.');
+                return null;
+            }
+            return latest;
+        } catch {
+            toast.error('Không thể kiểm tra tồn kho. Vui lòng thử lại.');
+            return null;
+        } finally {
+            inventoryBusy.current = false;
+            setCheckingInventory(false);
+        }
+    };
     const selectedNumbers = selectedTicket?.numbers != null ? [String(selectedTicket.numbers)] : [];
 
     const openFilterPanel = () => {
@@ -661,13 +713,14 @@ export const BuyTicketPage = () => {
 
     const toggleTicket = (ticket: PublicLotteryTicket) => {
         const ticketId = getTicketKey(ticket);
-        if (!ticketId) return;
+        if (!ticketId || inventoryBusy.current) return;
+        setInventoryReadyId(null);
         setTicketQuantity(1);
         setSelectedTicketId((prev) => (prev === ticketId ? null : ticketId));
     };
 
     const maxAvailable = useMemo(() => {
-        return selectedTicket?.quantity || 1;
+        return selectedTicket?.quantity ?? 0;
     }, [selectedTicket]);
 
     const selectedTicketProvinces = useMemo(() => {
@@ -684,7 +737,7 @@ export const BuyTicketPage = () => {
     const pricePerTicket = 10000;
     const totalAmount = totalQuantity * pricePerTicket;
 
-    const addToCart = () => {
+    const addToCart = async () => {
         if (selectedProvinces.length === 0 || !selectedTicket) {
             toast.warning('Vui lòng chọn đài và ít nhất 1 vé số!');
             return false;
@@ -697,7 +750,9 @@ export const BuyTicketPage = () => {
             return false;
         }
 
-        const maxAvailableQty = ticketData?.quantity || 1;
+        const latest = await checkSelectedInventory(true);
+        if (!latest) return false;
+        const maxAvailableQty = latest.availableQuantity;
         const currentCartItem = useCartStore.getState().items.find(i =>
             i.id === String(ticketData.id || ticketData._id)
         );
@@ -733,7 +788,7 @@ export const BuyTicketPage = () => {
         return true;
     };
 
-    const buildSelectedCartItems = () => {
+    const buildSelectedCartItems = (maxAvailableQty: number) => {
         if (!selectedTicket) {
             return null;
         }
@@ -745,7 +800,6 @@ export const BuyTicketPage = () => {
             return null;
         }
 
-        const maxAvailableQty = ticketData?.quantity || 1;
         if (ticketQuantity > maxAvailableQty) {
             toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé`);
             return null;
@@ -776,14 +830,16 @@ export const BuyTicketPage = () => {
         }] as CartItem[];
     };
 
-    const handleCheckout = () => {
+    const handleCheckout = async () => {
         if (selectedProvinces.length === 0 || !selectedTicket) {
             toast.warning('Vui lòng chọn đài và ít nhất 1 vé số!');
             return;
         }
 
         // Mua ngay: thanh toán riêng vé đang chọn, KHÔNG xoá giỏ hàng đang có.
-        const buyNowItems = buildSelectedCartItems();
+        const latest = await checkSelectedInventory(false);
+        if (!latest) return;
+        const buyNowItems = buildSelectedCartItems(latest.availableQuantity);
         if (!buyNowItems?.length) return;
 
         useCartStore.getState().startBuyNow(buyNowItems);
@@ -1224,7 +1280,7 @@ export const BuyTicketPage = () => {
                                             ))}
                                         </div>
                                     ) : (
-                                        <span className="text-[14px] text-[#919EAB] italic mt-1.5">Trống</span>
+                                        <span className="text-[14px] text-[#919EAB] italic mt-1.5">{selectedTicketId && !inventoryReadyId ? 'Đang kiểm tra tồn kho...' : 'Trống'}</span>
                                     )}
                                 </div>
 
@@ -1234,7 +1290,7 @@ export const BuyTicketPage = () => {
                                     <div className="flex items-center gap-2 bg-white rounded-lg border border-[#E5E8EB] p-1 h-9 w-[100px]">
                                         <button
                                             onClick={() => setTicketQuantity(Math.max(1, ticketQuantity - 1))}
-                                            disabled={ticketQuantity <= 1}
+                                            disabled={!selectedTicket || checkingInventory || ticketQuantity <= 1}
                                             className="flex-1 h-full flex items-center justify-center text-[#212B36] hover:bg-gray-50 disabled:opacity-50 transition-colors"
                                         >
                                             <i className="fa-solid fa-minus text-[14px]"></i>
@@ -1242,7 +1298,7 @@ export const BuyTicketPage = () => {
                                         <span className="w-8 text-center text-[14px] font-bold text-[#212B36] border-x border-[#E5E8EB] h-full flex items-center justify-center">{ticketQuantity}</span>
                                         <button
                                             onClick={() => setTicketQuantity(Math.min(maxAvailable, ticketQuantity + 1))}
-                                            disabled={ticketQuantity >= maxAvailable}
+                                            disabled={!selectedTicket || checkingInventory || ticketQuantity >= maxAvailable}
                                             className="flex-1 h-full flex items-center justify-center text-[#212B36] hover:bg-gray-50 disabled:opacity-50 transition-colors"
                                         >
                                             <i className="fa-solid fa-plus text-[14px]"></i>
@@ -1266,14 +1322,14 @@ export const BuyTicketPage = () => {
                                 <div className="flex flex-col gap-3">
                                     <button
                                         onClick={addToCart}
-                                        disabled={totalQuantity === 0}
+                                        disabled={totalQuantity === 0 || checkingInventory}
                                         className="w-full py-3.5 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] hover:bg-[#d00f10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm shadow-[#ee1314]/20"
                                     >
                                         <i className="fa-solid fa-cart-shopping"></i> Thêm vào giỏ hàng
                                     </button>
                                     <button
                                         onClick={handleCheckout}
-                                        disabled={totalQuantity === 0}
+                                        disabled={totalQuantity === 0 || checkingInventory}
                                         className="w-full py-3.5 bg-white text-[#ee1314] font-bold rounded-xl border border-[#ee1314] text-[14px] hover:bg-[#FFF4F4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
                                         <i className="fa-solid fa-bolt"></i> Mua ngay

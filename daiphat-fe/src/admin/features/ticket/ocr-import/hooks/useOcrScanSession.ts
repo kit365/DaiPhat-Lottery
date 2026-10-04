@@ -5,11 +5,10 @@ import { toast } from 'react-toastify';
 import { websocketService } from '../../../../../services/websocket/websocket.service';
 import type { WebSocketSubscription } from '../../../../../types/websocket.type';
 import { closeOcrSession, createOcrSession, getOcrSession } from '../services/ocrSessionService';
-import type { OcrSessionSocketEvent, OcrSessionStatus } from '../types/ocrSession.type';
-import type { ScannedTicket } from '../types/ticketOcr.type';
+import type { OcrSessionImage, OcrSessionSocketEvent, OcrSessionStatus } from '../types/ocrSession.type';
 
 interface UseOcrScanSessionOptions {
-    onTicketsScanned?: (tickets: ScannedTicket[], scanId?: string) => void;
+    onImageUploaded?: (image: OcrSessionImage, signal: AbortSignal) => Promise<void>;
 }
 
 export const useOcrScanSession = (options?: UseOcrScanSessionOptions) => {
@@ -24,8 +23,27 @@ export const useOcrScanSession = (options?: UseOcrScanSessionOptions) => {
 
     const subscriptionRef = useRef<WebSocketSubscription | null>(null);
     const sessionCodeRef = useRef<string | null>(null);
-    const onTicketsScannedRef = useRef(options?.onTicketsScanned);
-    onTicketsScannedRef.current = options?.onTicketsScanned;
+    const onImageUploadedRef = useRef(options?.onImageUploaded);
+    onImageUploadedRef.current = options?.onImageUploaded;
+    const receivedImages = useRef(new Set<string>());
+    const receivingImages = useRef(new Set<string>());
+    const receiveAbort = useRef(new AbortController());
+    const receiveImage = useCallback(async (image: OcrSessionImage, code: string) => {
+        if (sessionCodeRef.current !== code || receivedImages.current.has(image.id)
+            || receivingImages.current.has(image.id) || !onImageUploadedRef.current) return;
+        const controller = receiveAbort.current;
+        receivingImages.current.add(image.id);
+        try {
+            await onImageUploadedRef.current(image, controller.signal);
+            if (!controller.signal.aborted) receivedImages.current.add(image.id);
+        } catch {
+            if (!controller.signal.aborted) {
+                toast.error('Chưa tải được ảnh từ điện thoại. Hệ thống sẽ thử nhận lại.', { toastId: `mobile-image-${image.id}` });
+            }
+        } finally {
+            receivingImages.current.delete(image.id);
+        }
+    }, []);
 
     const cleanupSubscription = useCallback(() => {
         if (subscriptionRef.current) {
@@ -36,6 +54,7 @@ export const useOcrScanSession = (options?: UseOcrScanSessionOptions) => {
 
     const stopSession = useCallback(async () => {
         const code = sessionCodeRef.current;
+        receiveAbort.current.abort();
         cleanupSubscription();
         if (code) {
             try {
@@ -60,6 +79,7 @@ export const useOcrScanSession = (options?: UseOcrScanSessionOptions) => {
                 const sub = await websocketService.subscribeOcrSession(
                     code,
                     (event: OcrSessionSocketEvent) => {
+                        if (sessionCodeRef.current !== code) return;
                         if (event.eventType === 'SESSION_CONNECTED') {
                             setStatus('CONNECTED');
                             setConnectedStaff(event.staffName || null);
@@ -67,12 +87,9 @@ export const useOcrScanSession = (options?: UseOcrScanSessionOptions) => {
                             toast.success(
                                 `Mobile đã kết nối: ${event.deviceName || ''} (${event.staffName || 'Nhân viên'})`
                             );
-                        } else if (event.eventType === 'TICKET_SCANNED') {
-                            setScannedCount(event.totalInSession ?? ((prev) => prev + (event.tickets?.length || 1)));
-                            if (event.tickets && event.tickets.length > 0) {
-                                onTicketsScannedRef.current?.(event.tickets, event.scanId || undefined);
-                                toast.info(`Đã nhận ${event.tickets.length} vé từ Mobile!`);
-                            }
+                        } else if (event.eventType === 'IMAGE_UPLOADED' && event.image) {
+                            setScannedCount(event.totalInSession ?? ((prev) => prev + 1));
+                            void receiveImage(event.image, code);
                         } else if (event.eventType === 'SESSION_CLOSED') {
                             setStatus('CLOSED');
                             cleanupSubscription();
@@ -87,7 +104,7 @@ export const useOcrScanSession = (options?: UseOcrScanSessionOptions) => {
                 return null;
             }
         },
-        [cleanupSubscription]
+        [cleanupSubscription, receiveImage]
     );
 
     const startSession = useCallback(
@@ -96,6 +113,10 @@ export const useOcrScanSession = (options?: UseOcrScanSessionOptions) => {
             setError(null);
             try {
                 cleanupSubscription();
+                receiveAbort.current.abort();
+                receiveAbort.current = new AbortController();
+                receivedImages.current.clear();
+                receivingImages.current.clear();
                 const res = await createOcrSession(params);
                 const data = res.data;
                 if (!data?.sessionCode) {
@@ -153,6 +174,9 @@ export const useOcrScanSession = (options?: UseOcrScanSessionOptions) => {
                 if (typeof data.scannedTicketCount === 'number') {
                     setScannedCount(data.scannedTicketCount);
                 }
+                for (const image of data.images ?? []) {
+                    void receiveImage(image, sessionCode);
+                }
             } catch (_) {
                 /* Ignore background poll errors */
             }
@@ -165,10 +189,11 @@ export const useOcrScanSession = (options?: UseOcrScanSessionOptions) => {
             isMounted = false;
             clearInterval(intervalId);
         };
-    }, [sessionCode, status, subscribeToSession]);
+    }, [sessionCode, status, subscribeToSession, receiveImage]);
 
     useEffect(() => {
         return () => {
+            receiveAbort.current.abort();
             cleanupSubscription();
         };
     }, [cleanupSubscription]);

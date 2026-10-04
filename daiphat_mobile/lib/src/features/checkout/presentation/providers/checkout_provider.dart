@@ -43,6 +43,11 @@ final operatingHoursProvider = FutureProvider.autoDispose<SiteOperatingHours>((
   return service.getOperatingHours();
 });
 
+final sitePhoneProvider = FutureProvider.autoDispose<String>((ref) async {
+  final service = ref.watch(systemConfigServiceProvider);
+  return service.getSitePhone();
+});
+
 // ─── Enum options (fetch once) ──────────────────────────────────────────────
 
 /// Mobile chỉ hỗ trợ nhận tại quầy + thanh toán online.
@@ -224,6 +229,7 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
   }
 
   Future<bool> submitOrder() async {
+    if (state.isSubmitting) return false;
     state = state.copyWith(clearCheckoutResult: true, errorMessage: null);
 
     if (state.creationOutcomeUnknown) {
@@ -269,6 +275,15 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
         state = state.copyWith(
           isSubmitting: false,
           errorMessage: 'Không có vé để thanh toán!',
+        );
+        return false;
+      }
+
+      if (!await ref.read(cartProvider.notifier).validateCheckout(items)) {
+        state = state.copyWith(
+          isSubmitting: false,
+          errorMessage:
+              'Tồn kho đã thay đổi. Vui lòng quay lại giỏ hàng và chọn lại vé.',
         );
         return false;
       }

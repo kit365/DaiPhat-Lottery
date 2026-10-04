@@ -1,3 +1,4 @@
+import '../../data/models/ticket_inventory.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,6 +48,25 @@ class LotteryTicketListItem {
   final String? imageUrl;
   final int? price;
   final int quantity;
+
+  LotteryTicketListItem withInventory(TicketInventory inventory) =>
+      LotteryTicketListItem(
+        id: id,
+        displayName: displayName,
+        code: code,
+        shortName: shortName,
+        dateLabel: dateLabel,
+        dayFilter: dayFilter,
+        drawDate: drawDate,
+        status: inventory.purchasable ? 'IN_STOCK' : status,
+        statusDisplayName: statusDisplayName,
+        stationName: stationName,
+        serialNumber: serialNumber,
+        batchCode: batchCode,
+        imageUrl: imageUrl,
+        price: price,
+        quantity: inventory.availableQuantity,
+      );
 
   String get stationDisplayText {
     final value = stationName?.trim();
@@ -513,6 +533,24 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
         return;
       }
     }
+  }
+
+  void syncInventory(List<TicketInventory> inventory) {
+    final current = state.asData?.value;
+    if (current == null) return;
+    final byId = {for (final item in inventory) item.id: item};
+    state = AsyncData(
+      current.copyWith(
+        tickets: current.tickets
+            .where((ticket) => byId[ticket.id]?.purchasable ?? true)
+            .map(
+              (ticket) => byId.containsKey(ticket.id)
+                  ? ticket.withInventory(byId[ticket.id]!)
+                  : ticket,
+            )
+            .toList(),
+      ),
+    );
   }
 
   Future<void> refresh() async {

@@ -9,13 +9,23 @@ export type TicketListRequestConfig = {
 };
 
 export const getTickets = async (params?: any, requestConfig?: TicketListRequestConfig): Promise<ApiResponse<any>> => {
+    let stationId = params?.stationId;
+    let stationIds = params?.stationIds;
+
+    if (stationId && typeof stationId === 'string' && stationId.includes(',')) {
+        if (!stationIds) {
+            stationIds = stationId;
+        }
+        stationId = undefined;
+    }
+
     const response = await apiApp.get(BASE_URL, {
         ...requestConfig,
         params: {
             page: params?.page || 1,
             size: params?.limit || 10,
-            stationId: params?.stationId,
-            stationIds: params?.stationIds,
+            stationId,
+            stationIds,
             status: params?.status,
             drawDate: Array.isArray(params?.drawDate) ? params.drawDate.join(',') : params?.drawDate,
             drawDateFrom: params?.drawDateFrom,

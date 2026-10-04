@@ -727,8 +727,7 @@ _ParsedScheduleMessage _parseScheduleMessage(String raw) {
       (trimmed.startsWith('SCHEDULE_RESULT_SUMMARY:') ||
           trimmed.startsWith('region=') ||
           trimmed.startsWith('SCHEDULE_STATION_BUNDLE:') ||
-          (trimmed.startsWith('SCHEDULE_RESULT:') &&
-              trimmed.contains('goal=RESULT')) ||
+          trimmed.startsWith('SCHEDULE_RESULT:') ||
           (trimmed.contains('goal=RESULT') &&
               (resultSummary.drawDate != null ||
                   resultSummary.region != null)))) {

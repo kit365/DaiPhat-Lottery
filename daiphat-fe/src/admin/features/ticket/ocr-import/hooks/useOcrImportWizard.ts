@@ -29,7 +29,6 @@ import type {
     OcrImportDraft,
     OcrQueuedImage,
     OcrReviewRow,
-    ScannedTicket,
 } from '../types/ticketOcr.type';
 import {
     clearOcrImportDraft,
@@ -68,6 +67,7 @@ import {
     importBatchMatchesSelectionSnapshot,
     isImportBatchSelectionStaleError,
 } from '../../import-batch/utils/importBatchSelectionSnapshot';
+import type { OcrSessionImage } from '../types/ocrSession.type';
 
 export type OcrWizardStep = 'upload' | 'review' | 'importMode' | 'result';
 export type OcrDraftIntent = 'USE_EXISTING' | 'CREATE_NEW';
@@ -279,6 +279,8 @@ export const useOcrImportWizard = ({
     const [images, setImages] = useState<OcrQueuedImage[]>([]);
     const [rows, setRows] = useState<OcrReviewRow[]>([]);
     const [scanning, setScanning] = useState(false);
+    const scanningRef = useRef(scanning);
+    scanningRef.current = scanning;
     const [confirming, setConfirming] = useState(false);
     const [importResult, setImportResult] = useState<OcrConfirmImportResponse | null>(null);
     const [staleImportBatchId, setStaleImportBatchId] = useState<number | null>(null);
@@ -721,31 +723,21 @@ export const useOcrImportWizard = ({
     }, []);
 
 
-    const addScannedTicketsFromMobile = useCallback(
-        (scannedTickets: ScannedTicket[], scanId?: string) => {
-            if (!scannedTickets || scannedTickets.length === 0) return;
-            const addedRows: OcrReviewRow[] = [];
-            const nowIso = new Date().toISOString();
-            for (const ticket of scannedTickets) {
-                addedRows.push(
-                    mapScannedTicketToReviewRow(
-                        ticket,
-                        `mobile-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                        'mobile-scan.jpg',
-                        scanId || `SCAN-${Date.now()}`,
-                        ticket.sourceImageUrl || ticket.croppedImageUrl || '',
-                        ticket.imageWidth || null,
-                        ticket.imageHeight || null,
-                        nowIso,
-                        null
-                    )
-                );
-            }
-            setRows((prev) => [...prev, ...addedRows]);
-            setStep('review');
-        },
-        []
-    );
+    const addImageFromMobile = useCallback(async (image: OcrSessionImage, signal: AbortSignal) => {
+        const response = await fetch(image.imageUrl, { signal });
+        if (!response.ok) throw new Error('Không tải được ảnh từ Mobile.');
+        const blob = await response.blob();
+        if (signal.aborted) return;
+        const file = new File([blob], image.fileName || 'mobile-photo.jpg', {
+            type: image.contentType || blob.type || 'image/jpeg',
+        });
+        const queued: OcrQueuedImage = {
+            id: `mobile-${image.id}`, file, previewUrl: URL.createObjectURL(file), status: 'pending',
+        };
+        setImages((prev) => [...prev, queued]);
+        // Receiving photos never triggers OCR. New arrivals during a scan stay pending.
+        if (!scanningRef.current) setStep('upload');
+    }, []);
 
     const clearImages = useCallback(() => {
         setImages((prev) => {
@@ -789,6 +781,10 @@ export const useOcrImportWizard = ({
         setScanning(true);
         const addedRows: OcrReviewRow[] = [];
         const nextImages = [...images];
+        const publishScanImages = () => {
+            const updates = new Map(nextImages.map((image) => [image.id, image]));
+            setImages((current) => current.map((image) => updates.get(image.id) ?? image));
+        };
         const softLineId = prefillLineOption?.lineId;
 
         const compactRowsForDraft = (rowsToStore: OcrReviewRow[]): OcrReviewRow[] =>
@@ -804,7 +800,7 @@ export const useOcrImportWizard = ({
             const targetIndex = pendingIndices[i];
             let image = nextImages[targetIndex];
             nextImages[targetIndex] = { ...image, status: 'scanning', error: null };
-            setImages([...nextImages]);
+            publishScanImages();
             image = nextImages[targetIndex];
 
             if (i > 0) {
@@ -830,7 +826,7 @@ export const useOcrImportWizard = ({
                             previewUrl: nextPreview,
                         };
                         image = nextImages[targetIndex];
-                        setImages([...nextImages]);
+                        publishScanImages();
                     }
                     const response = await scanTicketImage(image.file, {
                         importBatchLineId: softLineId ?? undefined,
@@ -994,14 +990,14 @@ export const useOcrImportWizard = ({
                     finishedImage = true;
                 }
             } // while retry
-            setImages([...nextImages]);
+            publishScanImages();
         }
 
         const mergedRows = [...rows, ...addedRows];
         setRows(mergedRows);
         setScanning(false);
         setStep('review');
-        setImages(nextImages);
+        publishScanImages();
         const draftSnapshot: OcrImportDraft = {
             step: 'review',
             importMode,
@@ -1539,7 +1535,7 @@ export const useOcrImportWizard = ({
         removeImage,
         replaceImage,
         clearImages,
-        addScannedTicketsFromMobile,
+        addImageFromMobile,
         runScan,
         scanPendingImages,
         pendingImagesCount: images.filter((img) => img.status === 'pending').length,

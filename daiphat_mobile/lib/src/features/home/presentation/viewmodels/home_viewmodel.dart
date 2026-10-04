@@ -17,13 +17,37 @@ final fetchHomeLotteryResultsProvider =
   return FetchHomeLotteryResults(ref.watch(homeLotteryRepositoryProvider));
 });
 
+class HomeLotteryQuery {
+  const HomeLotteryQuery({
+    required this.drawDate,
+    this.region,
+  });
+
+  final DateTime drawDate;
+  final String? region;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HomeLotteryQuery &&
+          runtimeType == other.runtimeType &&
+          drawDate.year == other.drawDate.year &&
+          drawDate.month == other.drawDate.month &&
+          drawDate.day == other.drawDate.day &&
+          region == other.region;
+
+  @override
+  int get hashCode =>
+      Object.hash(drawDate.year, drawDate.month, drawDate.day, region);
+}
+
 final homeLotteryProvider =
-    StreamProvider.autoDispose.family<HomeLotteryData, DateTime>((ref, drawDate) async* {
+    StreamProvider.autoDispose.family<HomeLotteryData, HomeLotteryQuery>((ref, query) async* {
   const summaryRetryDelay = Duration(seconds: 5);
   const maxSummaryRetries = 24;
   const maxDetailRetries = 12;
 
-  final normalizedDate = DateTime(drawDate.year, drawDate.month, drawDate.day);
+  final normalizedDate = DateTime(query.drawDate.year, query.drawDate.month, query.drawDate.day);
   final disposed = Completer<void>();
   ref.onDispose(() {
     if (!disposed.isCompleted) {
@@ -36,7 +60,10 @@ final homeLotteryProvider =
   final fetchHomeLotteryResults = ref.watch(fetchHomeLotteryResultsProvider);
 
   while (!disposed.isCompleted) {
-    final fetchResult = await fetchHomeLotteryResults(normalizedDate);
+    final fetchResult = await fetchHomeLotteryResults(
+      normalizedDate,
+      region: query.region,
+    );
     yield fetchResult.data;
 
     Duration? nextDelay;

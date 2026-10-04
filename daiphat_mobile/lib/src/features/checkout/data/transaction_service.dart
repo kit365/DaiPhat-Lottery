@@ -49,4 +49,23 @@ class TransactionService {
     final data = response['data'] as Map<String, dynamic>;
     return OrderResponse.fromJson(data);
   }
+
+  Future<OrderResponse> cancelPayment({
+    required String orderId,
+    int? transactionId,
+    required String gateway,
+    String? reason,
+  }) async {
+    final response = await _apiClient.post(
+      '$_baseTransactions/$orderId/payment/cancel',
+      data: {
+        if (transactionId != null && transactionId > 0)
+          'transactionId': transactionId,
+        'gateway': gateway,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return OrderResponse.fromJson(data);
+  }
 }

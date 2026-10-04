@@ -102,7 +102,7 @@ public class LotteryTicketSerialModel {
     /** Sellable inventory: in stock, good condition, not linked to a return batch line. */
     public boolean isAvailableForSale() {
         return this.status == LotteryTicketSerialStatus.IN_STOCK
-                && (this.ticketCondition == null || this.ticketCondition == TicketCondition.GOOD)
+                && this.ticketCondition == TicketCondition.GOOD
                 && this.returnBatchLineId == null
                 && this.deletedAt == null
                 && !isVoided();
@@ -242,6 +242,38 @@ public class LotteryTicketSerialModel {
             return true;
         }
         return !isIncidentMutableStatus();
+    }
+
+    /** Only call after verifying that the owning order detail still awaits handover. */
+    public void reportAwaitingHandoverFault(
+            TicketCondition condition,
+            LotteryTicketSerialFaultedBy faultedBy,
+            String reason,
+            String evidenceUrl
+    ) {
+        ensureNotLockedForPayout();
+        if (condition != TicketCondition.DAMAGED && condition != TicketCondition.LOST) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Loại sự cố vé không hợp lệ.");
+        }
+        if (isVoided() || this.deletedAt != null || this.returnBatchLineId != null) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        }
+        if (this.status == LotteryTicketSerialStatus.EXPIRED) {
+            if (faultedBy == null || reason == null || reason.isBlank()) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu thông tin báo lỗi vé.");
+            }
+            // Preserve expiry; reporting a fault must never make this serial sellable again.
+            this.ticketCondition = condition;
+            this.faultedBy = faultedBy;
+            this.damagedReason = reason.trim();
+            this.reservedAt = null;
+            this.reservationExpiresAt = null;
+            this.reservedByOrderId = null;
+        } else {
+            applyConditionFault(condition, faultedBy, reason);
+        }
+        this.damagedEvidenceUrl = condition == TicketCondition.DAMAGED
+                && evidenceUrl != null && !evidenceUrl.isBlank() ? evidenceUrl.trim() : null;
     }
 
     private void applyConditionFault(

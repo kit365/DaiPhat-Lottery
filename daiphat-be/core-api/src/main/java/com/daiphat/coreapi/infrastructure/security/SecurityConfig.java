@@ -64,6 +64,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 AUTH + "/login",
+                                ApiConstants.API_V1 + "/lottery-tickets/public/validate-inventory",
                                 AUTH + "/google",
                                 AUTH + "/refresh-token",
                                 AUTH + "/logout",

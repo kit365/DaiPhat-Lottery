@@ -270,6 +270,7 @@ class LotteryTicketServiceTest {
         lenient().when(lotteryTicketSerialService.findFirstByTicketId(any())).thenReturn(Optional.empty());
         lenient().when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketSerialService.countSerialsByTicketIds(any())).thenReturn(Map.of());
+        lenient().when(lotteryTicketSerialService.countSellableByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketSerialService.countAvailableSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketApplicationMapper.toResponseDetail(any(), anyList(), nullable(String.class), nullable(String.class), anyInt()))
                 .thenReturn(mappedResponse);
@@ -377,7 +378,7 @@ class LotteryTicketServiceTest {
                 .thenReturn(new PageImpl<>(List.of(ticketB1, ticketB2), PageRequest.of(0, 5), 30));
         when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(anyList())).thenReturn(Map.of());
         when(lotteryTicketSerialService.findAllByTicketIds(any())).thenReturn(List.of());
-        when(lotteryTicketSerialService.countSerialsByTicketIds(anyList())).thenReturn(Map.of());
+        when(lotteryTicketSerialService.countSellableByTicketIds(anyList())).thenReturn(Map.of());
         when(lotteryTicketApplicationMapper.toResponse(any(), any(), any(), any(), anyInt())).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
@@ -1137,6 +1138,37 @@ class LotteryTicketServiceTest {
 
         List<com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot> result = lotteryTicketService.reserveForOrder(List.of(TICKET_ID));
         assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void reservingLastSerialAndReleasingItPersistsAggregateStatus() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .id(1L).ticketId(TICKET_ID).status(LotteryTicketSerialStatus.RESERVED).build();
+        when(lotteryTicketRepositoryPort.findAllByIds(anyList())).thenReturn(List.of(existingModel));
+        // Validation sees the last available serial; recomputation sees it reserved,
+        // then available again after the order releases its reservation.
+        when(lotteryTicketSerialService.countAvailableSerials(TICKET_ID)).thenReturn(1L, 0L, 1L);
+        when(lotteryTicketSerialService.reserveFirstAvailable(any(), any(), any())).thenReturn(serial);
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(serial));
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        lotteryTicketService.reserveForOrder(List.of(TICKET_ID));
+
+        verify(lotteryTicketRepositoryPort).save(argThat(ticket ->
+                ticket.getStatus() == LotteryTicketStatus.SOLD_OUT && ticket.getQuantity() == 0));
+
+        when(lotteryTicketSerialService.getByIdOrThrow(1L)).thenReturn(serial);
+        when(lotteryTicketSerialService.releaseReservation(eq(1L), anyBoolean())).thenAnswer(invocation -> {
+            serial.releaseReservation();
+            return serial;
+        });
+
+        lotteryTicketService.releaseReservationForOrder(1L);
+
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.IN_STOCK);
+        assertThat(existingModel.getQuantity()).isEqualTo(1);
+        verify(lotteryTicketRepositoryPort, times(2)).save(existingModel);
     }
 
     @Test

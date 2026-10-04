@@ -13,6 +13,7 @@ public record OcrSessionResponse(
         int scannedTicketCount,
         Instant createdAt,
         Instant expiresAt,
-        String qrToken
+        String qrToken,
+        java.util.List<com.daiphat.coreapi.domain.model.lotteries.OcrSessionImage> images
 ) {
 }
