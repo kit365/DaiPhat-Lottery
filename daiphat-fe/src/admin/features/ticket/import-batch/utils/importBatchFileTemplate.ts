@@ -65,10 +65,14 @@ const FALLBACK_STATIONS: ImportBatchTemplateStation[] = [
 ];
 
 /** Physical tickets the template carries for each station. */
-export const TEMPLATE_SERIALS_PER_STATION = 100;
+export const TEMPLATE_SERIALS_PER_STATION = 10;
 
-/** Serials printed under one lottery number, mirroring how a booklet arrives. */
-const SERIALS_PER_NUMBER = 4;
+/**
+ * Serials printed under one lottery number. A template station deliberately
+ * contains one complete 10-serial strip, so every station has exactly one
+ * lottery number instead of spreading the sample across several numbers.
+ */
+const SERIALS_PER_NUMBER = TEMPLATE_SERIALS_PER_STATION;
 
 
 
@@ -460,7 +464,7 @@ export const buildImportBatchFileTemplateWorkbook = (
     workbook.created = new Date();
 
     // No cap: the file is meant to cover every station drawing on each date, not
-    // to illustrate a few. Three southern stations a day means ~300 rows per day.
+    // to illustrate a few. Each station contributes one 10-serial ticket strip.
     const resolvedDays = usableDays(days);
     buildTicketSheet(workbook, resolvedDays, supplier, resolvedIssuer);
     buildStationSheet(workbook, resolvedDays);

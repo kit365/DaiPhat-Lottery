@@ -4,6 +4,7 @@ import {
     buildFormValuesFromBatch,
     convertCreateFormToEditDraft,
     discardStaleImportBatchBrowserDrafts,
+    importBatchEditDraftStorageKey,
     mergeImportBatchEditDraftWithServer,
     transferCreateFormToEditDraft,
     readLocalImportBatchEditDraft,
@@ -49,6 +50,59 @@ const sampleBatch: ImportBatch = {
 };
 
 describe('importBatchEditDraft', () => {
+    it('does not persist pending line deletions across a page reload', () => {
+        writeLocalImportBatchEditDraft(2, {
+            supplierId: 5,
+            drawDate: '2026-07-09',
+            importMode: 'IN_DAY',
+            totalDeclareQuantity: 1,
+            invoiceEvidenceUrl: '',
+            ticketListImageUrls: [],
+            lines: [
+                {
+                    id: 11,
+                    lotteryStationId: 3,
+                    declareQuantity: 1,
+                    importCost: 10000,
+                    removed: true,
+                },
+            ],
+        });
+
+        const stored = JSON.parse(storage.get(importBatchEditDraftStorageKey(2))!);
+        expect(stored.values.lines[0].removed).toBe(false);
+        expect(readLocalImportBatchEditDraft(2)?.values.lines[0].removed).toBe(false);
+    });
+
+    it('restores lines hidden by a legacy pending-deletion draft', () => {
+        storage.set(
+            importBatchEditDraftStorageKey(2),
+            JSON.stringify({
+                batchId: 2,
+                savedAt: '2026-07-09T00:00:00.000Z',
+                values: {
+                    supplierId: 5,
+                    drawDate: '2026-07-09',
+                    importMode: 'IN_DAY',
+                    totalDeclareQuantity: 1,
+                    invoiceEvidenceUrl: '',
+                    ticketListImageUrls: [],
+                    lines: [
+                        {
+                            id: 11,
+                            lotteryStationId: 3,
+                            declareQuantity: 1,
+                            importCost: 10000,
+                            removed: true,
+                        },
+                    ],
+                },
+            })
+        );
+
+        expect(readLocalImportBatchEditDraft(2)?.values.lines[0].removed).toBe(false);
+    });
+
     it('maps server lines with station id and batch type', () => {
         const values = buildFormValuesFromBatch(sampleBatch, (id) => `Station ${id}`);
 
