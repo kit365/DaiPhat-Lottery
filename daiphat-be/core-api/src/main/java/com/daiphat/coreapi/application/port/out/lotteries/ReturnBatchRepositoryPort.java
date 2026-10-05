@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,6 +51,9 @@ public interface ReturnBatchRepositoryPort {
     List<ReturnBatchModel> findByStatuses(List<ReturnBatchStatus> statuses);
 
     List<ReturnBatchModel> findBySupplierSettlementId(Long supplierSettlementId);
+
+    /** Keep stored supplier-return statuses aligned with the inspection window before list filtering. */
+    void synchronizeInspectionStatuses(LocalDateTime now, int bufferMinutes);
 
     long nextHeaderBatchCodeSequence();
 }

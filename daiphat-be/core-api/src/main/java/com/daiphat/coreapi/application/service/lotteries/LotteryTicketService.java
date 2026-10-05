@@ -1056,7 +1056,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             );
             returnBatchImportSyncService.refreshOpenPrimarySupplierReturn(
                     refreshedBatch.getSupplierId(),
-                    refreshedBatch.getDrawDate()
+                    refreshedBatch.getDrawDate(),
+                    refreshedBatch.getSupplierSettlementId()
             );
             ticket = getTicketOrThrow(ticket.getId());
             syncStationInventory(ticket.getStationId());

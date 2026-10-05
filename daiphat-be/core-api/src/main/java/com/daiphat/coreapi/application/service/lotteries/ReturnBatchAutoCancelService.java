@@ -26,6 +26,7 @@ import java.util.List;
 public class ReturnBatchAutoCancelService {
 
     private static final List<ReturnBatchStatus> OPEN_INSPECTION_STATUSES = List.of(
+            ReturnBatchStatus.NOT_OPEN,
             ReturnBatchStatus.PENDING_INSPECTION,
             ReturnBatchStatus.INSPECTING
     );
@@ -69,7 +70,7 @@ public class ReturnBatchAutoCancelService {
             cancelOpenLines(batch);
             return false;
         }
-        if (!batch.getStatus().isOpenForInspection()) {
+        if (!batch.getStatus().allowsAutoEnrichment()) {
             return false;
         }
         if (batch.getNote() != null && batch.getNote().startsWith("SEED-RETURN-")

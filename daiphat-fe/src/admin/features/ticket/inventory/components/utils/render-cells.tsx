@@ -120,6 +120,7 @@ const ticketStatusModifier = (status?: string | null): string => {
             return 'admin-status-badge--pending';
         case 'SOLD_OUT':
         case 'EXPIRED':
+        case 'CANCELLED':
             return 'admin-status-badge--inactive';
         default:
             return 'admin-status-badge--draft';

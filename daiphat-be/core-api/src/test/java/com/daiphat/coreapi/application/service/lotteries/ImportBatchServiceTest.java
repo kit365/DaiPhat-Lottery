@@ -98,6 +98,8 @@ class ImportBatchServiceTest {
     @Mock
     private com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort supplierSettlementServicePort;
     @Mock
+    private ReturnBatchImportSyncService returnBatchImportSyncService;
+    @Mock
     private com.daiphat.coreapi.application.port.out.file.StoragePort storagePort;
     @Mock
     private com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort systemConfigRepositoryPort;
@@ -310,6 +312,47 @@ class ImportBatchServiceTest {
         assertThat(captor.getValue().getLineCount()).isEqualTo(1);
         assertThat(captor.getValue().getSubmittedAt()).isNotNull();
         verify(supplierSettlementServicePort).findOrCreateForImport(activeSupplier, DRAW_DATE);
+    }
+
+    @Test
+    @DisplayName("file import may create a supplementary batch beside an unfinished one")
+    void createFromFile_importedLineBypassesManualDraftGuards() {
+        fixedClock(LocalDateTime.of(2026, 7, 6, 10, 0));
+        when(lotteryStationServicePort.getModelById(1L)).thenReturn(activeStation);
+        when(stationEligibilityResolver.isScheduledOnDrawDate(activeStation, DRAW_DATE)).thenReturn(true);
+        when(importBatchTypeResolver.resolve(1L, DRAW_DATE, activeStation, ImportBatchImportMode.IN_DAY))
+                .thenReturn(new ImportBatchTypeResolver.ClassificationResult(ImportBatchType.NEW, false, List.of()));
+        when(importBatchLineRepositoryPort.existsImportedLineForStationAndDrawDate(1L, DRAW_DATE))
+                .thenReturn(true);
+        ImportBatchLineModel line = ImportBatchLineModel.builder()
+                .lotteryStationId(1L)
+                .declareQuantity(10)
+                .build();
+        when(importBatchApplicationMapper.toLineModel(any())).thenReturn(line);
+        when(importBatchRepositoryPort.save(any(ImportBatchModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class), eq(false), any()))
+                .thenReturn(ImportBatchResponse.builder().id(10L).build());
+
+        ImportBatchResponse response = importBatchService.createFromFile(
+                CreateImportBatchRequest.builder()
+                        .drawDate(DRAW_DATE)
+                        .supplierId(SUPPLIER_ID)
+                        .importMode(ImportBatchImportMode.IN_DAY)
+                        .invoiceEvidenceUrl("https://cdn.example/invoice.pdf")
+                        .ticketListImageUrls(List.of("https://cdn.example/tickets.xlsx"))
+                        .totalDeclareQuantity(10)
+                        .lines(List.of(buildLine(1L, 10)))
+                        .build(), OPERATOR_ID);
+
+        assertThat(response.id()).isEqualTo(10L);
+        assertThat(line.getBatchType()).isEqualTo(ImportBatchType.SUPPLEMENTARY);
+        verify(returnBatchImportSyncService).refreshOpenPrimarySupplierReturn(
+                SUPPLIER_ID, DRAW_DATE, 100L);
+        verify(importBatchRepositoryPort, org.mockito.Mockito.never())
+                .findUnfinishedBatchByDrawDate(any(), any());
+        verify(stationEligibilityResolver, org.mockito.Mockito.never())
+                .validateStationEligibleOrThrow(any(), any(), any(), any(), any());
     }
 
     @Test

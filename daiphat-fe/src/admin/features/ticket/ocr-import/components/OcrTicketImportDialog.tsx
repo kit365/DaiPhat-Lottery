@@ -150,7 +150,7 @@ const OCR_EVIDENCE_ACCEPT: Accept = {
 type OcrTicketImportDialogProps = {
     open: boolean;
     onClose: () => void;
-    onImported?: () => void;
+    onImported?: () => void | Promise<unknown>;
     prefillBatch?: ImportBatch | null;
     prefillLine?: ImportBatchLine | null;
     resolveStationName?: (stationId?: number | string) => string;
@@ -669,6 +669,7 @@ const ImportBatchReviewSummaryCard = ({
 export const OcrTicketImportDialog = ({
     open,
     onClose,
+    onImported,
     prefillBatch,
     prefillLine,
     resolveStationName,
@@ -1466,6 +1467,14 @@ export const OcrTicketImportDialog = ({
         wizard.reset();
         mobileScanSession.stopSession();
         onClose();
+    };
+
+    const handleImported = async () => {
+        try {
+            await onImported?.();
+        } finally {
+            handleFinish();
+        }
     };
 
     const handleCreateBatchNavigate = () => {
@@ -5264,6 +5273,7 @@ export const OcrTicketImportDialog = ({
                             const result = await wizard.confirmImport({ acknowledgeShortfall: true });
                             if (result === 'OK') {
                                 setOpenFinalConfirmModal(false);
+                                await handleImported();
                             }
                         }}
                         sx={{

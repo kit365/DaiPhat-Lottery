@@ -22,6 +22,12 @@ public interface LotteryTicketSerialServicePort {
 
     LotteryTicketSerialModel reportFault(Long id, ReportSerialFaultRequest request, UUID actorId);
 
+    LotteryTicketSerialModel reportReturnDiscrepancyFault(
+            Long id,
+            ReportSerialFaultRequest request,
+            UUID actorId
+    );
+
     default LotteryTicketSerialModel upsertSerialForTicket(
             LotteryTicketModel ticket,
             CreateLotteryTicketSerialRequest request,
