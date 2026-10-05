@@ -112,6 +112,9 @@ import java.util.UUID;
 @Order(125)
 public class MemberStatusCoverageSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String SEED_ACTOR = "member-status-seed";
     private static final String ORDER_CODE_PREFIX = "ORD-PHU123-";
     private static final String SERIAL_PREFIX = "IBPHU123-";
@@ -154,6 +157,7 @@ public class MemberStatusCoverageSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         UserEntity member = userRepository.findByUsername(memberUsername).orElse(null);
         if (member == null) {
             RoleEntity roleMember = roleRepository.findByCode(RoleConstants.ROLE_MEMBER)

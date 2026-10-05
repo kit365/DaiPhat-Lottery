@@ -425,9 +425,6 @@ export const VendorSettlementBreakdown = ({
                                 </Box>
                                 {allocated > 0 && (
                                     <Box sx={{ bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", p: 1.25, borderRadius: 2, mt: 0.5 }}>
-                                        <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary", display: "block", mb: 0.5 }}>
-                                            📊 Nguồn gốc số lượng {allocated} tờ bàn giao:
-                                        </Typography>
                                         <Stack spacing={0.35} sx={{ fontSize: "0.75rem" }}>
                                             <Stack direction="row" justifyContent="space-between">
                                                 <Typography variant="caption" color="text.secondary">• Vé không trả (bán trực tiếp):</Typography>

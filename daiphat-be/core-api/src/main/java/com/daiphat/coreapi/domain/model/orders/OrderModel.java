@@ -111,13 +111,13 @@ public class OrderModel {
         this.paymentComplaintResolutionReason = null;
     }
 
-    /** Marks the complaint approved after a completed verification transaction was attached. */
+    /** Resumes preparation after a completed verification transaction was attached. */
     public void approvePaymentTimeoutComplaint(LocalDateTime resolvedAt) {
         ensureStatus(OrderStatus.PAYMENT_COMPLAINT_PENDING);
         if (resolvedAt == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
         }
-        this.status = OrderStatus.PAID;
+        this.status = OrderStatus.PREPARING;
         this.paymentComplaintResolvedAt = resolvedAt;
         this.cancelledAt = null;
         this.cancelReason = null;

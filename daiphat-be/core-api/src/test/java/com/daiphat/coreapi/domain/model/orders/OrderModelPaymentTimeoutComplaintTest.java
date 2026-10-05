@@ -46,15 +46,20 @@ class OrderModelPaymentTimeoutComplaintTest {
     }
 
     @Test
-    void approvePaymentTimeoutComplaint_requiresPendingVerificationAndMarksPaid() {
+    void approvePaymentTimeoutComplaint_requiresPendingVerificationAndResumesPreparation() {
         OrderModel order = timedOutOrder();
         order.submitPaymentTimeoutComplaint("https://storage.example/proof.png", LocalDateTime.of(2026, 8, 17, 10, 0));
 
         order.approvePaymentTimeoutComplaint(LocalDateTime.of(2026, 8, 17, 10, 5));
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PREPARING);
         assertThat(order.getPaymentComplaintResolvedAt()).isEqualTo(LocalDateTime.of(2026, 8, 17, 10, 5));
         assertThat(order.getCancelType()).isNull();
+        assertThat(order.getCancelledAt()).isNull();
+        assertThat(order.getCancelReason()).isNull();
+        assertThat(order.getPaymentComplaintEvidenceUrl()).isEqualTo("https://storage.example/proof.png");
+        order.markPendingPickup();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING_PICKUP);
     }
 
     @Test

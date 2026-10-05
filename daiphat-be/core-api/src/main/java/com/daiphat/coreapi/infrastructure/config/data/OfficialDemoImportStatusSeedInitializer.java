@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
@@ -48,6 +49,9 @@ import java.util.Set;
 @ConditionalOnProperty(value = "daiphat.official-demo.seed.enabled", havingValue = "true")
 public class OfficialDemoImportStatusSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private static final String NOTE_PREFIX = SeedDocumentCodes.IMPORT_NOTE_PREFIX + "OFFICIAL-";
     private static final String ACTOR = "official-demo-seed";
     private static final BigDecimal COST = BigDecimal.valueOf(10_000);
@@ -64,6 +68,7 @@ public class OfficialDemoImportStatusSeedInitializer implements ApplicationRunne
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         LocalDateTime now = LocalDateTime.now(clock);
         resetPrevious();
         LotterySupplierEntity supplier = supplierRepository

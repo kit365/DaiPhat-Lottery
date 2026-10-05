@@ -150,6 +150,9 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     @Value("${daiphat.official-demo.seed.enabled:false}")
     private boolean officialDemoEnabled;
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
@@ -161,10 +164,14 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate today = now.toLocalDate();
+        log.info("Import seed starting: mode={}, today={}, tomorrow={}.",
+                rebuildDemo ? "full-rebuild" : "missing-inventory-only", today, today.plusDays(1));
 
-        resetPreviousSeedData();
+        if (rebuildDemo) {
+            resetPreviousSeedData();
+            seedSupplierSupport.retireDemoSuppliers(now);
+        }
 
-        seedSupplierSupport.retireDemoSuppliers(now);
         LotterySupplierEntity supplier = seedSupplierSupport.ensureMinhChinh(now);
         List<BatchPlan> plans = buildBatchPlans(today, now);
         if (plans.isEmpty()) {
@@ -179,16 +186,22 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
         for (int planIndex = 0; planIndex < plans.size(); planIndex++) {
             BatchPlan plan = plans.get(planIndex);
-            UserEntity planOperator = officialDemoEnabled
+            UserEntity planOperator = officialDemoEnabled && rebuildDemo
                     ? seedAccountResolver.findOfficialDemoStaff(planIndex)
                     : operator;
             if (planOperator == null) {
                 throw new IllegalStateException("Missing official-demo staff for " + plan.drawDate());
             }
             List<LotteryStationEntity> stations = findIssuersForDrawDate(plan.drawDate());
+            if (!rebuildDemo) {
+                stations = stations.stream()
+                        .filter(station -> !lotteryTicketRepository
+                                .existsByStation_IdAndDrawDateAndDeletedAtIsNull(station.getId(), plan.drawDate()))
+                        .toList();
+            }
             if (stations.isEmpty()) {
                 log.info(
-                        "Skip seed batch type={} drawDate={}: no active issuers scheduled.",
+                        "Skip seed batch type={} drawDate={}: no scheduled issuers missing inventory.",
                         plan.batchType(),
                         plan.drawDate()
                 );
@@ -196,13 +209,17 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             }
 
             int headerSeq = SeedDocumentCodes.LANE_IMPORT_MAIN + planIndex;
+            while (importBatchRepository.existsByBatchCode(
+                    SeedDocumentCodes.importHeader(plan.drawDate(), headerSeq))) {
+                headerSeq++;
+            }
             ImportBatchEntity batch = importBatchRepository.save(
                     createBatch(supplier, planOperator, plan, stations.size(), now, headerSeq)
             );
 
             List<ImportBatchLineEntity> lines = new ArrayList<>();
             for (int stationIndex = 0; stationIndex < stations.size(); stationIndex++) {
-                int lineSeq = SeedDocumentCodes.LANE_IMPORT_LINE_MAIN + planIndex * 40 + stationIndex;
+                int lineSeq = SeedDocumentCodes.LANE_IMPORT_LINE_MAIN + headerSeq * 40 + stationIndex;
                 lines.add(createLine(batch, stations.get(stationIndex), plan, now, 0, lineSeq));
             }
             batch.getLines().clear();
@@ -271,6 +288,13 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
     private List<BatchPlan> buildBatchPlans(LocalDate today, LocalDateTime now) {
         List<BatchPlan> plans = new ArrayList<>();
+        if (!rebuildDemo) {
+            for (LocalDate date : List.of(today, today.plusDays(1))) {
+                plans.add(new BatchPlan(date, ImportBatchType.NEW, ImportBatchImportMode.IN_DAY,
+                        "SEED-NEW-" + date, resolveImportedAt(date, today, now), 50, false));
+            }
+            return plans;
+        }
         if (officialDemoEnabled) {
             for (LocalDate drawDate : List.of(today.minusDays(1), today, today.plusDays(1))) {
                 // The live create API opens today's and tomorrow's intake at 08:00.
@@ -334,6 +358,10 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
      * when importing tomorrow's tickets. Never in the future.
      */
     private LocalDateTime resolveImportedAt(LocalDate drawDate, LocalDate today, LocalDateTime now) {
+        if (!rebuildDemo) {
+            LocalDateTime morning = today.atTime(8, 0);
+            return morning.isAfter(now) ? now : morning;
+        }
         if (officialDemoEnabled) {
             LocalDate importDate = drawDate.isAfter(today) ? today : drawDate;
             return importDate.atTime(8, 0);
@@ -547,11 +575,11 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             int lineSequence
     ) {
         String lineCode = SeedDocumentCodes.importLine(
-                plan.drawDate(),
-                station.getName(),
-                plan.batchType(),
-                lineSequence
-        );
+                plan.drawDate(), station.getName(), plan.batchType(), lineSequence);
+        while (importBatchLineRepository.existsByBatchCode(lineCode)) {
+            lineCode = SeedDocumentCodes.importLine(
+                    plan.drawDate(), station.getName(), plan.batchType(), ++lineSequence);
+        }
 
         return ImportBatchLineEntity.builder()
                 .importBatch(batch)
@@ -582,10 +610,10 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             int ticketCount,
             Map<String, Integer> numberCursorByStationDate
     ) {
-        int serialCount = officialDemoEnabled ? 10 : Math.max(serialsPerTicket, 1);
+        int serialCount = officialDemoEnabled && rebuildDemo ? 10 : Math.max(serialsPerTicket, 1);
         boolean pastDraw = isPastDraw(station, plan.drawDate(), now);
         boolean futureDraw = plan.drawDate().isAfter(now.toLocalDate());
-        List<SeedTicketScenario> scenarioCycle = officialDemoEnabled
+        List<SeedTicketScenario> scenarioCycle = !rebuildDemo || officialDemoEnabled
                 ? List.of(SeedTicketScenario.IN_STOCK_GOOD)
                 : (plan.pastWindow()
                         ? PAST_SELLABLE_SCENARIOS
@@ -606,6 +634,11 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                     (key, current) -> current == null ? NUMBER_CURSOR_START : current + 1
             );
             String numbers = String.format("%06d", Math.floorMod(numberValue, 1_000_000));
+            while (!rebuildDemo && lotteryTicketRepository.existsByStation_IdAndNumbersAndDrawDate(
+                    station.getId(), numbers, plan.drawDate())) {
+                numbers = String.format("%06d", Math.floorMod(++numberValue, 1_000_000));
+            }
+            numberCursorByStationDate.put(cursorKey, numberValue);
             String ticketSeedKey = SERIAL_PREFIX
                     + SeedDocumentCodes.dateToken(plan.drawDate())
                     + "-"

@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.application.config.VendorTestSeedProperties;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
@@ -61,7 +62,10 @@ import java.util.Set;
 @Slf4j
 public class VendorTestTicketSeedInitializer implements ApplicationRunner {
 
-    @org.springframework.beans.factory.annotation.Value("${daiphat.official-demo.seed.enabled:false}")
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
+    @Value("${daiphat.official-demo.seed.enabled:false}")
     private boolean officialDemoEnabled;
 
     private static final String SEED_MARKER = SharedSeedConstants.VENDOR_SEED_MARKER;
@@ -103,6 +107,7 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         if (officialDemoEnabled) {
             log.info("Skipping legacy vendor test tickets in official demo mode.");
             return;

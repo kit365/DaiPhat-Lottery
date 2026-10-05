@@ -304,9 +304,6 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
   }
 
   Widget _buildContent() {
-    final eligibility = _eligibility!;
-    final tickets = eligibility.refundTickets;
-
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,8 +346,6 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
           _buildCountdownCard(),
           const SizedBox(height: 16),
           _buildBankSection(),
-          const SizedBox(height: 16),
-          _buildTicketsSection(tickets),
           const SizedBox(height: 16),
           _buildReasonField(),
           const SizedBox(height: 16),
@@ -706,80 +701,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
     );
   }
 
-  Widget _buildTicketsSection(List<RefundEligibleTicketItem> tickets) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfacePrimary,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Danh sách vé được hoàn',
-            style: AppTypography.mainWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (tickets.isEmpty)
-            Text(
-              'Không có chi tiết vé. Số tiền hoàn được tính theo tổng đơn hàng.',
-              style: AppTypography.mainWith(
-                fontSize: 13,
-                color: AppColors.textMuted,
-                height: 1.45,
-              ),
-            )
-          else
-            ...tickets.map(
-              (ticket) => Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceSlate50,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ticket.numbers ?? '---',
-                      style: AppTypography.mainWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMain,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${ticket.stationName ?? 'Chưa rõ đài'} • ${_formatShortDate(ticket.drawDate)}',
-                      style: AppTypography.mainWith(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'SL ${ticket.quantity} • ${_formatCurrency(ticket.subtotalAmount)}',
-                      style: AppTypography.mainWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildReasonField() {
     return Container(
@@ -905,9 +827,6 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
 
   String _formatDate(String? value) =>
       AppFormatters.formatDateTimeIso(value, fallback: '-');
-
-  String _formatShortDate(String? value) =>
-      AppFormatters.formatDateIso(value, fallback: '-');
 
   String _statusLabel(String status) {
     switch (status) {

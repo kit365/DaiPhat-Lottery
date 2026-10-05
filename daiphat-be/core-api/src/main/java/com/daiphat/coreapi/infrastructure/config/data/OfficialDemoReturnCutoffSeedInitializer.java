@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.daiphat.coreapi.application.service.lotteries.ReturnBatchAutoCancelService;
 import com.daiphat.coreapi.application.port.in.lotteries.ReturnBatchServicePort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
@@ -26,6 +27,9 @@ import java.time.LocalDateTime;
 @ConditionalOnProperty(value = "daiphat.official-demo.seed.enabled", havingValue = "true")
 public class OfficialDemoReturnCutoffSeedInitializer implements ApplicationRunner {
 
+    @Value("${daiphat.lottery.seed.rebuild-demo:false}")
+    private boolean rebuildDemo;
+
     private final ReturnBatchAutoCancelService returnBatchAutoCancelService;
     private final ReturnBatchServicePort returnBatchServicePort;
     private final ReturnBatchRepository returnBatchRepository;
@@ -35,6 +39,7 @@ public class OfficialDemoReturnCutoffSeedInitializer implements ApplicationRunne
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!rebuildDemo) return;
         int cancelled = returnBatchAutoCancelService.cancelExpiredOpenBatches();
         log.info("Applied actual return cutoff workflow to {} expired return batches.", cancelled);
         LocalDateTime now = LocalDateTime.now(clock);

@@ -946,51 +946,72 @@ class _CheckoutTextFieldRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasError = errorText != null;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 48,
-            height: 48,
-            child: Icon(icon, color: AppColors.contentPrimary, size: 26),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(icon, color: AppColors.contentPrimary, size: 26),
+            ),
           ),
           Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              keyboardType: keyboardType,
-              textInputAction: textInputAction,
-              minLines: minLines,
-              maxLines: maxLines,
-              style: AppTypography.bodyLarge(
-                color: AppColors.contentPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-              decoration: InputDecoration(
-                labelText: label,
-                hintText: hintText,
-                errorText: errorText,
-                isDense: true,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                labelStyle: AppTypography.caption(
-                  color: AppColors.contentMuted,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: AppTypography.labelLarge(
+                    color: hasError
+                        ? AppColors.statusError
+                        : AppColors.contentMuted,
+                  ),
                 ),
-                hintStyle: AppTypography.bodyMedium(
-                  color: AppColors.contentPlaceholder,
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(height: 2),
+                TextField(
+                  controller: controller,
+                  onChanged: onChanged,
+                  keyboardType: keyboardType,
+                  textInputAction: textInputAction,
+                  minLines: minLines,
+                  maxLines: maxLines,
+                  style: AppTypography.bodyLarge(
+                    color: AppColors.contentPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: hintText,
+                    isDense: true,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    hintStyle: AppTypography.bodyMedium(
+                      color: AppColors.contentPlaceholder,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
                 ),
-              ),
+                if (hasError) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    errorText!,
+                    style: AppTypography.caption(
+                      color: AppColors.statusError,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

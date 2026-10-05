@@ -160,6 +160,9 @@ daiphat:
     seed:
       # Local profile sets true. Enable explicitly in other profiles when seeding import/return/settlement.
       enabled: ${LOTTERY_SEED_ENABLED:false}
+      # Default restart behavior only fills missing today/tomorrow inventory.
+      # Explicit true enables the destructive full demo rebuild and scenario runners.
+      rebuild-demo: ${LOTTERY_SEED_REBUILD_DEMO:false}
       tickets-per-batch: 150
       serials-per-ticket: ${LOTTERY_SEED_SERIALS_PER_TICKET:15}
       status-coverage:
